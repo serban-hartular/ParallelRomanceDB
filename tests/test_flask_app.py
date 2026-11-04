@@ -8,6 +8,9 @@ import unittest
 from unittest.mock import patch
 
 from openpyxl import Workbook
+from openpyxl.cell.rich_text import CellRichText, TextBlock
+from openpyxl.cell.text import InlineFont
+from openpyxl.styles import PatternFill
 import pandas as pd
 
 from main import create_app
@@ -170,6 +173,103 @@ class FlaskAppTests(unittest.TestCase):
             self.assertIn('--search-highlight-color: #ff88cc;', html)
         with self.assertRaisesRegex(ValueError, 'SEARCH_HIGHLIGHT_COLOR'):
             create_app(test_config={'SEARCH_HIGHLIGHT_COLOR': '#fff; color: red'})
+
+    def test_imported_backgrounds_and_highlights_coexist_in_both_display_modes(self):
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / 'backgrounds.xlsx'
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append([None, 'LIMBA FRANCEZĂ'])
+            sheet.append(['ETIMON/', 'CAFÉ'])
+            sheet.append(['SENSURI DE BAZĂ', CellRichText([
+                TextBlock(InlineFont(b=True), 'ca'),
+                TextBlock(InlineFont(i=True), 'fé'), ' au lait',
+            ])])
+            sheet['B3'].fill = PatternFill('solid', fgColor='FFCCEEFF')
+            sheet.append([None, 'cafe without a fill'])
+            sheet.append(['ETIMON/', 'SECOND'])
+            sheet.append(['SENSURI DE BAZĂ', 'cafe elsewhere'])
+            workbook.save(source)
+            workbook.close()
+            app = create_app(source, test_config={'TESTING': True, 'SECRET_KEY': 'test'})
+            original = app.extensions['lexicon_df'].copy(deep=True)
+            for headers in ({}, {'HX-Request': 'true'}):
+                for plaintext in (False, True):
+                    with self.subTest(headers=headers, plaintext=plaintext):
+                        client = app.test_client()
+                        response = client.get('/', headers=headers, query_string={
+                            'search': '1', 'q': 'CAFE', 'plaintext': int(plaintext),
+                        })
+                        payload = Page(response).payload
+                        field = next(column['field'] for column in payload['columns'] if column['title'] == 'LIMBA FRANCEZĂ')
+                        row = next(row for row in payload['rows'] if row['label'] == 'SENSURI DE BAZĂ' and row['label_number'] == 1)
+                        self.assertEqual(row['backgrounds'][field], '#CCEEFF')
+                        self.assertIn('<mark class="search-highlight">', row['highlights'][field])
+                        self.assertNotIn('<mark', row[field])
+                        if plaintext:
+                            self.assertEqual(row[field], 'café au lait')
+                        else:
+                            self.assertIn('background-color: #CCEEFF', row['highlights'][field])
+                            self.assertIn('font-weight: bold', row['highlights'][field])
+                            self.assertIn('font-style: italic', row['highlights'][field])
+                        html = response.get_data(as_text=True)
+                        self.assertIn('style="background-color: #CCEEFF;"', html)
+                        self.assertIn('--search-highlight-color: #ffff00;', html)
+                        other = Page(client.get('/?etimon=2', headers=headers)).payload
+                        self.assertTrue(all(not row['backgrounds'] for row in other['rows']))
+            pd.testing.assert_frame_equal(app.extensions['lexicon_df'], original)
+
+    def test_label_number_and_empty_cells_share_the_label_fill(self):
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / 'row-fills.xlsx'
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append([None, 'LIMBA FRANCEZĂ', 'LIMBA ROMÂNĂ', 'LIMBA ITALIANĂ'])
+            sheet.append(['ETIMON/', 'FIRST'])
+            sheet.append(['SENSURI DE BAZĂ', 'café with fill', None, 'café without fill'])
+            sheet.append([None, 'café second'])
+            sheet.append([None, 'café third'])
+            sheet.append(['Other label', 'café uncolored'])
+            sheet.append(['ETIMON/', 'SECOND'])
+            sheet.append(['SENSURI DE BAZĂ', 'café another etymon'])
+            sheet['A3'].fill = PatternFill('solid', fgColor='FFFFCC')
+            sheet['B3'].fill = PatternFill('solid', fgColor='CCEEFF')
+            sheet['C3'].fill = PatternFill('solid', fgColor='FF0000')
+            sheet['A4'].fill = PatternFill('solid', fgColor='FFCCCC')
+            workbook.save(source)
+            workbook.close()
+            app = create_app(source, test_config={'TESTING': True, 'SECRET_KEY': 'test'})
+            original = app.extensions['lexicon_df'].copy(deep=True)
+            for headers in ({}, {'HX-Request': 'true'}):
+                for plaintext in (False, True):
+                    with self.subTest(headers=headers, plaintext=plaintext):
+                        client = app.test_client()
+                        response = client.get('/', headers=headers, query_string={
+                            'search': '1', 'q': 'CAFE', 'plaintext': int(plaintext),
+                        })
+                        payload = Page(response).payload
+                        fields = {column['title']: column['field'] for column in payload['columns']}
+                        basic = [row for row in payload['rows'] if row['label'] == 'SENSURI DE BAZĂ']
+                        for row, color in zip(basic, ['#FFFFCC', '#FFCCCC', '#FFFFCC']):
+                            backgrounds = row['backgrounds']
+                            self.assertEqual(backgrounds['label'], color)
+                            self.assertEqual(backgrounds['label_number'], color)
+                            for column in ('LIMBA ROMÂNĂ', 'OBSERVAȚII', 'CONCLUZII'):
+                                self.assertEqual(row[fields[column]], '')
+                                self.assertEqual(backgrounds[fields[column]], color)
+                        first = basic[0]
+                        self.assertEqual(first['backgrounds'][fields['LIMBA FRANCEZĂ']], '#CCEEFF')
+                        self.assertNotIn(fields['LIMBA ITALIANĂ'], first['backgrounds'])
+                        self.assertIn('<mark class="search-highlight">', first['highlights'][fields['LIMBA FRANCEZĂ']])
+                        uncolored = next(row for row in payload['rows'] if row['label'] == 'Other label')
+                        self.assertEqual(uncolored['backgrounds'], {})
+                        html = response.get_data(as_text=True)
+                        self.assertIn('<th scope="row" class="label-column" style="background-color: #FFFFCC;">SENSURI DE BAZĂ</th>', html)
+                        self.assertIn('<td class="number-column" style="background-color: #FFFFCC;">1</td>', html)
+                        self.assertIn('<td class="content-cell is-empty" style="background-color: #FFFFCC;">', html)
+                        other = Page(client.get('/?etimon=2', headers=headers)).payload
+                        self.assertTrue(all(not row['backgrounds'] for row in other['rows']))
+            pd.testing.assert_frame_equal(app.extensions['lexicon_df'], original)
 
     def test_plaintext_mode_preserves_search_and_selection(self):
         self.client.get('/', query_string={

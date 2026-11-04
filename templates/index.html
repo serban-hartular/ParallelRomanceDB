@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="htmx-config" content='{"allowEval":false,"selfRequestsOnly":true,"historyCacheSize":0}'>
     <title>{{ page_title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/tabulator.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -24,7 +25,7 @@
           <input type="hidden" name="search" value="1">
           <div class="field query-field">
             <label for="query" class="visually-hidden">Search text</label>
-            <input id="query" type="search" name="q" value="{{ criteria.query }}" placeholder="Search a word or phrase…" aria-describedby="search-hint">
+            <input id="query" type="search" name="q" value="{{ criteria.query }}" maxlength="{{ max_search_length }}" placeholder="Search a word or phrase…" aria-describedby="search-hint">
           </div>
           {% for name, title, options in [('column', 'Columns', columns), ('label', 'Labels', labels)] %}
             <div class="field filter-field">

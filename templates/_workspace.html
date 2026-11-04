@@ -8,22 +8,27 @@
               <span class="count">{{ matches | length }}</span>
             </div>
             {% if matches %}
-              <nav aria-label="Matching etymons">
-                <ol class="results-list">
-                  {% for match in matches %}
-                    <li>
-                      <a class="etimon-link{% if selected and selected.number == match.number %} is-selected{% endif %}"
-                         data-etimon-id="{{ match.number }}"
-                         href="{{ url_for('index', etimon=match.number) }}" hx-get="{{ url_for('index', etimon=match.number) }}"
-                         {% if selected and selected.number == match.number %}aria-current="true"{% endif %}>
-                        <span class="etimon-number">{{ match.number }}</span>
-                        <span class="result-text"><strong>{{ match.form }}</strong><small>{{ match.language }}</small></span>
-                        <span class="result-arrow" aria-hidden="true">↗</span>
-                      </a>
-                    </li>
-                  {% endfor %}
-                </ol>
-              </nav>
+              <div class="results-scroll-frame">
+                <nav id="results-viewport" class="results-viewport" aria-label="Matching etymons" tabindex="0">
+                  <ol class="results-list">
+                    {% for match in matches %}
+                      <li>
+                        <a class="etimon-link{% if selected and selected.number == match.number %} is-selected{% endif %}"
+                           data-etimon-id="{{ match.number }}"
+                           href="{{ url_for('index', etimon=match.number) }}" hx-get="{{ url_for('index', etimon=match.number) }}"
+                           {% if selected and selected.number == match.number %}aria-current="true"{% endif %}>
+                          <span class="etimon-number">{{ match.number }}</span>
+                          <span class="result-text"><strong>{{ match.form }}</strong><small>{{ match.language }}</small></span>
+                          <span class="result-arrow" aria-hidden="true">↗</span>
+                        </a>
+                      </li>
+                    {% endfor %}
+                  </ol>
+                </nav>
+                <div class="table-scrollbar scrollbar-vertical" role="scrollbar" tabindex="0" aria-label="Scroll etymon results up or down" aria-orientation="vertical" aria-controls="results-viewport" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden>
+                  <div class="scrollbar-thumb"></div>
+                </div>
+              </div>
             {% else %}
               <p class="empty-list">No etimons match this search.</p>
             {% endif %}
@@ -92,11 +97,12 @@
                   <tbody>
                     {% for row in table_rows %}
                       {% set highlights = highlighted_rows[loop.index0] %}
+                      {% set backgrounds = background_rows[loop.index0] %}
                       <tr>
-                        <th scope="row" class="label-column">{{ row.label }}</th>
-                        <td class="number-column">{{ row.label_number }}</td>
+                        <th scope="row" class="label-column"{% if 'label' in backgrounds %} style="background-color: {{ backgrounds.label }};"{% endif %}>{{ row.label }}</th>
+                        <td class="number-column"{% if 'label_number' in backgrounds %} style="background-color: {{ backgrounds.label_number }};"{% endif %}>{{ row.label_number }}</td>
                         {% for column in table_columns %}
-                          <td class="content-cell">
+                          <td class="content-cell{% if not row[column] %} is-empty{% endif %}"{% if column in backgrounds %} style="background-color: {{ backgrounds[column] }};"{% endif %}>
                             {% if plaintext %}
                               <div class="plain-content">{% if column in highlights %}{{ highlights[column] | safe }}{% else %}{{ row[column] }}{% endif %}</div>
                             {% else %}

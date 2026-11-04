@@ -7,6 +7,7 @@
   --line: #dddeda;
   --green: #294d3d;
   --highlight: #e9eee7;
+  --label-background: #f8f8f2;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--ink);
   background: var(--paper);
@@ -53,7 +54,9 @@ h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 .results-toggle { position: absolute; top: 4px; right: 4px; z-index: 1; width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--green); font-size: 21px; cursor: pointer; }
 .results-toggle:hover { background: var(--highlight); }
 .results-hidden .results-toggle { right: 0; }
-.results-panel nav { flex: 1; min-height: 0; overflow-y: auto; scrollbar-color: #83917e #e4e8df; }
+.results-scroll-frame { flex: 1; min-height: 0; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); }
+.results-viewport { grid-column: 1; grid-row: 1; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; scrollbar-color: #83917e #e4e8df; }
+.results-scroll-frame > .scrollbar-vertical { grid-column: 2; grid-row: 1; }
 .count { padding: 2px 6px; font-size: 10px; background: #efeee8; border-radius: 20px; font-variant-numeric: tabular-nums; }
 .results-list { list-style: none; padding: 5px; margin: 0; }
 .etimon-link { display: flex; align-items: center; gap: 10px; text-decoration: none; border-radius: 4px; padding: 9px 8px; margin: 2px 0; border: 1px solid transparent; }
@@ -99,8 +102,8 @@ h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 .table-scrollbar:hover .scrollbar-thumb, .table-scrollbar:focus-visible .scrollbar-thumb { background: #526c50; }
 .table-scrollbar.is-dragging .scrollbar-thumb { background: var(--green); cursor: grabbing; }
 .table-scrollbar:focus-visible { outline-offset: -3px; }
-.custom-scrollbars .tabulator-tableholder, .custom-scrollbars .table-scroll { scrollbar-width: none; }
-.custom-scrollbars .tabulator-tableholder::-webkit-scrollbar, .custom-scrollbars .table-scroll::-webkit-scrollbar { display: none; }
+.custom-scrollbars .tabulator-tableholder, .custom-scrollbars .table-scroll, .custom-scrollbars .results-viewport { scrollbar-width: none; }
+.custom-scrollbars .tabulator-tableholder::-webkit-scrollbar, .custom-scrollbars .table-scroll::-webkit-scrollbar, .custom-scrollbars .results-viewport::-webkit-scrollbar { display: none; }
 .grid-active .table-fallback { display: none; }
 #etimon-grid.tabulator { flex: 1; min-height: 0; border: 0; background: var(--surface); color: var(--ink); font-size: 12px; font-family: inherit; }
 #etimon-grid .tabulator-header { border-color: var(--line); background: #eef0e9; color: var(--ink); font-size: 10px; }
@@ -110,7 +113,8 @@ h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 #etimon-grid .tabulator-row { min-height: 36px; background: var(--surface); border-bottom: 1px solid var(--line); }
 #etimon-grid .tabulator-row:hover { background: var(--surface); }
 #etimon-grid .tabulator-cell { border-color: var(--line); padding: 12px; white-space: normal; text-overflow: clip; line-height: 1.6; }
-#etimon-grid .grid-label, #etimon-grid .grid-number { background: #f8f8f2; font-size: 10px; }
+#etimon-grid .grid-label, #etimon-grid .grid-number { background: var(--label-background); font-size: 10px; }
+#etimon-grid .tabulator-cell.is-empty { background: var(--label-background); }
 #etimon-grid .grid-number { color: var(--muted); padding-left: 10px; padding-right: 10px; }
 #etimon-grid .tabulator-frozen.tabulator-frozen-left { border-right-color: var(--line); }
 #etimon-grid .tabulator-row-resize-handle { height: 6px; }
@@ -120,11 +124,11 @@ h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 .etimon-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: 12px; table-layout: fixed; }
 .etimon-table th, .etimon-table td { width: 290px; min-width: 290px; max-width: 290px; padding: 12px; text-align: left; vertical-align: top; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .etimon-table thead th { background: #eef0e9; position: sticky; top: 0; z-index: 3; font-size: 10px; letter-spacing: .05em; font-weight: 650; padding-top: 10px; padding-bottom: 10px; }
-.etimon-table .label-column { position: sticky; left: 0; z-index: 2; width: 180px; min-width: 180px; max-width: 180px; background: #f8f8f2; font-size: 10px; line-height: 1.7; font-weight: 550; }
-.etimon-table .number-column { position: sticky; left: 180px; z-index: 2; width: 48px; min-width: 48px; max-width: 48px; padding-left: 12px; padding-right: 12px; text-align: center; background: #f8f8f2; color: var(--muted); font-size: 11px; }
+.etimon-table .label-column { position: sticky; left: 0; z-index: 2; width: 180px; min-width: 180px; max-width: 180px; background: var(--label-background); font-size: 10px; line-height: 1.7; font-weight: 550; }
+.etimon-table .number-column { position: sticky; left: 180px; z-index: 2; width: 48px; min-width: 48px; max-width: 48px; padding-left: 12px; padding-right: 12px; text-align: center; background: var(--label-background); color: var(--muted); font-size: 11px; }
 .etimon-table thead .label-column, .etimon-table thead .number-column { z-index: 4; background: #eef0e9; }
 .content-cell { background: var(--surface); line-height: 1.6; }
-.content-cell:empty { background: #fcfcf8; }
+.content-cell.is-empty { background: var(--label-background); }
 .plain-content { white-space: pre-wrap; }
 .search-highlight { background-color: var(--search-highlight-color); color: inherit; padding: 0; font: inherit; }
 .empty-list { padding: 10px 14px; line-height: 1.7; font-size: 13px; color: var(--muted); }

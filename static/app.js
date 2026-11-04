@@ -5,6 +5,7 @@
   const preferences = new Map();
   let active = null;
   let scrollbars = null;
+  let resultsScrollbars = null;
   let updates = Promise.resolve();
   let resultsHidden = false;
 
@@ -57,6 +58,17 @@
       const column = instance.table.getColumn(input.dataset.gridField);
       input.checked = column ? column.isVisible() : true;
     });
+  }
+
+  function formatRow(instance, row) {
+    const backgrounds = row.getData().backgrounds || {};
+    // Paint the whole cell, including frozen identifiers and resized space.
+    // Clear absent fills so replacing data cannot leave an old color behind.
+    row.getCells().forEach(cell => {
+      cell.getElement().style.backgroundColor = backgrounds[cell.getField()] || "";
+      cell.getElement().classList.toggle("is-empty", cell.getValue() === "");
+    });
+    restoreRowHeight(instance, row);
   }
 
   function restoreRowHeight(instance, row) {
@@ -140,7 +152,7 @@
       renderVertical: "basic",
       resizableRows: true,
       columnDefaults: { headerSort: false, resizable: "header", vertAlign: "top" },
-      rowFormatter: row => restoreRowHeight(instance, row),
+      rowFormatter: row => formatRow(instance, row),
     });
     instance.table.on("tableBuilt", instance.resolveReady);
     instance.table.on("renderComplete", () => scrollbars?.schedule());
@@ -190,6 +202,15 @@
     scrollbars = null;
     if (viewport && typeof window.XLDBScrollbars === "function") {
       scrollbars = new window.XLDBScrollbars(workspace.querySelector(".table-frame"), viewport);
+    }
+  }
+
+  function bindResultsScrollbars(workspace) {
+    resultsScrollbars?.destroy();
+    resultsScrollbars = null;
+    const viewport = workspace?.querySelector("#results-viewport");
+    if (viewport && typeof window.XLDBScrollbars === "function") {
+      resultsScrollbars = new window.XLDBScrollbars(workspace.querySelector(".results-scroll-frame"), viewport);
     }
   }
 
@@ -267,6 +288,7 @@
     toggle.setAttribute("aria-label", label);
     toggle.title = label;
     toggle.querySelector("[data-results-toggle-icon]").textContent = resultsHidden ? "»" : "«";
+    resultsScrollbars?.schedule();
   }
 
   function initialize() {
@@ -274,6 +296,7 @@
     if (workspace && !workspace.dataset.initialized) {
       if (workspace.dataset.revealResults === "true") resultsHidden = false;
       syncResultsPanel(workspace);
+      bindResultsScrollbars(workspace);
       workspace.dataset.initialized = "true";
       scheduleWorkspace(workspace);
     }
@@ -326,6 +349,7 @@
 
   document.addEventListener("htmx:load", initialize);
   document.addEventListener("htmx:beforeCleanupElement", event => {
+    if (resultsScrollbars && event.detail.elt === resultsScrollbars.frame) bindResultsScrollbars(null);
     if (scrollbars && event.detail.elt === scrollbars.frame) bindScrollbars(null, null);
     if (active && event.detail.elt === active.element) destroyGrid();
   });

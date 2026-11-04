@@ -12,8 +12,9 @@
       this.axes = [
         {name: "horizontal", position: "scrollLeft", extent: "scrollWidth", client: "clientWidth", coordinate: "clientX", origin: "left", size: "width"},
         {name: "vertical", position: "scrollTop", extent: "scrollHeight", client: "clientHeight", coordinate: "clientY", origin: "top", size: "height"},
-      ].map(axis => {
+      ].flatMap(axis => {
         axis.rail = frame.querySelector(`.scrollbar-${axis.name}`);
+        if (!axis.rail) return [];
         axis.thumb = axis.rail.querySelector(".scrollbar-thumb");
         axis.rail.setAttribute("aria-controls", viewport.closest("#etimon-grid")?.id || viewport.id);
         this.listen(axis.rail, "pointerdown", event => this.startDrag(event, axis));
@@ -22,7 +23,7 @@
         this.listen(axis.rail, "pointerup", () => this.endDrag());
         this.listen(axis.rail, "pointercancel", () => this.endDrag());
         this.listen(axis.rail, "keydown", event => this.keyScroll(event, axis));
-        return axis;
+        return [axis];
       });
       this.listen(viewport, "scroll", () => this.schedule(), {passive: true});
       this.listen(window, "resize", () => this.schedule());

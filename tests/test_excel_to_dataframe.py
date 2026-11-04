@@ -8,7 +8,7 @@ import unittest
 from openpyxl import Workbook, load_workbook
 from openpyxl.cell.rich_text import CellRichText, TextBlock
 from openpyxl.cell.text import InlineFont
-from openpyxl.styles import Color, Font
+from openpyxl.styles import Color, Font, GradientFill, PatternFill
 
 from extract_sheet import excel_to_dataframe
 
@@ -28,6 +28,82 @@ class HTMLText(HTMLParser):
 
 
 class ExcelToDataFrameTests(unittest.TestCase):
+    def test_label_backgrounds_follow_source_rows_and_inherited_labels(self):
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / 'label-fills.xlsx'
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append([None, 'LIMBA FRANCEZĂ'])
+            sheet.append(['ETIMON/', 'WORD'])
+            sheet.append(['Basic'])  # Label-only row establishes the category.
+            sheet.append([None, 'one'])
+            sheet.append([None, 'two'])
+            sheet.append([None, None])  # A fill alone must not consume numbering.
+            sheet.append([None, 'three'])
+            sheet.append(['Other', 'four'])
+            sheet.append(['ETIMON/', 'NEXT'])
+            sheet.append(['Basic', 'five'])
+            for coordinate, color in [('A2', 'CCFFCC'), ('A3', 'FFFFCC'), ('A5', 'FFCCCC'), ('A6', '000000')]:
+                sheet[coordinate].fill = PatternFill('solid', fgColor=color)
+            sheet.merge_cells('A3:A4')
+            workbook.save(source)
+            workbook.close()
+            frame = excel_to_dataframe(source)
+            self.assertEqual(frame.attrs['label_backgrounds'], {
+                (1, 'ETIMON/', 1): '#CCFFCC',
+                (1, 'Basic', 1): '#FFFFCC',
+                (1, 'Basic', 2): '#FFCCCC',
+                (1, 'Basic', 3): '#FFFFCC',
+            })
+            self.assertEqual(len(frame), 7)
+            self.assertTrue(frame['background_color'].eq('').all())
+            self.assertEqual(frame.loc[frame.label.eq('Basic'), 'label_number'].tolist(), [1, 2, 3, 1])
+
+    def test_solid_background_colors_preserve_text_and_skip_unsupported_fills(self):
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / 'fills.xlsx'
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append([None, 'LIMBA FRANCEZĂ'])
+            sheet.append(['ETIMON/', 'WORD'])
+            cases = [
+                (PatternFill('solid', fgColor='FFFFCCCC', bgColor='FF0000FF'), '#FFCCCC'),
+                (PatternFill('solid', fgColor=Color(indexed=2)), '#FF0000'),
+                (PatternFill('solid', fgColor=Color(theme=1, tint=0.5)), '#808080'),
+                (PatternFill('solid', fgColor='000000'), '#000000'),
+                (PatternFill('solid', fgColor='FFFFFF'), '#FFFFFF'),
+                (PatternFill(fgColor='FFFF0000'), ''),
+                (PatternFill('darkGrid', fgColor='FFFF0000', bgColor='FF0000FF'), ''),
+                (GradientFill(stop=['FFFF0000', 'FF0000FF']), ''),
+                (PatternFill('solid', fgColor=Color(auto=True)), ''),
+            ]
+            text = '  café <&>  '
+            for fill, _ in cases:
+                sheet.append(['SENSURI DE BAZĂ', CellRichText([
+                    '  ', TextBlock(InlineFont(i=True), 'café'), ' <&>  ',
+                ])])
+                sheet.cell(sheet.max_row, 2).fill = fill
+            # Formatting alone must not create extra data records or rows.
+            sheet.cell(sheet.max_row + 1, 2).fill = PatternFill('solid', fgColor='FFFF0000')
+            workbook.save(source)
+            workbook.close()
+            before = source.read_bytes()
+            frame = excel_to_dataframe(source)
+            self.assertEqual(len(frame), 1 + len(cases))
+            self.assertEqual(frame.iloc[0].background_color, '')
+            for record, (_, expected) in zip(frame.iloc[1:].to_dict('records'), cases):
+                with self.subTest(expected=expected, html=record['content']):
+                    self.assertEqual(record['background_color'], expected)
+                    self.assertEqual(HTMLText(record['content']).text, text)
+                    self.assertEqual(record['plaintext_content'], text.strip())
+                    self.assertEqual(record['nodiacritics_plaintext'], 'cafe <&>')
+                    self.assertIn('font-style: italic', record['content'])
+                    if expected:
+                        self.assertIn(f'background-color: {expected}', record['content'])
+                    else:
+                        self.assertNotIn('background-color:', record['content'])
+            self.assertEqual(source.read_bytes(), before)
+
     def test_search_expansions_preserve_original_cell_content(self):
         with TemporaryDirectory() as directory:
             source = Path(directory) / 'ligatures.xlsx'
@@ -53,7 +129,7 @@ class ExcelToDataFrameTests(unittest.TestCase):
         frame = excel_to_dataframe(source, 'Sheet1')
         self.assertEqual(list(frame.columns), [
             'etimon_number', 'column', 'label', 'label_number',
-            'content', 'plaintext_content', 'nodiacritics_plaintext',
+            'content', 'plaintext_content', 'nodiacritics_plaintext', 'background_color',
         ])
         example = frame.loc[frame.plaintext_content.str.startswith('Prăjitură cu cremă')]
         self.assertEqual(len(example), 1)
@@ -155,12 +231,23 @@ class ExcelToDataFrameTests(unittest.TestCase):
                 HTMLText(rich).text, '  <&>under23themeindexedtinted\n  ',
             )
 
+    def test_duplicate_headings_are_rejected_before_table_reconstruction(self):
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / 'duplicate.xlsx'
+            workbook = Workbook()
+            workbook.active.append([None, 'LIMBA ROMÂNĂ', 'LIMBA ROMÂNĂ'])
+            workbook.active.append(['ETIMON/', 'unu', 'doi'])
+            workbook.save(source)
+            workbook.close()
+            with self.assertRaisesRegex(ValueError, 'Duplicate column heading.*B1 and C1'):
+                excel_to_dataframe(source)
+
     def test_empty_and_invalid_layouts(self):
         with TemporaryDirectory() as directory:
             source = Path(directory) / 'empty.xlsx'
             workbook = Workbook()
             workbook.save(source)
-            self.assertEqual(excel_to_dataframe(source).shape, (0, 7))
+            self.assertEqual(excel_to_dataframe(source).shape, (0, 8))
             with self.assertRaisesRegex(ValueError, 'does not exist'):
                 excel_to_dataframe(source, 'Missing')
 

@@ -38,7 +38,7 @@ class Element {
   closest() { return null; }
 }
 
-function fixture() {
+function fixture({verticalOnly = false} = {}) {
   const window = new Element();
   const horizontal = new Element({width: 400, height: 18});
   const vertical = new Element({width: 18, height: 300});
@@ -47,9 +47,9 @@ function fixture() {
     rail.querySelector = () => rail.thumb;
   }
   const frame = new Element();
-  frame.querySelector = name => name === ".scrollbar-horizontal" ? horizontal : vertical;
+  frame.querySelector = name => name === ".scrollbar-horizontal" ? (verticalOnly ? null : horizontal) : vertical;
   const viewport = Object.assign(new Element(), {
-    id: "etimon-fallback", clientWidth: 400, scrollWidth: 1600,
+    id: verticalOnly ? "results-viewport" : "etimon-fallback", clientWidth: 400, scrollWidth: 1600,
     clientHeight: 300, scrollHeight: 1200, scrollLeft: 0, scrollTop: 0,
     firstElementChild: new Element(),
   });
@@ -160,4 +160,33 @@ test("cleanup cancels dragging, scheduled work, and listeners before an htmx swa
   f.viewport.emit("scroll");
   assert.equal(f.viewport.scrollLeft, 0);
   assert.equal(f.pending.size, 0);
+});
+
+test("a results list with only a vertical rail supports scrolling and hide/show", () => {
+  const f = fixture({verticalOnly: true});
+  assert.equal(f.vertical.attributes["aria-controls"], "results-viewport");
+  assert.equal(f.frame.classes.has("custom-scrollbars"), true);
+  f.vertical.emit("keydown", {key: "End"});
+  assert.equal(f.viewport.scrollTop, 900);
+  f.vertical.emit("pointerdown", {target: f.vertical.thumb, clientY: 225});
+  f.vertical.emit("pointermove", {clientY: 0});
+  assert.equal(f.viewport.scrollTop, 0);
+  f.vertical.emit("pointerup");
+  f.viewport.clientHeight = 0;
+  f.viewport.scrollHeight = 0;
+  f.observer.callback();
+  f.flush();
+  assert.equal(f.vertical.hidden, true);
+  f.viewport.clientHeight = 300;
+  f.viewport.scrollHeight = 1200;
+  f.observer.callback();
+  f.flush();
+  assert.equal(f.vertical.hidden, false);
+  f.viewport.scrollTop = 450;
+  f.viewport.emit("scroll");
+  f.flush();
+  assert.equal(f.vertical.thumb.style.transform, "translateY(112.5px)");
+  f.controller.destroy();
+  assert.equal(f.observer.disconnected, true);
+  assert.equal(f.vertical.hidden, true);
 });

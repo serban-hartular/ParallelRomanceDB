@@ -240,11 +240,20 @@ def _font_to_css(font, color_to_css, fallback=None) -> str:
     return '; '.join(styles)
 
 
-def _cell_to_html(cell, color_to_css) -> str:
+def _cell_background(cell, color_to_css) -> str:
+    """Resolve a static solid fill; unsupported or absent fills stay unset."""
+    if cell.fill.fill_type != 'solid':
+        return ''
+    return color_to_css(cell.fill.fgColor) or ''
+
+
+def _cell_to_html(cell, color_to_css, background_color='') -> str:
     """Preserve text and its whitespace using escaped HTML and inline CSS."""
     value = cell.value
     base_style = _font_to_css(cell.font, color_to_css)
     style = 'white-space: pre-wrap'
+    if background_color:
+        style += f'; background-color: {background_color}'
     if isinstance(value, CellRichText):
         parts = []
         for part in value:
@@ -276,22 +285,29 @@ def excel_to_dataframe(
     blank rows do not increment it. Includes etymon rows and all named
     columns, including observations and conclusions. Whitespace-only cells
     are skipped. Populated cells without a column heading or preceding
-    etymon raise ValueError instead of being silently discarded.
+    etymon raise ValueError instead of being silently discarded. Duplicate
+    column headings also raise ValueError; headings are compared exactly.
 
     content contains escaped HTML with font formatting (including rich-text
     runs, colors, size, bold, italics, underlining, strike, and sub/superscript)
-    and preserved whitespace. Cell borders, fills, and worksheet layout are
-    not represented. plaintext_content is str(cell.value).strip(), retaining
+    and preserved whitespace. Static solid cell fills are included in content
+    and in background_color as a CSS hex color (or '' for no supported fill).
+    RGB, indexed, and theme/tinted colors are supported. Pattern/gradient fills,
+    conditional formatting, cell borders, and worksheet layout are not rendered.
+    plaintext_content is str(cell.value).strip(), retaining
     internal whitespace. nodiacritics_plaintext is its accent-free search
     equivalent, preserving case and internal whitespace. Formulas are
     retained as expressions, not evaluated.
     The source workbook is never modified. Defaults to the first worksheet.
     The returned DataFrame's attrs['sheet_name'] records the actual sheet title.
+    attrs['label_backgrounds'] maps (etymon, label, label_number) to row-label
+    fill colors. Blank label cells inherit the last explicit label's fill,
+    unless they have their own supported fill. No extra data rows are created.
     Requires openpyxl >= 3.1 for rich-text loading.
     """
     columns = [
         'etimon_number', 'column', 'label', 'label_number', 'content',
-        'plaintext_content', 'nodiacritics_plaintext',
+        'plaintext_content', 'nodiacritics_plaintext', 'background_color',
     ]
     workbook = load_workbook(excel_path, rich_text=True)
     try:
@@ -302,20 +318,31 @@ def excel_to_dataframe(
                 raise ValueError(f'Worksheet {sheet_name!r} does not exist.')
             sheet = workbook[sheet_name]
 
-        headers = {
-            cell.column: str(cell.value)
-            for cell in sheet[1][1:]
-            if cell.value is not None and str(cell.value).strip()
-        }
+        headers = {}
+        header_cells = {}
+        for cell in sheet[1][1:]:
+            if cell.value is None or not str(cell.value).strip():
+                continue
+            heading = str(cell.value)
+            if heading in header_cells:
+                raise ValueError(
+                    f'Duplicate column heading {heading!r} in '
+                    f'{header_cells[heading]} and {cell.coordinate}.'
+                )
+            headers[cell.column] = heading
+            header_cells[heading] = cell.coordinate
         color_to_css = _color_resolver(workbook)
         records = []
         etimon_number = 0
         label = None
+        label_background = ''
+        label_backgrounds = {}
         counts = Counter()
         for row in sheet.iter_rows(min_row=2):
             row_label = row[0].value
             if row_label is not None and str(row_label).strip():
                 label = str(row_label)
+                label_background = _cell_background(row[0], color_to_css)
                 if re.match(r'^\s*ETIMON\s*/', label, flags=re.IGNORECASE):
                     etimon_number += 1
                     counts.clear()
@@ -326,22 +353,28 @@ def excel_to_dataframe(
             if not etimon_number:
                 raise ValueError(f'Row {row[0].row} has content before the first ETIMON/ label.')
             counts[label] += 1
+            row_background = _cell_background(row[0], color_to_css) or label_background
+            if row_background:
+                label_backgrounds[(etimon_number, label, counts[label])] = row_background
             for cell in populated:
                 if cell.column not in headers:
                     raise ValueError(f'Cell {cell.coordinate} has content but no column heading.')
                 plaintext = str(cell.value).strip()
+                background_color = _cell_background(cell, color_to_css)
                 records.append({
                     'etimon_number': etimon_number,
                     'column': headers[cell.column],
                     'label': label,
                     'label_number': counts[label],
-                    'content': _cell_to_html(cell, color_to_css),
+                    'content': _cell_to_html(cell, color_to_css, background_color),
                     'plaintext_content': plaintext,
                     'nodiacritics_plaintext': remove_diacritics(plaintext),
+                    'background_color': background_color,
                 })
 
         frame = pd.DataFrame.from_records(records, columns=columns)
         frame.attrs['sheet_name'] = sheet.title
+        frame.attrs['label_backgrounds'] = label_backgrounds
         return frame
     finally:
         workbook.close()

@@ -1,17 +1,24 @@
-"""Local Flask interface for browsing the Romance-language workbook.
+"""Read-only Flask interface for browsing the Romance-language workbook.
 
-Run with .venv/bin/python main.py, then open http://127.0.0.1:5000.
+Run with .venv/bin/python main.py [workbook.xlsx] [--sheet NAME], then open
+http://127.0.0.1:5000.
 """
 
+import argparse
 from functools import lru_cache
 from hashlib import sha256
+from ipaddress import ip_address
 import json
 import os
 from pathlib import Path
 import re
 from secrets import token_hex
+from xml.etree.ElementTree import ParseError
+from zipfile import BadZipFile
 
-from flask import Flask, render_template, request, session
+from flask import Flask, abort, render_template, request, session
+from openpyxl.utils.exceptions import InvalidFileException
+from waitress import serve
 
 from df_search import COLUMN_ORDER, LABEL_ORDER, get_etimon, search_dataframe
 from extract_sheet import excel_to_dataframe
@@ -86,6 +93,29 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
         f"{Path(app.config['EXCEL_PATH']).resolve()}:{app.config['SHEET_NAME']}".encode()
     ).hexdigest()[:16]
 
+    @app.before_request
+    def limit_request():
+        # Check before parsing arguments or updating the signed preference cookie.
+        if len(request.query_string) > app.config['MAX_QUERY_STRING_LENGTH']:
+            abort(414, description='Query string is too long.')
+        if len(request.args.get('q', '')) > app.config['MAX_SEARCH_LENGTH']:
+            abort(400, description='Search text is too long.')
+
+    @app.after_request
+    def security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Referrer-Policy'] = 'same-origin'
+        # Excel formatting and grid sizing require inline styles; scripts are local files.
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; connect-src 'self'; object-src 'none'; "
+            "base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+        )
+        if app.config['SESSION_COOKIE_SECURE'] and request.is_secure:
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000'
+        return response
+
     @lru_cache(maxsize=128)
     def matching_numbers(query, label, column):
         if not query and not label and not column:
@@ -100,10 +130,15 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
             session.pop('search', None)
             session.pop('etimon', None)
         elif 'search' in request.args:
+            selections = {
+                name: _filter_values(request.args.getlist(name))
+                for name in ('label', 'column')
+            }
+            if set(selections['label']) - set(labels) or set(selections['column']) - set(columns):
+                abort(400, description='Unknown search filter.')
             session['search'] = {
                 'query': request.args.get('q', ''),
-                'label': request.args.getlist('label'),
-                'column': request.args.getlist('column'),
+                **selections,
             }
             session.pop('etimon', None)
 
@@ -131,6 +166,23 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
         table = get_etimon(df, selected, plaintext=plaintext) if selected is not None else None
         table_columns = list(table.columns[2:]) if table is not None else []
         table_rows = table.to_dict('records') if table is not None else []
+        cell_backgrounds = {
+            (record.label, record.label_number, record.column): record.background_color
+            for record in df.loc[df['etimon_number'].eq(selected)].itertuples(index=False)
+            if record.background_color
+        }
+        label_backgrounds = df.attrs.get('label_backgrounds', {})
+        background_rows = []
+        for row in table_rows:
+            label_color = label_backgrounds.get((selected, row['label'], row['label_number']), '')
+            backgrounds = {'label': label_color, 'label_number': label_color} if label_color else {}
+            for column in table_columns:
+                color = cell_backgrounds.get((row['label'], row['label_number'], column), '')
+                if not row[column]:
+                    color = label_color
+                if color:
+                    backgrounds[column] = color
+            background_rows.append(backgrounds)
         highlighted_rows = [
             {
                 column: highlighted
@@ -155,8 +207,15 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
                     column['field']: highlights[column['title']]
                     for column in grid_columns if column['title'] in highlights
                 },
+                'backgrounds': {
+                    **{field: backgrounds[field] for field in ('label', 'label_number') if field in backgrounds},
+                    **{
+                        column['field']: backgrounds[column['title']]
+                        for column in grid_columns if column['title'] in backgrounds
+                    },
+                },
             }
-            for row, highlights in zip(table_rows, highlighted_rows)
+            for row, highlights, backgrounds in zip(table_rows, highlighted_rows, background_rows)
         ]
         selected_entry = entries.get(selected)
         selected_index = numbers.index(selected) if numbers else 0
@@ -180,7 +239,9 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
             table_columns=table_columns,
             table_rows=table_rows,
             highlighted_rows=highlighted_rows,
+            background_rows=background_rows,
             highlight_color=app.config['SEARCH_HIGHLIGHT_COLOR'],
+            max_search_length=app.config['MAX_SEARCH_LENGTH'],
             grid_columns=grid_columns,
             plaintext=plaintext,
             grid_payload={
@@ -200,8 +261,81 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
     return app
 
 
-app = create_app()
+def _port(value):
+    try:
+        port = int(value)
+        if 1 <= port <= 65535:
+            return port
+    except ValueError:
+        pass
+    raise argparse.ArgumentTypeError('Port must be an integer from 1 to 65535.')
+
+
+def _ip(value):
+    try:
+        return str(ip_address(value))
+    except ValueError:
+        raise argparse.ArgumentTypeError('Expected a single IPv4 or IPv6 address.') from None
+
+
+def main(argv=None):
+    """Load the requested workbook and serve it with Waitress, without debug mode."""
+    parser = argparse.ArgumentParser(description='Browse an Excel etymon workbook with Parallel Words.')
+    parser.add_argument(
+        'excel_file', nargs='?', type=Path, default=DEFAULT_EXCEL_PATH,
+        help='Workbook to load (default: db/example.xlsx beside main.py).',
+    )
+    parser.add_argument(
+        '--sheet', '-s', metavar='NAME',
+        help='Exact worksheet name (default: the first worksheet).',
+    )
+    binding = parser.add_mutually_exclusive_group()
+    binding.add_argument('--local', dest='host', action='store_const', const='127.0.0.1',
+                         help='Listen on localhost only (default).')
+    binding.add_argument('--public', dest='host', action='store_const', const='0.0.0.0',
+                         help='Listen on all IPv4 interfaces; all reachable users can read the data.')
+    binding.add_argument('--host', type=_ip, metavar='IP',
+                         help='Listen on a specific IPv4 or IPv6 interface instead.')
+    parser.set_defaults(host='127.0.0.1')
+    parser.add_argument('--port', type=_port, default=5000, help='Listening port (default: 5000).')
+    parser.add_argument('--trusted-host', action='append', metavar='HOSTNAME',
+                        help='Allowed Host header name, without scheme/port; repeat for more names.')
+    parser.add_argument('--trusted-proxy', type=_ip, metavar='IP',
+                        help='Trust one proxy at this exact IP for client address and HTTP/HTTPS scheme.')
+    parser.add_argument('--secure-cookies', action='store_true',
+                        help='Send session cookies only over HTTPS; requires an HTTPS reverse proxy.')
+    args = parser.parse_args(argv)
+    settings = {'DEBUG': False, 'TESTING': False}
+    if args.trusted_host:
+        settings['TRUSTED_HOSTS'] = args.trusted_host
+    if args.secure_cookies:
+        settings['SESSION_COOKIE_SECURE'] = True
+    try:
+        server = create_app(args.excel_file, sheet_name=args.sheet, test_config=settings)
+    except (OSError, ValueError, BadZipFile, InvalidFileException, ParseError, KeyError) as error:
+        parser.error(f'Could not load {args.excel_file}: {error}')
+    proxy_settings = {}
+    if args.trusted_proxy:
+        proxy_settings = {
+            'trusted_proxy': args.trusted_proxy,
+            'trusted_proxy_count': 1,
+            'trusted_proxy_headers': {'x-forwarded-for', 'x-forwarded-proto'},
+        }
+    try:
+        serve(
+            server, host=args.host, port=args.port,
+            clear_untrusted_proxy_headers=True, expose_tracebacks=False,
+            max_request_header_size=16 * 1024, max_request_body_size=64 * 1024,
+            channel_timeout=30, connection_limit=100, threads=4,
+            **proxy_settings,
+        )
+    except OSError as error:
+        parser.error(f'Could not listen on {args.host}:{args.port}: {error}')
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000)
+    main()
+else:
+    # Preserve Flask's import-based entry point without loading the default
+    # workbook before command-line arguments (including --help) are parsed.
+    app = create_app()
