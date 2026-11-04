@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if selected %}{{ selected.form }} · {% endif %}XLDB — Romance lexicon</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/tabulator.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script defer src="{{ url_for('static', filename='vendor/htmx.min.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='vendor/tabulator.min.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='app.js') }}"></script>
+  </head>
+  <body id="app-shell" hx-target="#workspace" hx-swap="outerHTML" hx-sync="#app-shell:replace" hx-indicator="#request-status">
+    <header class="site-header">
+      <a class="brand" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}" aria-label="XLDB, show all etimons">XLDB<span>Romance lexicon</span></a>
+      <span class="collection-count">{{ total }} etimon{% if total != 1 %}s{% endif %} in the collection</span>
+    </header>
+
+    <main>
+      <section class="search-panel" aria-labelledby="search-heading">
+        <div class="search-intro">
+          <p class="eyebrow">Explore the collection</p>
+          <h1 id="search-heading">Words across Romance languages</h1>
+        </div>
+        <form method="get" action="{{ url_for('index') }}" class="search-form" role="search" hx-get="{{ url_for('index') }}">
+          <input type="hidden" name="search" value="1">
+          <div class="field query-field">
+            <label for="query">Search text</label>
+            <input id="query" type="search" name="q" value="{{ criteria.query }}" placeholder="Search a word or phrase…">
+          </div>
+          <div class="field">
+            <label for="column">Column</label>
+            <select id="column" name="column">
+              <option value="">All columns</option>
+              {% for column in columns %}
+                <option value="{{ column }}"{% if criteria.column == column %} selected{% endif %}>{{ column }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="label">Label</label>
+            <select id="label" name="label">
+              <option value="">All labels</option>
+              {% for label in labels %}
+                <option value="{{ label }}"{% if criteria.label == label %} selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="search-button">Search <span aria-hidden="true">→</span></button>
+          <a class="clear-link" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}">Clear</a>
+        </form>
+        <p class="search-hint">Search ignores case and diacritics. Column and label filters apply to the same matching cell.</p>
+      </section>
+
+      <p id="request-status" class="request-status" role="status" aria-live="polite">Updating…</p>
+      {% include '_workspace.html' %}
+    </main>
+    <footer>XLDB <span aria-hidden="true">/</span> Comparative Romance lexicology</footer>
+  </body>
+</html>
