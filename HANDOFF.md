@@ -12,7 +12,7 @@ Prepared 2026-11-04. Workspace: `/home/hartular/Lingv/XLDB`.
 > Preserve original text/formatting and label wording. Search ignores case
 > on the website, removes Unicode diacritics, expands œ/æ and ø/ł, and folds
 > Catalan l·l. The search field is named `nodiacritics_plaintext`.
-> The layout has compact controls, a dropdown etimon list, and a table filling
+> The layout has compact controls, a collapsible etymon side list, and a table filling
 > the remaining viewport. Future Quill editing has been discussed; editing and SQLite have not
 > been implemented. There is no unfinished implementation request at handoff.
 
@@ -31,8 +31,8 @@ node tests/test_scrollbars.js
 
 - Existing environment: Python 3.13.12, Flask 3.1.3, pandas 3.1.0,
   openpyxl 3.1.5. Direct dependencies are recorded in `requirements.txt`.
-- Latest verification: 30 Python tests, five Node scrollbar interaction tests,
-  and JavaScript syntax checks passed after adding persistent scroll controls.
+- Latest verification: 38 Python tests, five Node scrollbar interaction tests,
+  and JavaScript syntax checks passed after adding configurable search highlights.
   The Node tests use simulated DOM geometry; no browser visual testing was run.
 - `tests/__init__.py` preserves discovery with `python -m unittest -v` from
   the project root. Workbook fixture paths are relative to that root.
@@ -163,14 +163,20 @@ an empty table with the standard columns. Default values are HTML; the
   Its header brand is **Parallel Words**, followed by `<filename> · <sheet name>`.
   The importer records the actual selected title in `df.attrs['sheet_name']`,
   including the default first sheet; displaying it does not reread the workbook.
-  The workspace toolbar contains an **Etimons** dropdown, the selected title,
-  display mode, **Table columns**, and Reset layout. The result list overlays
-  the table instead of reserving sidebar width. Controls wrap on small screens;
+  The workspace toolbar contains the selected title, display mode,
+  **Table columns**, and Reset layout. A sidebar headed **ETYMONS** (bold) shows
+  results as a list. Its **«/»** control collapses it into a narrow side strip or
+  expands it. JavaScript keeps the choice through htmx navigation in memory;
+  new searches reveal the list via `data-reveal-results`. On narrow screens the
+  expanded sidebar overlays the left part of the table. Without JavaScript,
+  the list remains visible beside the fallback table. Controls wrap on small screens;
   filter menus stay within the search panel's width. Outside clicks and Escape
   close dropdowns. No decorative title area or footer takes up table space.
-  The Etimons dropdown opens automatically in search responses (including empty
-  results), for both full pages and htmx fragments. Other responses render it
-  closed; this display state is not stored in the session.
+  The selected etymon and smaller previous/next links form a compact group,
+  centered in the space to the left of the table controls and shifted slightly
+  right. Neighbors come from the current match tuple,
+  with no wraparound, and preserve search and display mode through the session.
+  Navigation and display controls share one row, wrapping on narrow screens.
 - Tabulator uses `height: '100%'` inside the flexing detail panel. Both it and
   the HTML fallback scroll within the remaining viewport height. Cell padding
   and column-header padding are reduced without changing stored text formats.
@@ -187,6 +193,23 @@ an empty table with the standard columns. Default values are HTML; the
 - Workspace HTML includes a safely JSON-encoded payload. JavaScript updates
   the page title and search controls from it. Internal grid fields such as
   `content_0` avoid interpreting punctuation in column names as property paths.
+- `config.py` is loaded once per app creation. `SEARCH_HIGHLIGHT_COLOR` defaults
+  to `#ffff00` (yellow) and accepts #RGB/#RRGGBB. Restart after changing it. The
+  workspace sets `--search-highlight-color`, shared by the grid and fallback.
+- `search_highlighting.py` creates presentation-only `<mark>` elements for all
+  query occurrences in displayed content, regardless of column/label filters.
+  It maps normalized uppercase search matches back to original characters,
+  including ligatures, combining accents, and Catalan middle dots. HTML parsing
+  matches decoded text across rich-text runs, never attributes, and wraps text
+  within each existing run to retain formatting. Plaintext is escaped before
+  marking; empty or normalization-empty queries produce no marks.
+- The original DataFrame, `get_etimon` output, and raw grid field values retain
+  their contents. Each grid row additionally has `highlights`, mapping internal
+  content field names to highlighted HTML only for matching cells. The frontend
+  renders those generated strings when present; the fallback uses the same
+  server-generated HTML. Search/display changes replace highlights and Clear
+  removes them. Generated highlights must not be treated as saved cell content
+  when editing is eventually added.
 - `#etimon-grid` uses `hx-preserve`. `static/app.js` keeps its Tabulator instance
   alive between fragments, updates rows, reconfigures changed columns, and
   destroys it when the grid is actually removed. A native HTML fallback table

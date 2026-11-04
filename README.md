@@ -35,11 +35,25 @@ Selecting an etymon displays its complete table, including cells that did not
 match the search. Each browser remembers its search, selected etymon, and
 formatted/plaintext preference. Clear returns to the full collection.
 
-The table fills the available browser width and the remaining viewport height.
-Search controls sit in a compact bar. **Etimons** opens automatically after a
-search; you can also open it manually to choose a result. Selecting a result
-closes the dropdown. With no matches, it shows the empty-results message.
-The list appears over the table so it takes no permanent space beside it.
+Search terms are highlighted throughout the displayed cell content in both
+formatted and plain-text views, including the HTML fallback table. Highlighting
+uses the same case/diacritic normalization as search and preserves original text,
+rich-text formatting, and whitespace. Clear removes the highlights.
+
+Set the highlight background in `config.py`, then restart the server:
+
+```python
+SEARCH_HIGHLIGHT_COLOR = '#ffff00'  # Standard highlight yellow; #RGB or #RRGGBB.
+```
+
+Search controls sit in a compact bar. A side list headed **ETYMONS** shows the
+results. Use **«** to hide it and give the table more width, or **»** to show it
+again. The choice survives etymon selection and display-mode changes; a new
+search reveals the results. On narrow screens, the list opens over the left
+side of the table. The table fills the remaining viewport height.
+The current etymon and its smaller previous/next links form a compact group
+alongside the table controls. These links follow the current result list and
+disappear at either end. Controls wrap on narrow screens.
 
 Searches, etymon selection, Clear, and the formatted/plaintext switch update
 the workspace through htmx without reloading the page. Tabulator provides the
@@ -83,7 +97,7 @@ node tests/test_scrollbars.js
 ```
 
 Node is optional for the JavaScript checks; the application itself does
-not require Node or npm. The most recent verification passed all 30 Python
+not require Node or npm. The most recent verification passed all 38 Python
 tests, five scrollbar interaction tests, and JavaScript syntax checks.
 Scrollbar tests use simulated DOM geometry, not a browser. Automated browser interaction/visual
 tests have not been run; the user has confirmed that the page looks good.
@@ -93,6 +107,8 @@ tests have not been run; the user has confirmed that the page looks good.
 | File | Purpose |
 | --- | --- |
 | `main.py` | Flask app factory, startup import, search sessions, cached matches, grid payloads |
+| `config.py` | Display configuration, including the search highlight color |
+| `search_highlighting.py` | Normalized match ranges and formatting-preserving highlights |
 | `extract_sheet.py` | Worksheet extraction, dictionary find/replace, Excel-to-DataFrame conversion |
 | `df_search.py` | DataFrame search, etymon table reconstruction, label/column ordering |
 | `text_normalization.py` | Shared accent removal and Latin-letter expansion |

@@ -15,6 +15,7 @@ from flask import Flask, render_template, request, session
 
 from df_search import COLUMN_ORDER, LABEL_ORDER, get_etimon, search_dataframe
 from extract_sheet import excel_to_dataframe
+from search_highlighting import highlight_content
 
 
 DEFAULT_EXCEL_PATH = Path(__file__).parent / 'db' / 'example.xlsx'
@@ -69,8 +70,11 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
     )
+    app.config.from_pyfile('config.py')
     if test_config:
         app.config.update(test_config)
+    if not re.fullmatch(r'#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?', app.config['SEARCH_HIGHLIGHT_COLOR']):
+        raise ValueError('SEARCH_HIGHLIGHT_COLOR must be a #RGB or #RRGGBB hex color.')
 
     df = excel_to_dataframe(app.config['EXCEL_PATH'], app.config['SHEET_NAME'])
     source_label = f"{Path(app.config['EXCEL_PATH']).name} · {df.attrs['sheet_name']}"
@@ -127,6 +131,16 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
         table = get_etimon(df, selected, plaintext=plaintext) if selected is not None else None
         table_columns = list(table.columns[2:]) if table is not None else []
         table_rows = table.to_dict('records') if table is not None else []
+        highlighted_rows = [
+            {
+                column: highlighted
+                for column in table_columns
+                if (highlighted := highlight_content(
+                    row[column], criteria['query'], plaintext=plaintext,
+                )) is not None
+            }
+            for row in table_rows
+        ]
         grid_columns = [
             {'title': title, 'field': f'content_{index}'}
             for index, title in enumerate(table_columns)
@@ -137,10 +151,17 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
                 'label': row['label'],
                 'label_number': row['label_number'],
                 **{column['field']: row[column['title']] for column in grid_columns},
+                'highlights': {
+                    column['field']: highlights[column['title']]
+                    for column in grid_columns if column['title'] in highlights
+                },
             }
-            for row in table_rows
+            for row, highlights in zip(table_rows, highlighted_rows)
         ]
         selected_entry = entries.get(selected)
+        selected_index = numbers.index(selected) if numbers else 0
+        previous_entry = entries[numbers[selected_index - 1]] if selected_index > 0 else None
+        next_entry = entries[numbers[selected_index + 1]] if selected_index + 1 < len(numbers) else None
         page_title = f"{selected_entry['form']} · Parallel Words" if selected_entry else 'Parallel Words'
         template = '_workspace.html' if request.headers.get('HX-Request') == 'true' else 'index.html'
         response = app.make_response(render_template(
@@ -151,11 +172,15 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
             labels=labels,
             columns=columns,
             matches=[entries[number] for number in numbers],
-            results_open='search' in request.args and 'reset' not in request.args,
+            reveal_results='search' in request.args and 'reset' not in request.args,
             total=len(entries),
             selected=selected_entry,
+            previous=previous_entry,
+            next=next_entry,
             table_columns=table_columns,
             table_rows=table_rows,
+            highlighted_rows=highlighted_rows,
+            highlight_color=app.config['SEARCH_HIGHLIGHT_COLOR'],
             grid_columns=grid_columns,
             plaintext=plaintext,
             grid_payload={

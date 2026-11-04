@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from openpyxl import Workbook
+import pandas as pd
 
 from main import create_app
 from extract_sheet import excel_to_dataframe
@@ -136,6 +137,39 @@ class FlaskAppTests(unittest.TestCase):
         self.assertEqual(reset.matches, [1, 2, 3, 4])
         self.assertEqual(reset.selected, 1)
         self.assertEqual(reset.query, '')
+
+    def test_search_highlights_formatted_plaintext_and_clear_without_mutation(self):
+        original = self.app.extensions['lexicon_df'].copy(deep=True)
+        for headers in ({}, {'HX-Request': 'true'}):
+            with self.subTest(headers=headers):
+                client = self.app.test_client()
+                response = client.get('/', headers=headers, query_string={
+                    'search': '1', 'q': 'PRAJITURA CU CREMA',
+                    'column': 'LIMBA ROMÂNĂ', 'label': 'SENSURI DE BAZĂ',
+                })
+                for response in (response, client.get('/?plaintext=1', headers=headers)):
+                    payload = Page(response).payload
+                    field = next(column['field'] for column in payload['columns'] if column['title'] == 'LIMBA ROMÂNĂ')
+                    row = next(row for row in payload['rows'] if row['label'] == 'SENSURI DE BAZĂ' and row['label_number'] == 2)
+                    mark = '<mark class="search-highlight">Prăjitură cu cremă</mark>'
+                    self.assertIn(mark, row['highlights'][field])
+                    self.assertNotIn('<mark', row[field])
+                    self.assertIn(mark, response.get_data(as_text=True))
+                reset = client.get('/?reset=1', headers=headers)
+                self.assertTrue(all(not row['highlights'] for row in Page(reset).payload['rows']))
+                self.assertNotIn('<mark', reset.get_data(as_text=True))
+        pd.testing.assert_frame_equal(self.app.extensions['lexicon_df'], original)
+
+    def test_search_highlight_color_configuration(self):
+        self.assertIn('--search-highlight-color: #ffff00;', self.client.get('/').get_data(as_text=True))
+        app = create_app(test_config={
+            'TESTING': True, 'SECRET_KEY': 'test', 'SEARCH_HIGHLIGHT_COLOR': '#ff88cc',
+        })
+        for headers in ({}, {'HX-Request': 'true'}):
+            html = app.test_client().get('/?search=1&q=crema', headers=headers).get_data(as_text=True)
+            self.assertIn('--search-highlight-color: #ff88cc;', html)
+        with self.assertRaisesRegex(ValueError, 'SEARCH_HIGHLIGHT_COLOR'):
+            create_app(test_config={'SEARCH_HIGHLIGHT_COLOR': '#fff; color: red'})
 
     def test_plaintext_mode_preserves_search_and_selection(self):
         self.client.get('/', query_string={

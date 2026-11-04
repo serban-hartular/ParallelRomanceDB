@@ -1,33 +1,53 @@
-      <div id="workspace" class="workspace">
+      <div id="workspace" class="workspace" data-reveal-results="{{ 'true' if reveal_results else 'false' }}" style="--search-highlight-color: {{ highlight_color }};">
         <script type="application/json" class="workspace-data">{{ grid_payload | tojson }}</script>
-        <div class="workspace-toolbar">
-          <details class="results-chooser"{% if results_open %} open{% endif %}>
-            <summary>Etimons <span class="count">{{ matches | length }}</span></summary>
-            <div class="results-menu">
-              {% if matches %}
-                <nav aria-label="Matching etimons">
-                  <ol class="results-list">
-                    {% for match in matches %}
-                      <li>
-                        <a class="etimon-link{% if selected and selected.number == match.number %} is-selected{% endif %}"
-                           data-etimon-id="{{ match.number }}"
-                           href="{{ url_for('index', etimon=match.number) }}" hx-get="{{ url_for('index', etimon=match.number) }}"
-                           {% if selected and selected.number == match.number %}aria-current="true"{% endif %}>
-                          <span class="etimon-number">{{ match.number }}</span>
-                          <span class="result-text"><strong>{{ match.form }}</strong><small>{{ match.language }}</small></span>
-                          <span class="result-arrow" aria-hidden="true">↗</span>
-                        </a>
-                      </li>
-                    {% endfor %}
-                  </ol>
-                </nav>
-              {% else %}
-                <p class="empty-list">No etimons match this search.</p>
-              {% endif %}
+        <div class="results-sidebar">
+          <button type="button" class="results-toggle" data-toggle-results aria-controls="results-panel" aria-expanded="true" aria-label="Hide etymons" title="Hide etymons" hidden><span data-results-toggle-icon aria-hidden="true">«</span></button>
+          <aside id="results-panel" class="results-panel" aria-labelledby="results-heading">
+            <div class="results-heading">
+              <h2 id="results-heading">ETYMONS</h2>
+              <span class="count">{{ matches | length }}</span>
             </div>
-          </details>
+            {% if matches %}
+              <nav aria-label="Matching etymons">
+                <ol class="results-list">
+                  {% for match in matches %}
+                    <li>
+                      <a class="etimon-link{% if selected and selected.number == match.number %} is-selected{% endif %}"
+                         data-etimon-id="{{ match.number }}"
+                         href="{{ url_for('index', etimon=match.number) }}" hx-get="{{ url_for('index', etimon=match.number) }}"
+                         {% if selected and selected.number == match.number %}aria-current="true"{% endif %}>
+                        <span class="etimon-number">{{ match.number }}</span>
+                        <span class="result-text"><strong>{{ match.form }}</strong><small>{{ match.language }}</small></span>
+                        <span class="result-arrow" aria-hidden="true">↗</span>
+                      </a>
+                    </li>
+                  {% endfor %}
+                </ol>
+              </nav>
+            {% else %}
+              <p class="empty-list">No etimons match this search.</p>
+            {% endif %}
+          </aside>
+        </div>
+        <div class="workspace-toolbar">
           {% if selected %}
-            <h2 id="detail-heading" class="detail-title" title="{{ selected.form }}"><span class="etimon-number">{{ selected.number }}</span> {{ selected.form }}</h2>
+            <nav class="etymon-navigation" aria-label="Etymon navigation">
+              {% if previous %}
+                <a class="etymon-neighbor previous-etymon" rel="prev"
+                   href="{{ url_for('index', etimon=previous.number) }}" hx-get="{{ url_for('index', etimon=previous.number) }}"
+                   aria-label="Previous etymon: {{ previous.form }}" title="{{ previous.form }}">
+                  <span aria-hidden="true">←</span><span class="neighbor-name">{{ previous.form }}</span>
+                </a>
+              {% endif %}
+              <h2 id="detail-heading" class="detail-title" title="{{ selected.form }}"><span class="etimon-number">{{ selected.number }}</span> {{ selected.form }}</h2>
+              {% if next %}
+                <a class="etymon-neighbor next-etymon" rel="next"
+                   href="{{ url_for('index', etimon=next.number) }}" hx-get="{{ url_for('index', etimon=next.number) }}"
+                   aria-label="Next etymon: {{ next.form }}" title="{{ next.form }}">
+                  <span class="neighbor-name">{{ next.form }}</span><span aria-hidden="true">→</span>
+                </a>
+              {% endif %}
+            </nav>
             <div class="workspace-tools">
               <div class="display-options" role="group" aria-label="Content display">
                 <a href="{{ url_for('index', etimon=selected.number, plaintext=0) }}" hx-get="{{ url_for('index', etimon=selected.number, plaintext=0) }}"{% if not plaintext %} aria-current="true"{% endif %}>Formatted</a>
@@ -71,15 +91,16 @@
                   </thead>
                   <tbody>
                     {% for row in table_rows %}
+                      {% set highlights = highlighted_rows[loop.index0] %}
                       <tr>
                         <th scope="row" class="label-column">{{ row.label }}</th>
                         <td class="number-column">{{ row.label_number }}</td>
                         {% for column in table_columns %}
                           <td class="content-cell">
                             {% if plaintext %}
-                              <div class="plain-content">{{ row[column] }}</div>
+                              <div class="plain-content">{% if column in highlights %}{{ highlights[column] | safe }}{% else %}{{ row[column] }}{% endif %}</div>
                             {% else %}
-                              {{ row[column] | safe }}
+                              {{ highlights.get(column, row[column]) | safe }}
                             {% endif %}
                           </td>
                         {% endfor %}

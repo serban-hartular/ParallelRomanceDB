@@ -6,6 +6,7 @@
   let active = null;
   let scrollbars = null;
   let updates = Promise.resolve();
+  let resultsHidden = false;
 
   function settingsFor(dataset) {
     const key = `xldb.layout.v1.${dataset}`;
@@ -94,8 +95,14 @@
         formatter(cell) {
           const element = document.createElement("div");
           element.className = "grid-content";
+          const highlighted = cell.getRow().getData().highlights?.[column.field];
           if (instance.payload.plaintext) {
             element.classList.add("plain-content");
+          }
+          if (highlighted !== undefined) {
+            // Marks are generated server-side from escaped cell text.
+            element.innerHTML = highlighted;
+          } else if (instance.payload.plaintext) {
             element.textContent = cell.getValue() ?? "";
           } else {
             // HTML comes only from the workbook's escaped rich-text converter.
@@ -249,9 +256,24 @@
     });
   }
 
+  function syncResultsPanel(workspace) {
+    workspace.classList.add("results-ready");
+    workspace.classList.toggle("results-hidden", resultsHidden);
+    workspace.querySelector("#results-panel").hidden = resultsHidden;
+    const toggle = workspace.querySelector("[data-toggle-results]");
+    const label = resultsHidden ? "Show etymons" : "Hide etymons";
+    toggle.hidden = false;
+    toggle.setAttribute("aria-expanded", String(!resultsHidden));
+    toggle.setAttribute("aria-label", label);
+    toggle.title = label;
+    toggle.querySelector("[data-results-toggle-icon]").textContent = resultsHidden ? "»" : "«";
+  }
+
   function initialize() {
     const workspace = document.getElementById("workspace");
     if (workspace && !workspace.dataset.initialized) {
+      if (workspace.dataset.revealResults === "true") resultsHidden = false;
+      syncResultsPanel(workspace);
       workspace.dataset.initialized = "true";
       scheduleWorkspace(workspace);
     }
@@ -269,6 +291,17 @@
     document.querySelectorAll("details[open]").forEach(details => {
       if (!details.contains(event.target)) details.open = false;
     });
+    if (event.target.closest("[data-toggle-results]")) {
+      const workspace = document.getElementById("workspace");
+      resultsHidden = !resultsHidden;
+      syncResultsPanel(workspace);
+      if (active && !active.updating) {
+        active.table.redraw(true);
+        active.table.getRows().forEach(row => restoreRowHeight(active, row));
+      }
+      scrollbars?.schedule();
+      return;
+    }
     const clearFilter = event.target.closest("[data-clear-filter]");
     if (clearFilter) {
       const filter = clearFilter.closest("[data-search-filter]");
