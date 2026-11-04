@@ -12,8 +12,8 @@ Prepared 2026-11-04. Workspace: `/home/hartular/Lingv/XLDB`.
 > Preserve original text/formatting and label wording. Search ignores case
 > on the website, removes Unicode diacritics, expands œ/æ and ø/ł, and folds
 > Catalan l·l. The search field is named `nodiacritics_plaintext`.
-> The user is satisfied with the current functionality. Layout refinements
-> and future Quill editing have been discussed; editing and SQLite have not
+> The layout has compact controls, a dropdown etimon list, and a table filling
+> the remaining viewport. Future Quill editing has been discussed; editing and SQLite have not
 > been implemented. There is no unfinished implementation request at handoff.
 
 **Run and verification**
@@ -25,13 +25,17 @@ cd /home/hartular/Lingv/XLDB
 
 .venv/bin/python -m unittest -v
 node --check static/app.js
+node --check static/scrollbars.js
+node tests/test_scrollbars.js
 ```
 
 - Existing environment: Python 3.13.12, Flask 3.1.3, pandas 3.1.0,
   openpyxl 3.1.5. Direct dependencies are recorded in `requirements.txt`.
-- Latest Python verification: 26 tests passed. JavaScript syntax check passed
-  after the grid implementation; subsequent changes concerned Python search
-  normalization and documentation.
+- Latest verification: 30 Python tests, five Node scrollbar interaction tests,
+  and JavaScript syntax checks passed after adding persistent scroll controls.
+  The Node tests use simulated DOM geometry; no browser visual testing was run.
+- `tests/__init__.py` preserves discovery with `python -m unittest -v` from
+  the project root. Workbook fixture paths are relative to that root.
 - No automated browser/visual testing was available. The user has repeatedly
   confirmed that the page and interactions look good.
 - No Node build or CDN is required at runtime. Vendor versions and licenses
@@ -75,7 +79,9 @@ example: etymon 2, `LIMBA ROMÂNĂ`, `SENSURI DE BAZĂ`, label number 2,
 
 `search_dataframe(df, text, column=None, label=None, *, case_sensitive=True)`
 returns unique etymon numbers sorted ascending. Search is a literal substring
-search. Column and label filters are exact matches, applied to the same cell.
+search. Each of `column` and `label` accepts a single string or an iterable of
+strings. `None` or an empty iterable means all values. Filters match any exact
+value within each selection, with both filters applied to the same cell.
 Both query and searchable content undergo the shared normalization.
 
 - The website explicitly uses `case_sensitive=False`; the standalone function
@@ -135,10 +141,16 @@ an empty table with the standard columns. Default values are HTML; the
   tuples are held in a bounded LRU cache. Signed Flask sessions hold each
   browser's criteria, selection, and plaintext mode, not the full match list.
   `FLASK_SECRET_KEY` is optional; otherwise a fresh key is generated on startup.
-- GET `/` accepts `search=1&q=...&column=...&label=...`, `etimon=N`,
+- GET `/` accepts `search=1&q=...&column=...&label=...`, with repeated `column`
+  and `label` parameters for multiple selections, `etimon=N`,
   `plaintext=0|1`, or `reset=1`. New searches select the first match. A selection
   outside current matches falls back to the first match. Empty results are
   handled without showing a stale etymon. Clear retains the display mode.
+- Search filters use checkbox dropdowns; no checked values means all. An
+  **All columns/labels** button clears that filter's checkboxes. Criteria store
+  sorted, deduplicated lists in the session and grid payload; older sessions
+  containing single strings are migrated on read. The match cache uses tuples.
+  The frontend restores checkboxes and selection counts after htmx updates.
 - Result titles use the first nonempty etymon entry in French, then Romanian,
   Italian, Spanish, Portuguese, Catalan. The first line is shortened before
   a comma or multiple spaces to omit grammatical notes. This is a heuristic.
@@ -147,6 +159,31 @@ an empty table with the standard columns. Default values are HTML; the
 - htmx swaps `#workspace`; the search form remains outside it. Inherited
   request synchronization replaces obsolete requests. Selection and display
   controls also use htmx. There is no custom browser-history integration.
+- The page is a viewport-height flex layout with a compact header/search bar.
+  Its header brand is **Parallel Words**, followed by `<filename> · <sheet name>`.
+  The importer records the actual selected title in `df.attrs['sheet_name']`,
+  including the default first sheet; displaying it does not reread the workbook.
+  The workspace toolbar contains an **Etimons** dropdown, the selected title,
+  display mode, **Table columns**, and Reset layout. The result list overlays
+  the table instead of reserving sidebar width. Controls wrap on small screens;
+  filter menus stay within the search panel's width. Outside clicks and Escape
+  close dropdowns. No decorative title area or footer takes up table space.
+  The Etimons dropdown opens automatically in search responses (including empty
+  results), for both full pages and htmx fragments. Other responses render it
+  closed; this display state is not stored in the session.
+- Tabulator uses `height: '100%'` inside the flexing detail panel. Both it and
+  the HTML fallback scroll within the remaining viewport height. Cell padding
+  and column-header padding are reduced without changing stored text formats.
+- `static/scrollbars.js` supplies persistent top horizontal and right vertical
+  scrollbars in a CSS grid `.table-frame`. Native scroll positions still drive
+  the table and frozen headers. The controller hides native bars only while
+  custom controls are attached, with rails shown only for overflowing axes.
+  Pointer capture supports dragging; track clicks and keyboard navigation are
+  supported. Scroll events and ResizeObserver keep thumbs and ARIA values in
+  sync with content, window size, and column/row resizing. `app.js` rebinds the
+  controller to the preserved grid after swaps, destroys observers/listeners
+  when its frame is removed, and supports the HTML fallback when Tabulator is
+  unavailable. With scripts unavailable, the fallback keeps native scrolling.
 - Workspace HTML includes a safely JSON-encoded payload. JavaScript updates
   the page title and search controls from it. Internal grid fields such as
   `content_0` avoid interpreting punctuation in column names as property paths.

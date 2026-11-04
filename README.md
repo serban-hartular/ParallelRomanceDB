@@ -1,6 +1,9 @@
 # XLDB
 
 A local Flask interface for searching and comparing the etymons in an Excel workbook.
+The page is branded **Parallel Words**; its header shows the loaded workbook's
+filename followed by the actual worksheet name (including when the first sheet
+is selected automatically).
 
 For the development handoff, agreed behavior, and future work, read
 [HANDOFF.md](HANDOFF.md).
@@ -22,8 +25,9 @@ app = create_app('db/other.xlsx', sheet_name='Sheet1')
 The initial page lists all etymons and displays the first. Search is literal and
 case-insensitive and ignores diacritics: `prajitura` matches `Prăjitură`.
 `excel_to_dataframe` adds `nodiacritics_plaintext` for searching while retaining
-the original HTML and plaintext for display. Column and label filters still
-match exact values and apply to the same matching cell.
+the original HTML and plaintext for display. Column and label checkbox menus
+allow multiple selections; no selections means all. A cell must match any
+selected column and any selected label, using exact values for both filters.
 Search normalization also expands `œ/Œ` to `oe/OE`, `æ/Æ` to `ae/AE`,
 `ø/Ø` to `o/O`, `ł/Ł` to `l/L`, and Catalan `l·l` to `ll` (including
 uppercase forms and the older `ŀl` spelling).
@@ -31,11 +35,22 @@ Selecting an etymon displays its complete table, including cells that did not
 match the search. Each browser remembers its search, selected etymon, and
 formatted/plaintext preference. Clear returns to the full collection.
 
+The table fills the available browser width and the remaining viewport height.
+Search controls sit in a compact bar. **Etimons** opens automatically after a
+search; you can also open it manually to choose a result. Selecting a result
+closes the dropdown. With no matches, it shows the empty-results message.
+The list appears over the table so it takes no permanent space beside it.
+
 Searches, etymon selection, Clear, and the formatted/plaintext switch update
 the workspace through htmx without reloading the page. Tabulator provides the
-interactive, read-only table. Use **Columns** to choose visible columns, drag
+interactive, read-only table. Use **Table columns** to choose visible columns, drag
 column-header edges to resize widths, and drag row borders to resize heights.
 Labels and label numbers remain visible while scrolling horizontally.
+Persistent, draggable scrollbars sit **above the table** for left/right scrolling
+and at its **right edge** for up/down scrolling. They stay visible whenever
+content overflows, regardless of the system's overlay-scrollbar setting. Click
+a track or drag its thumb; wheel, touch, and keyboard scrolling stay synchronized.
+Focused scrollbars also support arrow keys, Page Up/Down, Home, and End.
 
 The browser remembers column widths and visibility for each workbook, and row
 heights for each etymon. **Reset layout** clears those display preferences for
@@ -63,11 +78,14 @@ Run the checks with:
 ```bash
 .venv/bin/python -m unittest -v
 node --check static/app.js
+node --check static/scrollbars.js
+node tests/test_scrollbars.js
 ```
 
-Node is optional for the JavaScript syntax check; the application itself does
-not require Node or npm. The most recent verification passed all 26 Python
-tests and the JavaScript syntax check. Automated browser interaction/visual
+Node is optional for the JavaScript checks; the application itself does
+not require Node or npm. The most recent verification passed all 30 Python
+tests, five scrollbar interaction tests, and JavaScript syntax checks.
+Scrollbar tests use simulated DOM geometry, not a browser. Automated browser interaction/visual
 tests have not been run; the user has confirmed that the page looks good.
 
 **Project files**
@@ -81,10 +99,11 @@ tests have not been run; the user has confirmed that the page looks good.
 | `templates/index.html` | Full page and search form |
 | `templates/_workspace.html` | htmx fragment, results list, grid data and fallback table |
 | `static/app.js` | Tabulator lifecycle, display preferences, htmx integration |
+| `static/scrollbars.js` | Persistent top/right scroll controls and native-scroll synchronization |
 | `static/style.css` | Page, fallback table, and grid styling |
 | `static/vendor/` | htmx 2.0.8 and Tabulator 6.3.1, licenses and source references |
 | `to_replace.py` | User-maintained label-cleanup dictionary; not applied automatically |
-| `test_*.py` | Standard-library unittest coverage |
+| `tests/` | Python unittest coverage and dependency-free Node scrollbar tests |
 
 **Python usage**
 
@@ -94,7 +113,8 @@ from df_search import search_dataframe, get_etimon
 
 df = excel_to_dataframe('db/example.xlsx', sheet_name='Sheet1')
 numbers = search_dataframe(
-    df, 'prajitura', column='LIMBA ROMÂNĂ', case_sensitive=False,
+    df, 'prajitura', column=['LIMBA ROMÂNĂ', 'LIMBA FRANCEZĂ'],
+    label=['SENSURI DE BAZĂ', 'SENSURI SPECIALIZATE'], case_sensitive=False,
 )
 table_html = get_etimon(df, 2)
 table_plain = get_etimon(df, 2, plaintext=True)
@@ -109,7 +129,9 @@ find_replace_excel(
 
 `search_dataframe` ignores diacritics and letter variants, but defaults to
 **case-sensitive** matching. The website explicitly passes
-`case_sensitive=False`. `get_etimon` returns a wide DataFrame with label and
+`case_sensitive=False`. Its `column` and `label` arguments each accept a single
+string or an iterable of strings; `None` or an empty iterable means all values.
+`get_etimon` returns a wide DataFrame with label and
 label number first, one column per language/notes field, and empty strings for
 missing cells. It defaults to HTML values.
 

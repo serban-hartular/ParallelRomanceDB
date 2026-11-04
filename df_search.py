@@ -1,5 +1,7 @@
 """Search and retrieve etymons from an excel_to_dataframe result."""
 
+from collections.abc import Iterable
+
 import pandas as pd
 
 from text_normalization import remove_diacritics
@@ -27,8 +29,8 @@ COLUMN_ORDER = (
 def search_dataframe(
     df: pd.DataFrame,
     text: str,
-    column: str | None = None,
-    label: str | None = None,
+    column: str | Iterable[str] | None = None,
+    label: str | Iterable[str] | None = None,
     *,
     case_sensitive: bool = True,
 ) -> list[int]:
@@ -38,8 +40,10 @@ def search_dataframe(
     and content. Uses nodiacritics_plaintext when present, otherwise derives
     it from plaintext_content without modifying df. Matching is case-sensitive
     by default; set case_sensitive=False to ignore case as well.
-    Optional column and label filters match their exact values and both
-    must match when supplied. Missing plaintext values do not match.
+    Column and label accept one exact value or an iterable of values. Match
+    any value within each filter; both filters must match the same cell.
+    None or an empty iterable means all values for that filter.
+    Missing plaintext values do not match.
     An empty search string matches every nonmissing plaintext value.
     """
     if not isinstance(text, str):
@@ -53,10 +57,11 @@ def search_dataframe(
     matches = searchable.str.contains(
         remove_diacritics(text), case=case_sensitive, regex=False, na=False,
     )
-    if column is not None:
-        matches &= df['column'].eq(column)
-    if label is not None:
-        matches &= df['label'].eq(label)
+    for field, values in (('column', column), ('label', label)):
+        if values is not None:
+            values = (values,) if isinstance(values, str) else tuple(values)
+            if values:
+                matches &= df[field].isin(values)
 
     return sorted(df.loc[matches, 'etimon_number'].unique().tolist())
 

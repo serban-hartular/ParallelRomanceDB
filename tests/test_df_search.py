@@ -68,6 +68,33 @@ class DataFrameSearchTests(unittest.TestCase):
                 self.assertEqual(search_dataframe(candidate, 'Prajitura', column='ROMANA'), [])
                 pd.testing.assert_frame_equal(candidate, original)
 
+    def test_multiple_filters_match_any_value_but_the_same_cell(self):
+        cached = self.df.assign(nodiacritics_plaintext=self.df.plaintext_content.map(
+            remove_diacritics, na_action='ignore',
+        ))
+        for frame in (self.df, cached):
+            with self.subTest(precomputed='nodiacritics_plaintext' in frame):
+                original = frame.copy(deep=True)
+                self.assertEqual(search_dataframe(
+                    frame, 'CREMA [FINA]', column=['ROMÂNĂ', 'FRANCEZĂ'],
+                    label=('Basic', 'Special'), case_sensitive=False,
+                ), [1, 2, 3])
+                self.assertEqual(search_dataframe(
+                    frame, 'Crema', column=['FRANCEZĂ', 'missing'],
+                    label=['Special', 'missing'],
+                ), [])
+                self.assertEqual(search_dataframe(
+                    frame, 'Crema', column=['ROM', 'FRANCEZA'], label=['Basic'],
+                ), [])
+                pd.testing.assert_frame_equal(frame, original)
+
+    def test_empty_filter_collections_mean_all_values(self):
+        self.assertEqual(search_dataframe(self.df, 'Crema', column=[], label=()), [1, 3, 5])
+        self.assertEqual(search_dataframe(self.df, 'Crema', column=[], label=['Special']), [3])
+        self.assertEqual(search_dataframe(self.df, 'Crema', column=['FRANCEZĂ'], label=[]), [1])
+        # Single strings retain their original exact-match behavior.
+        self.assertEqual(search_dataframe(self.df, 'Crema', column=''), [])
+
     def test_normalization_preserves_case_and_whitespace(self):
         self.assertEqual(
             remove_diacritics('  ĂÂÎȘȚ ăâîșț ŞŢ şţ\néèêë áàäã çñ üö œ  '),
@@ -94,7 +121,7 @@ class DataFrameSearchTests(unittest.TestCase):
                 self.assertEqual(search_dataframe(candidate, 'oresund lodz', case_sensitive=False), [5])
 
     def test_example_workbook(self):
-        frame = excel_to_dataframe(Path(__file__).parent / 'db' / 'example.xlsx')
+        frame = excel_to_dataframe(Path(__file__).resolve().parents[1] / 'db' / 'example.xlsx')
         self.assertEqual(search_dataframe(
             frame, 'Prăjitură cu cremă', column='LIMBA ROMÂNĂ', label='SENSURI DE BAZĂ',
         ), [2])

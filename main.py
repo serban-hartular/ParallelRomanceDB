@@ -25,6 +25,13 @@ def _ordered_values(values, preferred):
     return [value for value in preferred if value in present] + sorted(present - set(preferred))
 
 
+def _filter_values(values):
+    """Canonicalize selections, including single values from older sessions."""
+    if isinstance(values, str):
+        values = [values]
+    return sorted(set(value for value in values if value))
+
+
 def _etimon_entries(df):
     """Build result titles from the first available language's etymon entry."""
     etimon_rows = df.loc[df['label'].str.contains(r'^\s*ETIMON\s*/', case=False, na=False)]
@@ -66,6 +73,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
         app.config.update(test_config)
 
     df = excel_to_dataframe(app.config['EXCEL_PATH'], app.config['SHEET_NAME'])
+    source_label = f"{Path(app.config['EXCEL_PATH']).name} · {df.attrs['sheet_name']}"
     app.extensions['lexicon_df'] = df
     entries = _etimon_entries(df)
     labels = _ordered_values(df['label'], LABEL_ORDER)
@@ -90,13 +98,22 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
         elif 'search' in request.args:
             session['search'] = {
                 'query': request.args.get('q', ''),
-                'label': request.args.get('label', ''),
-                'column': request.args.get('column', ''),
+                'label': request.args.getlist('label'),
+                'column': request.args.getlist('column'),
             }
             session.pop('etimon', None)
 
-        criteria = session.get('search', {'query': '', 'label': '', 'column': ''})
-        numbers = matching_numbers(criteria['query'], criteria['label'], criteria['column'])
+        saved = session.get('search', {})
+        criteria = {
+            'query': saved.get('query', ''),
+            'label': _filter_values(saved.get('label', [])),
+            'column': _filter_values(saved.get('column', [])),
+        }
+        if 'search' in session:
+            session['search'] = criteria
+        numbers = matching_numbers(
+            criteria['query'], tuple(criteria['label']), tuple(criteria['column']),
+        )
         requested = request.args.get('etimon', type=int)
         selected = requested if requested is not None else session.get('etimon')
         if selected not in numbers:
@@ -124,14 +141,17 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
             for row in table_rows
         ]
         selected_entry = entries.get(selected)
-        page_title = f"{selected_entry['form']} · XLDB" if selected_entry else 'XLDB — Romance lexicon'
+        page_title = f"{selected_entry['form']} · Parallel Words" if selected_entry else 'Parallel Words'
         template = '_workspace.html' if request.headers.get('HX-Request') == 'true' else 'index.html'
         response = app.make_response(render_template(
             template,
             criteria=criteria,
+            source_label=source_label,
+            page_title=page_title,
             labels=labels,
             columns=columns,
             matches=[entries[number] for number in numbers],
+            results_open='search' in request.args and 'reset' not in request.args,
             total=len(entries),
             selected=selected_entry,
             table_columns=table_columns,

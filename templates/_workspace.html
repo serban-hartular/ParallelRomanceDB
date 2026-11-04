@@ -1,89 +1,93 @@
       <div id="workspace" class="workspace">
         <script type="application/json" class="workspace-data">{{ grid_payload | tojson }}</script>
-        <aside class="results-panel" aria-labelledby="results-heading">
-          <div class="panel-heading">
-            <h2 id="results-heading">Etimons</h2>
-            <span class="count">{{ matches | length }}</span>
-          </div>
-          {% if matches %}
-            <nav aria-label="Matching etimons">
-              <ol class="results-list">
-                {% for match in matches %}
-                  <li>
-                    <a class="etimon-link{% if selected and selected.number == match.number %} is-selected{% endif %}"
-                       data-etimon-id="{{ match.number }}"
-                       href="{{ url_for('index', etimon=match.number) }}" hx-get="{{ url_for('index', etimon=match.number) }}"
-                       {% if selected and selected.number == match.number %}aria-current="true"{% endif %}>
-                      <span class="etimon-number">{{ match.number }}</span>
-                      <span class="result-text"><strong>{{ match.form }}</strong><small>{{ match.language }}</small></span>
-                      <span class="result-arrow" aria-hidden="true">↗</span>
-                    </a>
-                  </li>
-                {% endfor %}
-              </ol>
-            </nav>
-          {% else %}
-            <p class="empty-list">No etimons match this search.</p>
-          {% endif %}
-        </aside>
-
-        <section id="etimon-detail" class="detail-panel" aria-labelledby="detail-heading"
-                 {% if selected %}data-etimon-id="{{ selected.number }}"{% endif %}>
+        <div class="workspace-toolbar">
+          <details class="results-chooser"{% if results_open %} open{% endif %}>
+            <summary>Etimons <span class="count">{{ matches | length }}</span></summary>
+            <div class="results-menu">
+              {% if matches %}
+                <nav aria-label="Matching etimons">
+                  <ol class="results-list">
+                    {% for match in matches %}
+                      <li>
+                        <a class="etimon-link{% if selected and selected.number == match.number %} is-selected{% endif %}"
+                           data-etimon-id="{{ match.number }}"
+                           href="{{ url_for('index', etimon=match.number) }}" hx-get="{{ url_for('index', etimon=match.number) }}"
+                           {% if selected and selected.number == match.number %}aria-current="true"{% endif %}>
+                          <span class="etimon-number">{{ match.number }}</span>
+                          <span class="result-text"><strong>{{ match.form }}</strong><small>{{ match.language }}</small></span>
+                          <span class="result-arrow" aria-hidden="true">↗</span>
+                        </a>
+                      </li>
+                    {% endfor %}
+                  </ol>
+                </nav>
+              {% else %}
+                <p class="empty-list">No etimons match this search.</p>
+              {% endif %}
+            </div>
+          </details>
           {% if selected %}
-            <div class="detail-heading">
-              <div>
-                <p class="eyebrow">Etimon {{ selected.number }}</p>
-                <h2 id="detail-heading">{{ selected.form }}</h2>
-              </div>
+            <h2 id="detail-heading" class="detail-title" title="{{ selected.form }}"><span class="etimon-number">{{ selected.number }}</span> {{ selected.form }}</h2>
+            <div class="workspace-tools">
               <div class="display-options" role="group" aria-label="Content display">
                 <a href="{{ url_for('index', etimon=selected.number, plaintext=0) }}" hx-get="{{ url_for('index', etimon=selected.number, plaintext=0) }}"{% if not plaintext %} aria-current="true"{% endif %}>Formatted</a>
                 <a href="{{ url_for('index', etimon=selected.number, plaintext=1) }}" hx-get="{{ url_for('index', etimon=selected.number, plaintext=1) }}"{% if plaintext %} aria-current="true"{% endif %}>Plain text</a>
               </div>
-            </div>
-            <div class="table-toolbar">
-              <p id="table-hint" class="table-hint">{{ table_rows | length }} rows · Drag column edges or row borders to resize.</p>
-              <div class="table-actions">
-                <details class="column-chooser">
-                  <summary>Columns</summary>
-                  <fieldset>
-                    <legend class="visually-hidden">Visible table columns</legend>
-                    {% for column in grid_columns %}
-                      <label><input type="checkbox" data-grid-field="{{ column.field }}" checked> {{ column.title }}</label>
-                    {% endfor %}
-                  </fieldset>
-                </details>
-                <button type="button" class="layout-reset" data-reset-layout>Reset layout</button>
-              </div>
-            </div>
-            <div id="etimon-grid" hx-preserve="true" hidden aria-label="Etimon comparison grid"></div>
-            <div class="table-scroll table-fallback" tabindex="0" role="region" aria-label="Etimon comparison table" aria-describedby="table-hint">
-              <table class="etimon-table">
-                <caption class="visually-hidden">{{ selected.form }} — etimon {{ selected.number }}, language comparison</caption>
-                <thead>
-                  <tr>
-                    <th scope="col" class="label-column">Label</th>
-                    <th scope="col" class="number-column"><span aria-label="Label number">No.</span></th>
-                    {% for column in table_columns %}<th scope="col">{{ column }}</th>{% endfor %}
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for row in table_rows %}
-                    <tr>
-                      <th scope="row" class="label-column">{{ row.label }}</th>
-                      <td class="number-column">{{ row.label_number }}</td>
-                      {% for column in table_columns %}
-                        <td class="content-cell">
-                          {% if plaintext %}
-                            <div class="plain-content">{{ row[column] }}</div>
-                          {% else %}
-                            {{ row[column] | safe }}
-                          {% endif %}
-                        </td>
-                      {% endfor %}
-                    </tr>
+              <p id="table-hint" class="visually-hidden">{{ table_rows | length }} rows · Drag column edges or row borders to resize.</p>
+              <details class="column-chooser">
+                <summary>Table columns</summary>
+                <fieldset>
+                  <legend class="visually-hidden">Visible table columns</legend>
+                  {% for column in grid_columns %}
+                    <label><input type="checkbox" data-grid-field="{{ column.field }}" checked> {{ column.title }}</label>
                   {% endfor %}
-                </tbody>
-              </table>
+                </fieldset>
+              </details>
+              <button type="button" class="layout-reset" data-reset-layout>Reset layout</button>
+            </div>
+          {% endif %}
+        </div>
+
+        <section id="etimon-detail" class="detail-panel" aria-labelledby="detail-heading"
+                 {% if selected %}data-etimon-id="{{ selected.number }}"{% endif %}>
+          {% if selected %}
+            <div class="table-frame">
+              <div class="table-scrollbar scrollbar-horizontal" role="scrollbar" tabindex="0" aria-label="Scroll table left or right" aria-orientation="horizontal" aria-controls="etimon-grid" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden>
+                <div class="scrollbar-thumb"></div>
+              </div>
+              <div class="table-scrollbar scrollbar-vertical" role="scrollbar" tabindex="0" aria-label="Scroll table up or down" aria-orientation="vertical" aria-controls="etimon-grid" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden>
+                <div class="scrollbar-thumb"></div>
+              </div>
+              <div id="etimon-grid" hx-preserve="true" hidden aria-label="Etimon comparison grid"></div>
+              <div id="etimon-fallback" class="table-scroll table-fallback" tabindex="0" role="region" aria-label="Etimon comparison table" aria-describedby="table-hint">
+                <table class="etimon-table">
+                  <caption class="visually-hidden">{{ selected.form }} — etimon {{ selected.number }}, language comparison</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" class="label-column">Label</th>
+                      <th scope="col" class="number-column"><span aria-label="Label number">No.</span></th>
+                      {% for column in table_columns %}<th scope="col">{{ column }}</th>{% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in table_rows %}
+                      <tr>
+                        <th scope="row" class="label-column">{{ row.label }}</th>
+                        <td class="number-column">{{ row.label_number }}</td>
+                        {% for column in table_columns %}
+                          <td class="content-cell">
+                            {% if plaintext %}
+                              <div class="plain-content">{{ row[column] }}</div>
+                            {% else %}
+                              {{ row[column] | safe }}
+                            {% endif %}
+                          </td>
+                        {% endfor %}
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
             </div>
           {% else %}
             <div class="empty-state">

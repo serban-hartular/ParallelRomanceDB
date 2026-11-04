@@ -48,7 +48,7 @@ class ExcelToDataFrameTests(unittest.TestCase):
             self.assertEqual(HTMLText(frame.iloc[1].content).text, text)
 
     def test_example_and_all_original_text(self):
-        source = Path(__file__).parent / 'db' / 'example.xlsx'
+        source = Path(__file__).resolve().parents[1] / 'db' / 'example.xlsx'
         before = source.read_bytes()
         frame = excel_to_dataframe(source, 'Sheet1')
         self.assertEqual(list(frame.columns), [

@@ -286,6 +286,7 @@ def excel_to_dataframe(
     equivalent, preserving case and internal whitespace. Formulas are
     retained as expressions, not evaluated.
     The source workbook is never modified. Defaults to the first worksheet.
+    The returned DataFrame's attrs['sheet_name'] records the actual sheet title.
     Requires openpyxl >= 3.1 for rich-text loading.
     """
     columns = [
@@ -339,6 +340,8 @@ def excel_to_dataframe(
                     'nodiacritics_plaintext': remove_diacritics(plaintext),
                 })
 
-        return pd.DataFrame.from_records(records, columns=columns)
+        frame = pd.DataFrame.from_records(records, columns=columns)
+        frame.attrs['sheet_name'] = sheet.title
+        return frame
     finally:
         workbook.close()

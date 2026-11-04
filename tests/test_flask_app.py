@@ -20,6 +20,7 @@ class Page(HTMLParser):
         self.selected = None
         self.query = None
         self.payload = None
+        self.filters = {'column': [], 'label': []}
         self.in_payload = False
         self.feed(response.get_data(as_text=True))
 
@@ -33,6 +34,8 @@ class Page(HTMLParser):
             self.selected = int(attrs['data-etimon-id'])
         if attrs.get('id') == 'query':
             self.query = attrs.get('value')
+        if tag == 'input' and attrs.get('type') == 'checkbox' and attrs.get('name') in self.filters and 'checked' in attrs:
+            self.filters[attrs['name']].append(attrs['value'])
 
     def handle_data(self, data):
         if self.in_payload:
@@ -57,6 +60,8 @@ class FlaskAppTests(unittest.TestCase):
         page = Page(response)
         self.assertEqual(page.matches, [1, 2, 3, 4])
         self.assertEqual(page.selected, 1)
+        self.assertEqual(page.filters, {'column': [], 'label': []})
+        self.assertEqual(page.payload['criteria'], {'query': '', 'column': [], 'label': []})
         self.assertIn('ASPIC', response.get_data(as_text=True))
         self.assertIn('PROFITEROLE', response.get_data(as_text=True))
         self.assertIn('LIMBA CATALANĂ', response.get_data(as_text=True))
@@ -87,8 +92,8 @@ class FlaskAppTests(unittest.TestCase):
         self.assertEqual(clicked.selected, 4)
         self.assertEqual(clicked.query, 'sens nepreluat')
         with self.client.session_transaction() as state:
-            self.assertEqual(state['search']['column'], 'LIMBA ROMÂNĂ')
-            self.assertEqual(state['search']['label'], 'EXTENSII SEMANTICE (METAFORIZĂRI,  METONIMII)')
+            self.assertEqual(state['search']['column'], ['LIMBA ROMÂNĂ'])
+            self.assertEqual(state['search']['label'], ['EXTENSII SEMANTICE (METAFORIZĂRI,  METONIMII)'])
         # A selection outside the matches cannot escape the current search.
         outside = Page(self.client.get('/?etimon=2'))
         self.assertEqual(outside.matches, [1, 4])
@@ -181,7 +186,7 @@ class FlaskAppTests(unittest.TestCase):
         self.assertEqual(page.selected, 4)
         self.assertEqual(page.payload['etimon'], 4)
         self.assertEqual(page.payload['criteria']['query'], 'sens nepreluat')
-        self.assertEqual(page.payload['criteria']['column'], 'LIMBA ROMÂNĂ')
+        self.assertEqual(page.payload['criteria']['column'], ['LIMBA ROMÂNĂ'])
         self.assertIn('BISCUIT', page.payload['title'])
         self.assertIn('hx-preserve="true"', clicked.get_data(as_text=True))
         # The workbook's private filesystem path is not a browser preference key.
@@ -212,8 +217,8 @@ class FlaskAppTests(unittest.TestCase):
         self.assertEqual(empty.payload['rows'], [])
         reset = Page(self.client.get('/?reset=1', headers=headers))
         self.assertEqual(reset.matches, [1, 2, 3, 4])
-        self.assertEqual(reset.payload['criteria'], {'query': '', 'column': '', 'label': ''})
-        for name in ('app.js', 'vendor/htmx.min.js', 'vendor/tabulator.min.js', 'vendor/tabulator.min.css'):
+        self.assertEqual(reset.payload['criteria'], {'query': '', 'column': [], 'label': []})
+        for name in ('app.js', 'scrollbars.js', 'vendor/htmx.min.js', 'vendor/tabulator.min.js', 'vendor/tabulator.min.css'):
             asset = self.client.get(f'/static/{name}')
             try:
                 self.assertEqual(asset.status_code, 200)
@@ -244,6 +249,60 @@ class FlaskAppTests(unittest.TestCase):
             self.assertIn('&lt;script&gt;', plain)
             query = client.get('/', query_string={'search': '1', 'q': '"><script>alert(1)</script>'})
             self.assertNotIn('<script>', query.get_data(as_text=True))
+
+    def test_multiple_filters_survive_navigation_reload_and_clear(self):
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / 'filters.xlsx'
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append([None, 'French', 'Romanian', 'Italian'])
+            for number, label, cells in [
+                (1, 'Basic', ['café', None, None]),
+                (2, 'Special', [None, 'CAFÉ', None]),
+                (3, 'Basic', [None, None, 'café']),
+                (4, 'Other', ['café', None, None]),
+                (5, 'Special', ['café', None, None]),
+            ]:
+                sheet.append(['ETIMON/ CORESPONDENTE ROMANICE', f'entry {number}'])
+                sheet.append([label, *cells])
+                if number == 3:
+                    sheet.append(['Special', 'different text'])
+                if number == 4:
+                    sheet.append(['Basic', 'different text'])
+            workbook.save(source)
+            workbook.close()
+            client = create_app(source, test_config={
+                'TESTING': True, 'SECRET_KEY': 'test',
+            }).test_client()
+            response = client.get('/', headers={'HX-Request': 'true'}, query_string=[
+                ('search', '1'), ('q', 'CAFE'),
+                ('column', 'Romanian'), ('column', 'French'), ('column', 'French'),
+                ('label', 'Special'), ('label', 'Basic'),
+            ])
+            criteria = {'query': 'CAFE', 'column': ['French', 'Romanian'], 'label': ['Basic', 'Special']}
+            page = Page(response)
+            self.assertEqual(page.matches, [1, 2, 5])
+            self.assertEqual(page.payload['criteria'], criteria)
+            for url in ('/?etimon=5', '/?plaintext=1', '/'):
+                page = Page(client.get(url))
+                self.assertEqual(page.matches, [1, 2, 5])
+                self.assertEqual(page.selected, 5)
+                self.assertEqual(page.payload['criteria'], criteria)
+                self.assertEqual(page.filters, {'column': ['French', 'Romanian'], 'label': ['Basic', 'Special']})
+            for url in ('/?reset=1', '/?search=1&q=&column=&label='):
+                page = Page(client.get(url))
+                self.assertEqual(page.matches, [1, 2, 3, 4, 5])
+                self.assertEqual(page.filters, {'column': [], 'label': []})
+                self.assertEqual(page.payload['criteria'], {'query': '', 'column': [], 'label': []})
+
+    def test_older_single_value_search_sessions_are_restored(self):
+        with self.client.session_transaction() as state:
+            state['search'] = {'query': 'prajitura cu crema', 'column': 'LIMBA ROMÂNĂ', 'label': 'SENSURI DE BAZĂ'}
+        page = Page(self.client.get('/'))
+        self.assertEqual(page.matches, [2])
+        self.assertEqual(page.filters, {'column': ['LIMBA ROMÂNĂ'], 'label': ['SENSURI DE BAZĂ']})
+        with self.client.session_transaction() as state:
+            self.assertEqual(state['search']['column'], ['LIMBA ROMÂNĂ'])
 
     def test_empty_workbook(self):
         with TemporaryDirectory() as directory:
