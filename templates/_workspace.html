@@ -58,7 +58,7 @@
                 <a href="{{ url_for('index', etimon=selected.number, plaintext=0) }}" hx-get="{{ url_for('index', etimon=selected.number, plaintext=0) }}"{% if not plaintext %} aria-current="true"{% endif %}>Formatted</a>
                 <a href="{{ url_for('index', etimon=selected.number, plaintext=1) }}" hx-get="{{ url_for('index', etimon=selected.number, plaintext=1) }}"{% if plaintext %} aria-current="true"{% endif %}>Plain text</a>
               </div>
-              <p id="table-hint" class="visually-hidden">{{ table_rows | length }} rows · Drag column edges or row borders to resize.</p>
+              <p id="table-hint" class="visually-hidden">{{ table_rows | length }} rows · Drag column edges or row borders to resize. Double-click a content cell to edit. Close saves to server memory; a server restart discards edits.</p>
               <details class="column-chooser">
                 <summary>Table columns</summary>
                 <fieldset>
@@ -98,11 +98,12 @@
                     {% for row in table_rows %}
                       {% set highlights = highlighted_rows[loop.index0] %}
                       {% set backgrounds = background_rows[loop.index0] %}
+                      {% set line_heights = line_height_rows[loop.index0] %}
                       <tr>
                         <th scope="row" class="label-column"{% if 'label' in backgrounds %} style="background-color: {{ backgrounds.label }};"{% endif %}>{{ row.label }}</th>
                         <td class="number-column"{% if 'label_number' in backgrounds %} style="background-color: {{ backgrounds.label_number }};"{% endif %}>{{ row.label_number }}</td>
                         {% for column in table_columns %}
-                          <td class="content-cell{% if not row[column] %} is-empty{% endif %}"{% if column in backgrounds %} style="background-color: {{ backgrounds[column] }};"{% endif %}>
+                          <td class="content-cell{% if not row[column] %} is-empty{% endif %}"{% if column in backgrounds or column in line_heights %} style="{% if column in backgrounds %}background-color: {{ backgrounds[column] }};{% endif %}{% if column in line_heights %} line-height: {{ line_heights[column] }};{% endif %}"{% endif %}>
                             {% if plaintext %}
                               <div class="plain-content">{% if column in highlights %}{{ highlights[column] | safe }}{% else %}{{ row[column] }}{% endif %}</div>
                             {% else %}

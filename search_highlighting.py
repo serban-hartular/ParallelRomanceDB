@@ -91,7 +91,7 @@ class _CellHTML(HTMLParser):
 def highlight_content(content, query, *, plaintext=False):
     """Return highlighted HTML, or None if the cell has no matching text.
 
-    Formatted input must be trusted HTML from the escaped workbook converter.
+    Formatted input must be trusted HTML from the workbook or Delta renderer.
     Plaintext is escaped before inserting marks. Match across rich-text runs,
     wrapping each affected text node separately to preserve valid formatting.
     Query text is never inserted as markup, and attributes are never searched.

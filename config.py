@@ -10,7 +10,7 @@ TRUSTED_HOSTS = None
 # Enable only behind HTTPS; CLI --secure-cookies also enables this setting.
 SESSION_COOKIE_SECURE = False
 
-# This read-only application has no upload endpoints. Waitress also limits
+# Edits are stored only in memory; there are no upload endpoints. Waitress limits
 # incoming bodies to 64 KiB and headers to 16 KiB in main.py.
 MAX_CONTENT_LENGTH = 64 * 1024
 MAX_QUERY_STRING_LENGTH = 8 * 1024

@@ -1,20 +1,54 @@
 # XLDB development handoff
 
-Prepared 2026-11-04. Workspace: `/home/hartular/Lingv/XLDB`.
+Updated 2026-11-05 for inline Quill editing in the shared in-memory DataFrame.
+Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 
 **Copy into the next chat**
 
 > Continue the XLDB project in `/home/hartular/Lingv/XLDB`. Read `README.md`
-> and `HANDOFF.md` first. It is a working local Flask app for searching and
-> comparing Romance-language etymon subtables imported from Excel. htmx
-> updates search results and etymon selection without full-page reloads;
-> Tabulator provides the read-only table, column visibility and resizing.
-> Preserve original text/formatting and label wording. Search ignores case
-> on the website, removes Unicode diacritics, expands œ/æ and ø/ł, and folds
-> Catalan l·l. The search field is named `nodiacritics_plaintext`.
-> The layout has compact controls, a collapsible etymon side list, and a table filling
-> the remaining viewport. Future Quill editing has been discussed; editing and SQLite have not
-> been implemented. There is no unfinished implementation request at handoff.
+> and `HANDOFF.md` first; also read `DEPLOYMENT.md` before deployment work.
+> The app is branded Parallel Words and uses Flask + htmx + Tabulator, with
+> Waitress for local/public serving. It imports one Excel file/sheet at startup,
+> supports multiple column/label filters and case/diacritic-insensitive search,
+> and displays resizable tables with persistent scrollbars, a collapsible
+> ETYMONS list, previous/next navigation, and configurable search highlighting.
+> Excel background fills cover content cells, labels, label numbers, and empty
+> cells using the documented inheritance rules; highlighting stays above fills.
+> Preserve original workbook text, formatting, and label spelling/spacing.
+> CLI options select the workbook, sheet, local/public/specific interface, port,
+> trusted hosts/proxy, and secure cookies. The user reports remote deployment works.
+> Double-clicking a content cell opens Quill inline; Close saves to the shared
+> DataFrame only, Cancel/Escape discards. All edits vanish on server restart;
+> the workbook stays untouched. There is no authentication: reachable visitors
+> can read and edit. Run one application process. SQLite persistence, row
+> insertion, and accounts remain future plans.
+> Inspect the current Git state and preserve existing changes. No implementation
+> request is pending; I will provide the next task.
+
+**Current state and continuation**
+
+- Application code is committed at `5f57829` (`Cell backgrounds. Made server
+  work for outside world (not checked yet).`). Existing README/HANDOFF/DEPLOYMENT
+  changes were preserved when adding inline editing. Check `git status` when
+  resuming; this work does not commit, push, or deploy anything.
+- Latest behavior: Quill opens inside a double-clicked content cell. Close or
+  Ctrl/Cmd+Enter saves; Cancel or Escape discards. Changes update the running
+  DataFrame only. No-op closes preserve exact original HTML. Labels/numbers
+  remain fixed. Imported backgrounds and all search/layout behavior remain.
+- Typography: Quill starts with the cell's line height. A Typography toggle
+  reveals a font-size input (pt, Apply size/Enter) and whole-cell line-spacing
+  select. Text selection survives menu focus; font size affects the selection
+  or subsequent typing. Spacing affects every line, not individual paragraphs.
+  Spacing-only changes count as edits; menu-only/no-op closes preserve HTML.
+- The user deployed the previous browsing version successfully and verified
+  regular/incognito session separation. Editing changes have not been deployed
+  remotely by this project work.
+- `README.md` describes operation and import contracts; this file records
+  development details; `DEPLOYMENT.md` contains remote deployment examples and
+  limitations. Maintain all affected documents when behavior changes.
+- Preserve source Excel files and label spelling/spacing. The user explicitly
+  chose in-memory DataFrame updates, rather than SQLite or workbook saves.
+  SQLite, uploads, accounts, and row insertion are not implemented.
 
 **Run and verification**
 
@@ -23,22 +57,39 @@ cd /home/hartular/Lingv/XLDB
 .venv/bin/python main.py
 .venv/bin/python main.py "db/my workbook.xlsx" --sheet "Sheet 2"
 # Open http://127.0.0.1:5000
+# Optional: choose a different local port, or expose all IPv4 interfaces.
+.venv/bin/python main.py --local --port 8080
+.venv/bin/python main.py "db/my workbook.xlsx" --public --port 8080
 
 .venv/bin/python -m unittest -v
 node --check static/app.js
+node --check static/cell_editor.js
 node --check static/scrollbars.js
 node tests/test_scrollbars.js
 ```
 
 - Existing environment: Python 3.13.12, Flask 3.1.3, pandas 3.1.0,
   openpyxl 3.1.5, Waitress 3.0.2. Direct dependencies are recorded in `requirements.txt`.
-- Latest verification: 56 Python tests, six Node scrollbar interaction tests,
-  and JavaScript syntax checks passed after adding deployment options and request protections.
-  The Node tests use simulated DOM geometry; no browser visual testing was run.
+- Latest verification: 70 Python tests, six Node scrollbar interaction tests,
+  and JavaScript syntax checks. Six real Chromium check groups exercise inline
+  editing under the app's CSP, rich text/whitespace, no-op/Cancel, shared saves,
+  conflicts, search/plaintext, empty-cell fill/clear, selected font size,
+  inherited line height, and whole-cell spacing/save/reopen/Cancel. Scrollbar tests use
+  simulated geometry. No remote editing deployment has been tested here.
+- Manual Waitress smoke checks bound only `127.0.0.1` on an ephemeral port:
+  full page and htmx search returned 200; an unapproved Host returned 400;
+  `/db/example.xlsx` returned 404; oversized headers/body returned 431/413.
+  A forged forwarding header did not enable HTTPS behavior. This was an ad hoc
+  check, not a committed socket-based test.
 - `tests/__init__.py` preserves discovery with `python -m unittest -v` from
   the project root. Workbook fixture paths are relative to that root.
-- No automated browser/visual testing was available. The user has repeatedly
-  confirmed that the page and interactions look good.
+- Optional `tests/test_cell_editor_browser.js` uses Playwright + Chromium and
+  creates an isolated temporary workbook and ephemeral loopback Waitress server.
+  Node 18 testing used Playwright 1.51.1 installed only under `/tmp/xldb-browser`,
+  with browsers under `/tmp/xldb-browser/browsers`; no runtime npm dependency
+  was added. Run with `NODE_PATH=/tmp/xldb-browser/node_modules
+  PLAYWRIGHT_BROWSERS_PATH=/tmp/xldb-browser/browsers node tests/test_cell_editor_browser.js`
+  while that temporary installation exists. The test retains the real CSP.
 - No Node build or CDN is required at runtime. Vendor versions and licenses
   live in `static/vendor/README.md` and adjacent files.
 
@@ -235,8 +286,8 @@ an empty table with the standard columns. Default values are HTML; the
   content field names to highlighted HTML only for matching cells. The frontend
   renders those generated strings when present; the fallback uses the same
   server-generated HTML. Search/display changes replace highlights and Clear
-  removes them. Generated highlights must not be treated as saved cell content
-  when editing is eventually added.
+  removes them. The editor loads original HTML from separate metadata, never
+  the generated highlights.
 - Each grid row also has `backgrounds`, mapping internal content fields and
   `label`/`label_number` to effective fill colors. The label fill colors both
   identifier cells and every empty content cell. Populated content cells keep
@@ -295,7 +346,8 @@ an empty table with the standard columns. Default values are HTML; the
   `--secure-cookies` enables Secure cookies and HSTS on HTTPS responses, requiring
   an HTTPS reverse proxy. No built-in TLS or login is provided.
 - Stable keys come from `FLASK_SECRET_KEY`; otherwise browser preferences reset
-  on restart. HttpOnly/SameSite=Lax stay enabled. Workbook access remains read-only.
+  on restart. HttpOnly/SameSite=Lax stay enabled. Source workbook access remains read-only;
+  the shared DataFrame accepts edits through POST `/cell`.
 - All Flask responses get CSP, nosniff, frame denial, and same-origin referrer
   policy. CSP allows inline styles for Excel/Tabulator, but scripts only from
   self. htmx allowEval=false, selfRequestsOnly=true, historyCacheSize=0; keep JSON
@@ -307,30 +359,55 @@ an empty table with the standard columns. Default values are HTML; the
 - `tests/test_deployment.py` covers headers, Host/proxy trust, HTTPS cookies,
   request bounds, private paths/methods, and an unchanged read-only workbook.
   CLI tests mock Waitress rather than Flask.run. A live loopback HTTP smoke check
-  exercises Waitress; no Nginx/systemd, real HTTPS, or browser test was run here.
+  exercises Waitress; local Chromium also checks editing under CSP. No remote
+  Nginx/systemd or real HTTPS editing deployment was performed here.
 - `DEPLOYMENT.md` includes HTTPS Nginx and unprivileged/read-only systemd examples,
   secret/log handling, firewall guidance, and remaining availability limits.
-  Anyone who can reach the app can read all data; use proxy authentication/VPN
+  Anyone who can reach the app can read and edit all data; use proxy authentication/VPN
   for private workbooks and keep the backend inaccessible around that proxy.
 
 **Discussed future direction and remaining limits**
 
-The user wants an app-like research tool and may next refine layout. They
-eventually want to edit cell contents and add rows. The discussed direction
-was Flask + htmx + a dedicated grid, with one reusable Quill editor in a side
-panel/dialog, plus SQLite persistence before editing. Only the viewing/grid
-stage is implemented. There are no save/edit endpoints, Quill assets, database,
-or authentication. Deployment options and examples are documented in `DEPLOYMENT.md`;
-no actual remote deployment has been performed.
+The original plan considered SQLite before editing and a side-panel Quill editor.
+The user subsequently requested Quill inside the double-clicked cell and chose
+the existing in-memory DataFrame as the save destination. That behavior is now
+implemented. Database persistence, adding rows, accounts, and export remain future work.
 
-Before implementing editing, introduce stable row/cell IDs: current etymon and
-label numbers are worksheet-derived ordering values. Preserve imported content
-until an edit is saved. Test Quill round-tripping on representative rich text,
-fonts, superscripts, and whitespace; its HTML import may normalize formatting.
-HTML/plaintext/normalized search text must be updated together, and match caches
-and result titles refreshed after edits. Editing would also require revisiting
-the current trust boundary: formatted HTML is presently emitted only by the
-escaped workbook converter.
+`static/cell_editor.js` owns a single active editor. It loads original HTML
+from `row.editors[field]`, including in plaintext view; it never imports search
+marks. Style-based font/size attributors, whitespace matchers, and a script
+matcher retain supported workbook formatting. Changed cells are converted to
+Quill's supported formats (double underline becomes underline); unchanged
+cells keep their exact original HTML. Navigation and layout changes are blocked
+until Close/Cancel. A failed save retains the draft; page reload/close loses it.
+
+POST `/cell` accepts a signed cell/revision token and Quill insert operations.
+It requires a session-bound CSRF header. `cell_editing.py` validates only text
+and allowlisted inline styles, then escapes and renders HTML; it never accepts
+client HTML, images, links, or arbitrary CSS. HTML, plaintext, and normalized
+search text update together, cached matches clear, and titles rebuild. Cell
+fills stay separate. Empty content cells can be populated; clearing a cell
+retains its record/row identity. Label/number editing and row insertion are absent.
+
+An RLock protects all DataFrame reads/writes during requests. Per-cell revisions
+reject stale saves, including conflicting empty-cell edits. A process-specific
+signing salt expires editor tokens at restart even with a stable session key.
+Cell identity uses the current immutable (etymon, label, number, column) tuple;
+introduce persistent stable IDs before adding row insertion/reordering or a
+database. One process is required: DataFrames/revisions are not shared between
+processes. Waitress's four threads share the one app. Other browsers see changes
+on their next request; there is no push synchronization or authentication.
+
+Whole-cell spacing is a validated unitless number in [0.5, 4]. POST `/cell`
+accepts `line_height` separately from Quill's inline Delta. It is stored in
+`df.attrs['cell_line_heights']`, keyed by the same cell identity tuple, and on
+the rendered HTML's outer div. Grid editor metadata includes `line_height`;
+Tabulator cells and fallback `<td>` elements apply it in both display modes.
+The existing eight DataFrame columns are unchanged. Omitting spacing on a
+save retains a prior setting. Empty cells can retain spacing as metadata.
+The editor reads the existing cell line height (normally 1.6), uses that as
+its initial whole-cell setting, and compares it alongside the initial Delta
+to detect changes. No per-paragraph Quill format or spacing attributes are added.
 
 The current backend/tests assume the example fixture's layout and some labels.
 The user may clean the source workbook themselves; check fixture-related test

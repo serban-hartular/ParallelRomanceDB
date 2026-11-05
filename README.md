@@ -1,12 +1,13 @@
 # XLDB
 
-A read-only Flask interface for searching and comparing the etymons in an Excel workbook.
+A Flask interface for searching, comparing, and editing etymons imported from an Excel workbook.
 The page is branded **Parallel Words**; its header shows the loaded workbook's
 filename followed by the actual worksheet name (including when the first sheet
 is selected automatically).
 
-For the development handoff, agreed behavior, and future work, read
-[HANDOFF.md](HANDOFF.md).
+For the development handoff, agreed behavior, future work, and a prompt to paste
+into a new chat, read [HANDOFF.md](HANDOFF.md). Remote deployment instructions
+and untested deployment assumptions are in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 Run the server from this directory:
 
@@ -35,7 +36,7 @@ The command uses Waitress rather than Flask's development server. For remote
 deployment, read [DEPLOYMENT.md](DEPLOYMENT.md), covering HTTPS proxies,
 `--trusted-host`, `--trusted-proxy`, `--secure-cookies`, firewall access, service
 permissions, and request limits. **There is no login: every reachable user can
-read the loaded worksheet.** Put private data behind a VPN or authenticated proxy.
+read and edit the loaded worksheet in server memory.** Put private data behind a VPN or authenticated proxy.
 
 Omitting the file keeps the bundled example. Omitting `--sheet` (or `-s`) selects
 the **first worksheet**, not the active worksheet. Sheet names match exactly.
@@ -115,7 +116,7 @@ disappear at either end. Controls wrap on narrow screens.
 
 Searches, etymon selection, Clear, and the formatted/plaintext switch update
 the workspace through htmx without reloading the page. Tabulator provides the
-interactive, read-only table. Use **Table columns** to choose visible columns, drag
+interactive table. Use **Table columns** to choose visible columns, drag
 column-header edges to resize widths, and drag row borders to resize heights.
 Labels and label numbers remain visible while scrolling horizontally.
 Persistent, draggable scrollbars sit **above the table** for left/right scrolling
@@ -126,7 +127,46 @@ Focused scrollbars also support arrow keys, Page Up/Down, Home, and End.
 
 The browser remembers column widths and visibility for each workbook, and row
 heights for each etymon. **Reset layout** clears those display preferences for
-the current workbook. These controls do not change the Excel data.
+the current workbook. These layout controls do not change cell contents.
+
+**Inline cell editing**
+
+Double-click a language or notes cell, including an empty cell, to open Quill
+inside it. Labels, label numbers, and headings remain fixed. The editor always
+loads the original formatted content, including in plain-text view, without
+search highlights. **Close** (or Ctrl/Cmd+Enter) saves and closes; **Cancel**
+(or Escape) discards the draft. Closing without changes preserves the exact
+original HTML. Close or cancel before navigating, searching, or changing the
+table layout. Refreshing/closing the browser tab discards an unsaved draft.
+
+Saved edits update the **shared in-memory DataFrame only**: other visitors see
+them on their next request, and search, highlighting, and result titles use the
+new content. **Restarting the server discards all edits. The source workbook is
+never overwritten.** Run one application process; separate processes would
+have separate datasets. There is no database, autosave to disk, or export yet.
+
+The toolbar supports bold, italics, underline, strikethrough, sub/superscript,
+text colors, and text highlights. Imported font families/sizes are retained
+where supported by Quill; saving an edited cell converts that cell's formatting
+to Quill's supported formats (for example, double underline becomes underline).
+Workbook cell and label background fills remain separate and unchanged.
+There are no images, links, or embedded HTML in edited content. The server
+validates text/format operations and creates escaped HTML itself.
+
+Quill uses the cell's line height when it opens. **Typography** reveals a
+font-size input (points) and a line-spacing menu. Select text, enter a size,
+then click **Apply size** (or press Enter in the size input); with only a cursor,
+the size applies to subsequent typing. Line spacing applies to the **entire
+cell**, independently of the text selection, and previews immediately. **Close**
+saves both text and typography; **Cancel** discards both. Merely opening the
+Typography menu does not change the cell. Saved line spacing carries through
+formatted/plain-text views, the HTML fallback, and reopening the editor.
+
+Simultaneous edits to different cells are accepted. A stale save to a cell
+already changed by someone else is rejected and keeps the draft open; copy
+the draft before cancelling and reloading. Editor tokens also expire when
+the server restarts. There are no user accounts: every reachable visitor can
+edit; CSRF protection and conflict checks do not restrict who has access.
 
 The pinned htmx and Tabulator files are bundled under `static/vendor`, including
 their licenses, so no CDN connection or frontend build step is required. A
@@ -150,22 +190,34 @@ Run the checks with:
 ```bash
 .venv/bin/python -m unittest -v
 node --check static/app.js
+node --check static/cell_editor.js
 node --check static/scrollbars.js
 node tests/test_scrollbars.js
 ```
 
 Node is optional for the JavaScript checks; the application itself does
-not require Node or npm. The most recent verification passed all 56 Python
-tests, six scrollbar interaction tests, and JavaScript syntax checks.
-Scrollbar tests use simulated DOM geometry, not a browser. Automated browser interaction/visual
-tests have not been run; the user has confirmed that the page looks good.
+not require Node or npm. Latest verification (2026-11-05): 70 Python tests,
+six scrollbar interaction tests, JavaScript syntax checks, and six Chromium
+browser-check groups covering inline editing, typography, formatting/whitespace, Cancel,
+shared saves/conflicts, search/plaintext, and empty cells. The scrollbar tests
+use simulated geometry. Earlier manual loopback checks also verified Waitress
+responses, host validation, and header/body limits. The user reports successful
+remote deployment of the previous browsing version; these editing changes
+have only been tested locally.
+
+An optional browser regression script starts its own temporary workbook and
+loopback server. With Playwright and its Chromium browser installed, run
+`node tests/test_cell_editor_browser.js` (set `NODE_PATH` if Playwright is
+installed outside this project). It never connects to a deployed server.
 
 **Project files**
 
 | File | Purpose |
 | --- | --- |
 | `main.py` | Flask app factory, startup import, search sessions, cached matches, grid payloads |
+| `cell_editing.py` | Validates Quill text operations and renders safe formatted HTML |
 | `config.py` | Highlight color, allowed hosts, secure cookies, and request limits |
+| `HANDOFF.md` | Continuation prompt, current state, contracts, verification, and future work |
 | `DEPLOYMENT.md` | Local/public startup, HTTPS proxy, permissions, and deployment limits |
 | `search_highlighting.py` | Normalized match ranges and formatting-preserving highlights |
 | `extract_sheet.py` | Worksheet extraction, dictionary find/replace, Excel-to-DataFrame conversion |
@@ -174,9 +226,10 @@ tests have not been run; the user has confirmed that the page looks good.
 | `templates/index.html` | Full page and search form |
 | `templates/_workspace.html` | htmx fragment, results list, grid data and fallback table |
 | `static/app.js` | Tabulator lifecycle, display preferences, htmx integration |
+| `static/cell_editor.js` | Inline Quill lifecycle, Close/Cancel, and draft handling |
 | `static/scrollbars.js` | Persistent top/right scroll controls and native-scroll synchronization |
 | `static/style.css` | Page, fallback table, and grid styling |
-| `static/vendor/` | htmx 2.0.8 and Tabulator 6.3.1, licenses and source references |
+| `static/vendor/` | htmx 2.0.8, Tabulator 6.3.1, Quill 2.0.3, licenses and source references |
 | `to_replace.py` | User-maintained label-cleanup dictionary; not applied automatically |
 | `tests/` | Python unittest coverage and dependency-free Node scrollbar tests |
 
@@ -227,5 +280,9 @@ Row-label fills are metadata in `df.attrs['label_backgrounds']`, keyed by
 `(etimon_number, label, label_number)`. They do not add data records or change
 searchable text or row numbering.
 
-The grid remains read-only. Quill editing, row insertion, and database
-persistence have been discussed but are not implemented.
+The running app stores saved cell spacing in `df.attrs['cell_line_heights']`,
+keyed by `(etimon_number, label, label_number, column)`. It also includes the
+spacing in formatted HTML; it does not add another DataFrame column.
+
+Quill updates the running server's DataFrame. Row insertion and database
+persistence remain future work.

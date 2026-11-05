@@ -8,6 +8,46 @@
   let resultsScrollbars = null;
   let updates = Promise.resolve();
   let resultsHidden = false;
+  let workspaceBusy = false;
+
+  function editing() { return window.XLDBCellEditor?.active; }
+
+  function editCell(instance, cell) {
+    if (editing() || workspaceBusy || instance.updating) return;
+    const editor = cell.getRow().getData().editors?.[cell.getField()];
+    if (!editor) return;
+    if (!window.XLDBCellEditor || typeof Quill === "undefined") {
+      showError("The cell editor could not load. Reload the page to try again.");
+      return;
+    }
+    let saved = false;
+    window.XLDBCellEditor.open(cell, {
+      html: editor.html,
+      lineHeight: editor.line_height,
+      async onSave(ops, lineHeight) {
+        const response = await fetch("/cell", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": instance.payload.csrf },
+          body: JSON.stringify({ token: editor.token, ops, line_height: lineHeight }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Could not save. Please try again.");
+        saved = true;
+      },
+      onClose() {
+        document.getElementById("request-status").classList.remove("is-error");
+        cell.getRow().normalizeHeight();
+        restoreRowHeight(instance, cell.getRow());
+        scrollbars?.schedule();
+        if (saved) {
+          htmx.ajax("GET", `/?etimon=${instance.payload.etimon}`, {
+            target: "#workspace", swap: "outerHTML", source: document.body,
+          });
+        }
+      },
+    });
+    scrollbars?.schedule();
+  }
 
   function settingsFor(dataset) {
     const key = `xldb.layout.v1.${dataset}`;
@@ -66,6 +106,7 @@
     // Clear absent fills so replacing data cannot leave an old color behind.
     row.getCells().forEach(cell => {
       cell.getElement().style.backgroundColor = backgrounds[cell.getField()] || "";
+      cell.getElement().style.lineHeight = row.getData().editors?.[cell.getField()]?.line_height || "";
       cell.getElement().classList.toggle("is-empty", cell.getValue() === "");
     });
     restoreRowHeight(instance, row);
@@ -117,7 +158,7 @@
           } else if (instance.payload.plaintext) {
             element.textContent = cell.getValue() ?? "";
           } else {
-            // HTML comes only from the workbook's escaped rich-text converter.
+            // HTML comes from the workbook converter or validated Delta renderer.
             element.innerHTML = cell.getValue() || "";
           }
           return element;
@@ -155,6 +196,7 @@
       rowFormatter: row => formatRow(instance, row),
     });
     instance.table.on("tableBuilt", instance.resolveReady);
+    instance.table.on("cellDblClick", (_event, cell) => editCell(instance, cell));
     instance.table.on("renderComplete", () => scrollbars?.schedule());
     instance.table.on("columnResized", column => {
       saveColumn(instance, column);
@@ -306,11 +348,21 @@
     const filter = event.target.closest("[data-search-filter]");
     if (filter) updateFilterSummary(filter);
     if (!event.target.matches("[data-grid-field]") || !active || active.updating) return;
+    if (editing()) {
+      syncColumnChooser(active);
+      showError("Close or cancel the cell editor before changing the table layout.");
+      return;
+    }
     const column = active.table.getColumn(event.target.dataset.gridField);
     if (column) event.target.checked ? column.show() : column.hide();
   });
 
   document.addEventListener("click", event => {
+    if (editing() && event.target.closest("[data-toggle-results], [data-reset-layout]")) {
+      event.preventDefault();
+      showError("Close or cancel the cell editor before changing the table layout.");
+      return;
+    }
     document.querySelectorAll("details[open]").forEach(details => {
       if (!details.contains(event.target)) details.open = false;
     });
@@ -353,13 +405,21 @@
     if (scrollbars && event.detail.elt === scrollbars.frame) bindScrollbars(null, null);
     if (active && event.detail.elt === active.element) destroyGrid();
   });
-  document.addEventListener("htmx:beforeRequest", () => {
+  document.addEventListener("htmx:beforeRequest", event => {
+    if (editing()) {
+      event.preventDefault();
+      showError("Close or cancel the cell editor before navigating or searching.");
+      window.XLDBCellEditor.focus();
+      return;
+    }
+    workspaceBusy = true;
     const status = document.getElementById("request-status");
     status.textContent = "Updating…";
     status.classList.remove("is-error");
     document.getElementById("workspace").setAttribute("aria-busy", "true");
   });
   document.addEventListener("htmx:afterRequest", () => {
+    workspaceBusy = false;
     document.getElementById("workspace").removeAttribute("aria-busy");
   });
   document.addEventListener("htmx:responseError", () => showError("The search could not complete. Please try again."));

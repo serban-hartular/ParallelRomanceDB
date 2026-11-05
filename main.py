@@ -1,28 +1,32 @@
-"""Read-only Flask interface for browsing the Romance-language workbook.
+"""Flask interface for browsing and editing an in-memory Romance-language workbook.
 
 Run with .venv/bin/python main.py [workbook.xlsx] [--sheet NAME], then open
 http://127.0.0.1:5000.
 """
 
 import argparse
-from functools import lru_cache
+from functools import lru_cache, wraps
 from hashlib import sha256
 from ipaddress import ip_address
 import json
 import os
 from pathlib import Path
 import re
-from secrets import token_hex
+from secrets import compare_digest, token_hex
+from threading import RLock
 from xml.etree.ElementTree import ParseError
 from zipfile import BadZipFile
 
 from flask import Flask, abort, render_template, request, session
+from itsdangerous import BadSignature, URLSafeSerializer
 from openpyxl.utils.exceptions import InvalidFileException
 from waitress import serve
 
 from df_search import COLUMN_ORDER, LABEL_ORDER, get_etimon, search_dataframe
+from cell_editing import render_delta, validate_line_height
 from extract_sheet import excel_to_dataframe
 from search_highlighting import highlight_content
+from text_normalization import remove_diacritics
 
 
 DEFAULT_EXCEL_PATH = Path(__file__).parent / 'db' / 'example.xlsx'
@@ -92,6 +96,27 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
     dataset_key = sha256(
         f"{Path(app.config['EXCEL_PATH']).resolve()}:{app.config['SHEET_NAME']}".encode()
     ).hexdigest()[:16]
+    data_lock = RLock()
+    revisions = {}
+    cell_line_heights = df.attrs.setdefault('cell_line_heights', {})
+    # A fresh salt also prevents an editor opened before restart saving over
+    # a newly loaded workbook, even when FLASK_SECRET_KEY is stable.
+    editor_tokens = URLSafeSerializer(app.secret_key, salt=f'cell-editor-{token_hex(16)}')
+
+    def locked(function):
+        @wraps(function)
+        def wrapper(*args, **kwargs):
+            with data_lock:
+                return function(*args, **kwargs)
+        return wrapper
+
+    def cell_key(etimon, row, column):
+        return (int(etimon), row['label'], int(row['label_number']), column)
+
+    def cell_mask(key):
+        etimon, label, number, column = key
+        return (df['etimon_number'].eq(etimon) & df['label'].eq(label)
+                & df['label_number'].eq(number) & df['column'].eq(column))
 
     @app.before_request
     def limit_request():
@@ -125,7 +150,10 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
         ))
 
     @app.get('/')
+    @locked
     def index():
+        if 'edit_csrf' not in session:
+            session['edit_csrf'] = token_hex(32)
         if 'reset' in request.args:
             session.pop('search', None)
             session.pop('etimon', None)
@@ -197,6 +225,18 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
             {'title': title, 'field': f'content_{index}'}
             for index, title in enumerate(table_columns)
         ]
+        # Editing always starts with original formatted HTML, even when the
+        # current display uses plaintext or presentation-only search marks.
+        formatted = get_etimon(df, selected) if plaintext and selected is not None else table
+        formatted_rows = formatted.to_dict('records') if formatted is not None else []
+        line_height_rows = [
+            {
+                column: cell_line_heights[key]
+                for column in table_columns
+                if (key := cell_key(selected, row, column)) in cell_line_heights
+            }
+            for row in table_rows
+        ]
         grid_rows = [
             {
                 'id': json.dumps([row['label'], row['label_number']], ensure_ascii=False),
@@ -214,8 +254,21 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
                         for column in grid_columns if column['title'] in backgrounds
                     },
                 },
+                'editors': {
+                    column['field']: {
+                        'html': original[column['title']],
+                        'line_height': line_heights.get(column['title']),
+                        'token': editor_tokens.dumps([
+                            *cell_key(selected, row, column['title']),
+                            revisions.get(cell_key(selected, row, column['title']), 0),
+                        ]),
+                    }
+                    for column in grid_columns
+                },
             }
-            for row, highlights, backgrounds in zip(table_rows, highlighted_rows, background_rows)
+            for row, highlights, backgrounds, original, line_heights in zip(
+                table_rows, highlighted_rows, background_rows, formatted_rows, line_height_rows,
+            )
         ]
         selected_entry = entries.get(selected)
         selected_index = numbers.index(selected) if numbers else 0
@@ -240,6 +293,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
             table_rows=table_rows,
             highlighted_rows=highlighted_rows,
             background_rows=background_rows,
+            line_height_rows=line_height_rows,
             highlight_color=app.config['SEARCH_HIGHLIGHT_COLOR'],
             max_search_length=app.config['MAX_SEARCH_LENGTH'],
             grid_columns=grid_columns,
@@ -252,9 +306,59 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
                 'rows': grid_rows,
                 'criteria': criteria,
                 'title': page_title,
+                'csrf': session['edit_csrf'],
             },
         ))
         response.vary.add('HX-Request')
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+
+    @app.post('/cell')
+    @locked
+    def save_cell():
+        csrf = request.headers.get('X-CSRF-Token', '')
+        if not csrf or not compare_digest(csrf.encode(), session.get('edit_csrf', '').encode()):
+            return {'error': 'Your editing session expired. Reload the page before editing.'}, 403
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict) or not isinstance(body.get('token'), str):
+            return {'error': 'Invalid cell edit.'}, 400
+        try:
+            signed = editor_tokens.loads(body['token'])
+        except BadSignature:
+            return {'error': 'This cell has expired. Cancel and reload before editing.'}, 409
+        key, revision = tuple(signed[:-1]), signed[-1]
+        if revisions.get(key, 0) != revision:
+            return {'error': 'Someone else changed this cell. Copy your draft, then cancel and reload.'}, 409
+        try:
+            line_height = validate_line_height(body.get('line_height', cell_line_heights.get(key)))
+            html, plaintext = render_delta(body.get('ops'), line_height=line_height)
+        except ValueError as error:
+            return {'error': str(error)}, 400
+        mask = cell_mask(key)
+        if mask.any():
+            index = df.index[mask][0]
+        else:
+            # Add content to a currently empty language/notes cell, without
+            # changing row identifiers or importing a new worksheet row.
+            index = len(df)
+            df.loc[index] = {
+                'etimon_number': key[0], 'column': key[3], 'label': key[1],
+                'label_number': key[2], 'content': '', 'plaintext_content': '',
+                'nodiacritics_plaintext': '', 'background_color': '',
+            }
+        df.at[index, 'content'] = html
+        df.at[index, 'plaintext_content'] = plaintext
+        df.at[index, 'nodiacritics_plaintext'] = remove_diacritics(plaintext)
+        if line_height is None:
+            cell_line_heights.pop(key, None)
+        else:
+            cell_line_heights[key] = line_height
+        revisions[key] = revision + 1
+        columns[:] = _ordered_values(df['column'], COLUMN_ORDER)
+        entries.clear()
+        entries.update(_etimon_entries(df))
+        matching_numbers.cache_clear()
+        response = app.json.response({'saved': True})
         response.headers['Cache-Control'] = 'no-store'
         return response
 

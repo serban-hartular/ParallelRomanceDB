@@ -1,5 +1,12 @@
 # Running Parallel Words on another machine
 
+Status (2026-11-05): the user reports a successful remote deployment of the
+previous browsing version. Inline Quill editing now updates the shared server
+DataFrame in memory, with no disk writes. Restarting discards edits. Run one
+application process; multiple processes do not share edits. Remote deployment
+of the editing changes has not been verified here. Read [HANDOFF.md](HANDOFF.md) for the development state and
+continuation prompt, and [README.md](README.md) for workbook usage.
+
 Install `requirements.txt` into a virtual environment on the destination machine.
 The `main.py` command uses **Waitress**, a production WSGI server, for both local
 and public access. Do not use `flask run`, `app.run()`, or Flask's debugger for a
@@ -36,7 +43,8 @@ hostnames are unrestricted so local/IP access works without configuration.
 **There is no login or authorization. Every reachable user can browse/search
 the entire loaded worksheet.** Hiding columns, search filters, and `HX-Request`
 headers do not restrict access. For private data, use a VPN or authenticate all
-requests at a reverse proxy. Direct HTTP also leaves traffic and cookies
+requests at a reverse proxy. **Every reachable visitor can also edit the shared
+in-memory data; there are no separate editing permissions.** Direct HTTP leaves traffic and cookies
 unencrypted; use HTTPS for Internet access.
 
 ## HTTPS and proxy headers
@@ -180,15 +188,20 @@ See [systemd's execution settings](https://www.freedesktop.org/software/systemd/
   30 seconds, and concurrent connections at 100, using four worker threads.
   See [Waitress's settings](https://docs.pylonsproject.org/projects/waitress/en/latest/arguments.html).
   Application limits in `config.py` cap query strings at 8 KiB and search terms
-  at 500 characters; unknown filter names are rejected. These are bounds, not
-  a rate limiter. Apply proxy rate limits/network restrictions for public traffic.
+  at 500 characters; unknown column/label filter values are rejected. These are
+  bounds, not a rate limiter. Apply proxy rate limits/network restrictions for
+  public traffic.
 - The workbook is loaded once into memory. Large workbooks, broad searches,
   and many simultaneous clients can consume substantial memory/CPU. There is
   no pagination, background job queue, or automatic workbook reload. Restart
   after source changes; check memory and response times with your real dataset.
-- The current app exposes GET/HEAD/OPTIONS browsing and static files only.
-  Adding uploads/editing/accounts later requires a new review of authorization,
-  CSRF protection, HTML sanitization, storage permissions, and resource limits.
+- The app exposes browsing/static routes and POST `/cell` for in-memory edits.
+  Edits require a session-bound CSRF token and a signed cell/revision token.
+  The server accepts validated text/format operations rather than HTML,
+  rejects stale saves, and locks reads/writes to keep the DataFrame consistent.
+  These checks do not authenticate visitors. There is no edit persistence;
+  keep one application process, and do not restart expecting edits to survive.
+  Source workbooks and the project directory still need no write permissions.
 
 Before opening access, verify from a second machine that HTTPS, any required
 authentication, searches, selection, highlighting, and scrolling work. Check
@@ -196,4 +209,5 @@ that port 8080 cannot bypass the proxy, unapproved `Host` headers are rejected,
 and `/db/lexicon.xlsx`, `/.git/config`, and `/config.py` are not served. Review
 service/proxy logs for errors without exposing secrets. The automated suite
 tests the request boundaries, and a loopback HTTP smoke check exercises Waitress;
-the example remote Nginx/systemd setup has not been deployed or tested here.
+the user reports the previous remote deployment works. The editing changes
+have been tested with local Waitress and Chromium, not against that deployment.

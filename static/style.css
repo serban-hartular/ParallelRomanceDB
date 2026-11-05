@@ -120,6 +120,24 @@ h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 #etimon-grid .tabulator-row-resize-handle { height: 6px; }
 #etimon-grid .tabulator-row-resize-handle:hover { background: #294d3d55; }
 #etimon-grid .grid-content { overflow-wrap: anywhere; }
+#etimon-grid .tabulator-cell.is-editing { padding: 0; overflow: visible; position: relative; z-index: 5; outline: 2px solid var(--green); outline-offset: -2px; }
+.cell-editor { min-width: 0; width: 100%; background: var(--surface); color: var(--ink); }
+.cell-editor-toolbar-row { display: flex; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--line); }
+.cell-editor-toolbar-row .ql-toolbar.ql-snow { flex: 1; }
+.cell-editor-typography-toggle, .cell-editor-typography-menu button { margin: 4px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); color: var(--ink); font-size: 11px; cursor: pointer; }
+.cell-editor-typography-toggle[aria-expanded="true"] { background: var(--highlight); }
+.cell-editor-typography-menu { display: flex; flex-wrap: wrap; align-items: end; gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); font-size: 11px; }
+.cell-editor-typography-menu[hidden] { display: none; }
+.cell-editor-typography-menu label { display: flex; flex-direction: column; gap: 3px; }
+.cell-editor-typography-menu input, .cell-editor-typography-menu select { max-width: 100%; width: 88px; padding: 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); color: var(--ink); }
+.cell-editor-typography-menu button { margin: 0; }
+.cell-editor .ql-toolbar.ql-snow { padding: 4px; border: 0; white-space: normal; }
+.cell-editor .ql-container.ql-snow { border: 0; font: inherit; height: auto; }
+.cell-editor .ql-editor { min-height: 120px; max-height: 45vh; overflow-y: auto; padding: 10px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: inherit; }
+.cell-editor-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px; border-top: 1px solid var(--line); font-size: 11px; white-space: normal; }
+.cell-editor-actions button { padding: 4px 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.cell-editor-actions button:first-child { background: var(--green); color: white; }
+.cell-editor-actions [role="status"] { overflow-wrap: anywhere; }
 .table-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-color: #a5afa2 #eeeee8; }
 .etimon-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: 12px; table-layout: fixed; }
 .etimon-table th, .etimon-table td { width: 290px; min-width: 290px; max-width: 290px; padding: 12px; text-align: left; vertical-align: top; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }

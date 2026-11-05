@@ -6,9 +6,12 @@
     <meta name="htmx-config" content='{"allowEval":false,"selfRequestsOnly":true,"historyCacheSize":0}'>
     <title>{{ page_title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/tabulator.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/quill.snow.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script defer src="{{ url_for('static', filename='vendor/htmx.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='vendor/tabulator.min.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='vendor/quill.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='cell_editor.js') }}"></script>
     <script defer src="{{ url_for('static', filename='scrollbars.js') }}"></script>
     <script defer src="{{ url_for('static', filename='app.js') }}"></script>
   </head>
