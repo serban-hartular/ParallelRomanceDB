@@ -9,11 +9,38 @@
   let updates = Promise.resolve();
   let resultsHidden = false;
   let workspaceBusy = false;
+  let mutationBusy = false;
+  let pendingFocus = null;
+  let creationButton = null;
 
   function editing() { return window.XLDBCellEditor?.active; }
 
+  function restoreScroll(instance, position) {
+    const viewport = instance.element.querySelector('.tabulator-tableholder');
+    if (!viewport || !position) return;
+    viewport.scrollLeft = position.left;
+    viewport.scrollTop = position.top;
+    scrollbars?.schedule();
+  }
+
+  function revealCell(instance, row, field) {
+    const viewport = instance.element.querySelector('.tabulator-tableholder');
+    const cell = row.getCell(field).getElement();
+    const bounds = viewport.getBoundingClientRect();
+    const rowBounds = row.getElement().getBoundingClientRect();
+    viewport.scrollTop += rowBounds.top - bounds.top - Math.max(0, (viewport.clientHeight - rowBounds.height) / 2);
+    const frozenWidth = instance.table.getColumns().filter(column => column.getDefinition().frozen && column.isVisible())
+      .reduce((width, column) => width + column.getWidth(), 0);
+    const cellBounds = cell.getBoundingClientRect();
+    const available = viewport.clientWidth - frozenWidth;
+    viewport.scrollLeft += cellBounds.left - bounds.left - frozenWidth - Math.max(0, (available - cellBounds.width) / 2);
+    cell.tabIndex = -1;
+    cell.focus({ preventScroll: true });
+    scrollbars?.schedule();
+  }
+
   function editCell(instance, cell) {
-    if (editing() || workspaceBusy || instance.updating) return;
+    if (!instance.payload.edit_mode || editing() || workspaceBusy || mutationBusy || instance.updating) return;
     const editor = cell.getRow().getData().editors?.[cell.getField()];
     if (!editor) return;
     if (!window.XLDBCellEditor || typeof Quill === "undefined") {
@@ -21,6 +48,7 @@
       return;
     }
     let saved = false;
+    let scrollPosition;
     window.XLDBCellEditor.open(cell, {
       html: editor.html,
       lineHeight: editor.line_height,
@@ -34,14 +62,22 @@
         if (!response.ok) throw new Error(result.error || "Could not save. Please try again.");
         saved = true;
       },
+      onBeforeClose() {
+        const viewport = instance.element.querySelector('.tabulator-tableholder');
+        scrollPosition = { left: viewport.scrollLeft, top: viewport.scrollTop };
+      },
       onClose() {
         document.getElementById("request-status").classList.remove("is-error");
         cell.getRow().normalizeHeight();
         restoreRowHeight(instance, cell.getRow());
+        restoreScroll(instance, scrollPosition);
         scrollbars?.schedule();
         if (saved) {
+          instance.editScroll = { ...scrollPosition, etimon: instance.payload.etimon };
           htmx.ajax("GET", `/?etimon=${instance.payload.etimon}`, {
             target: "#workspace", swap: "outerHTML", source: document.body,
+          }).catch(() => {
+            instance.editScroll = null;
           });
         }
       },
@@ -196,7 +232,10 @@
       rowFormatter: row => formatRow(instance, row),
     });
     instance.table.on("tableBuilt", instance.resolveReady);
-    instance.table.on("cellDblClick", (_event, cell) => editCell(instance, cell));
+    instance.table.on("cellDblClick", (event, cell) => {
+      if (instance.payload.edit_mode && cell.getRow().getData().editors?.[cell.getField()]) event.preventDefault();
+      editCell(instance, cell);
+    });
     instance.table.on("renderComplete", () => scrollbars?.schedule());
     instance.table.on("columnResized", column => {
       saveColumn(instance, column);
@@ -260,6 +299,9 @@
     if (!workspace?.isConnected) return;
     bindScrollbars(null, null);
     const payload = JSON.parse(workspace.querySelector(".workspace-data").textContent);
+    document.querySelector('[data-toggle-edit]').setAttribute('aria-pressed', String(payload.edit_mode));
+    document.querySelector('[data-add-etymon]').hidden = !payload.edit_mode;
+    document.querySelector('.collection-count').textContent = `${payload.total} etimon${payload.total === 1 ? '' : 's'} in the collection`;
     document.title = payload.title;
     const form = document.querySelector(".search-form");
     form.elements.q.value = payload.criteria.query;
@@ -307,6 +349,23 @@
         element.querySelector(".tabulator-tableholder").scrollTop = 0;
       }
       bindScrollbars(workspace, element.querySelector(".tabulator-tableholder"));
+      const position = instance.editScroll;
+      instance.editScroll = null;
+      if (position?.etimon === payload.etimon) restoreScroll(instance, position);
+      if (pendingFocus?.etimon === payload.etimon) {
+        const location = pendingFocus;
+        pendingFocus = null;
+        const identity = payload.rows.find(row => row.label === location.label && row.label_number === location.label_number)?.id;
+        const row = identity ? instance.table.getRow(identity) : null;
+        const column = payload.columns.find(item => item.title === 'LIMBA FRANCEZĂ');
+        if (row && column) {
+          // A hidden French column should not hide the entry just created.
+          const targetColumn = instance.table.getColumn(column.field);
+          targetColumn.show();
+          await new Promise(requestAnimationFrame);
+          revealCell(instance, row, column.field);
+        }
+      }
     } finally {
       instance.updating = false;
     }
@@ -358,9 +417,33 @@
   });
 
   document.addEventListener("click", event => {
-    if (editing() && event.target.closest("[data-toggle-results], [data-reset-layout]")) {
+    const operation = event.target.closest('[data-toggle-edit], [data-add-row], [data-add-etymon]');
+    if (operation) {
       event.preventDefault();
-      showError("Close or cancel the cell editor before changing the table layout.");
+      if (editing()) {
+        showError('Close or cancel the cell editor before switching mode or adding entries.');
+        window.XLDBCellEditor.focus();
+        return;
+      }
+      if (!mutationBusy && !workspaceBusy && !active?.updating) {
+        if (operation.matches('[data-toggle-edit]')) changeEntries(operation);
+        else {
+          creationButton = operation;
+          operation.closest('.add-row-menu')?.removeAttribute('open');
+          const dialog = document.getElementById('create-entry-dialog');
+          dialog.querySelector('form').reset();
+          dialog.querySelector('.creation-error').textContent = '';
+          dialog.querySelector('h2').textContent = operation.matches('[data-add-row]') ? 'Add row' : 'Add etymon';
+          dialog.showModal();
+          dialog.querySelector('textarea').focus();
+        }
+      }
+      return;
+    }
+    if (editing() && event.target.closest("[data-toggle-results], [data-reset-layout], [data-export-excel], .add-row-menu")) {
+      event.preventDefault();
+      showError("Close or cancel the cell editor before exporting or changing the table layout.");
+      window.XLDBCellEditor.focus();
       return;
     }
     document.querySelectorAll("details[open]").forEach(details => {
@@ -389,6 +472,63 @@
     saveSettings(active.settings);
     scheduleWorkspace(document.getElementById("workspace"), true);
   });
+
+  async function changeEntries(button) {
+    const payload = JSON.parse(document.querySelector('.workspace-data').textContent);
+    const mode = button.matches('[data-toggle-edit]');
+    const addRow = button.matches('[data-add-row]');
+    const path = mode ? '/mode' : addRow ? '/rows' : '/etymons';
+    const body = mode ? { edit_mode: !payload.edit_mode } : addRow ? {
+      etimon: payload.etimon, label: button.dataset.rowLabel,
+    } : {};
+    if (!mode) body.text = document.getElementById('create-entry-text').value;
+    mutationBusy = true;
+    button.disabled = true;
+    try {
+      const response = await fetch(path, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': payload.csrf },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Could not update the collection.');
+      if (!mode) {
+        pendingFocus = result;
+        document.getElementById('create-entry-dialog').close();
+      }
+      await htmx.ajax('GET', result.etimon ? `/?etimon=${result.etimon}` : '/', {
+        target: '#workspace', swap: 'outerHTML', source: document.body,
+      });
+      await updates;
+    } catch (error) {
+      pendingFocus = null;
+      showError(error.message || 'Could not reach the server. Please try again.');
+      document.querySelector('.creation-error').textContent = error.message;
+    } finally {
+      mutationBusy = false;
+      button.disabled = false;
+    }
+  }
+
+  document.addEventListener('submit', async event => {
+    if (event.target.id !== 'create-entry-form') return;
+    event.preventDefault();
+    if (mutationBusy) return;
+    const text = document.getElementById('create-entry-text');
+    if (!text.value.trim()) {
+      document.querySelector('.creation-error').textContent = 'Enter French text before creating an entry.';
+      text.focus();
+      return;
+    }
+    event.target.querySelector('[type="submit"]').disabled = true;
+    try { await changeEntries(creationButton); }
+    finally { event.target.querySelector('[type="submit"]').disabled = false; }
+  });
+  document.addEventListener('click', event => {
+    if (event.target.closest('[data-cancel-entry]') && !mutationBusy) document.getElementById('create-entry-dialog').close();
+  });
+  document.addEventListener('cancel', event => {
+    if (event.target.id === 'create-entry-dialog' && mutationBusy) event.preventDefault();
+  }, true);
 
   document.addEventListener("keydown", event => {
     if (event.key !== "Escape") return;

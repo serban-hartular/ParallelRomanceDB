@@ -337,6 +337,7 @@ def excel_to_dataframe(
         label = None
         label_background = ''
         label_backgrounds = {}
+        row_positions = {}
         counts = Counter()
         for row in sheet.iter_rows(min_row=2):
             row_label = row[0].value
@@ -353,6 +354,7 @@ def excel_to_dataframe(
             if not etimon_number:
                 raise ValueError(f'Row {row[0].row} has content before the first ETIMON/ label.')
             counts[label] += 1
+            row_positions[(etimon_number, label, counts[label])] = row[0].row
             row_background = _cell_background(row[0], color_to_css) or label_background
             if row_background:
                 label_backgrounds[(etimon_number, label, counts[label])] = row_background
@@ -375,6 +377,8 @@ def excel_to_dataframe(
         frame = pd.DataFrame.from_records(records, columns=columns)
         frame.attrs['sheet_name'] = sheet.title
         frame.attrs['label_backgrounds'] = label_backgrounds
+        frame.attrs['row_positions'] = row_positions
+        frame.attrs['column_positions'] = {name: number for number, name in headers.items()}
         return frame
     finally:
         workbook.close()

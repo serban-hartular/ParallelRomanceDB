@@ -54,11 +54,19 @@
               {% endif %}
             </nav>
             <div class="workspace-tools">
+              {% if edit_mode %}
+                <details class="add-row-menu">
+                  <summary class="add-entry" role="button" aria-label="Add row">Add row</summary>
+                  <div class="add-row-options" aria-label="Row type">
+                    {% for label in row_labels %}<button type="button" data-add-row data-row-label="{{ label }}">{{ label }}</button>{% endfor %}
+                  </div>
+                </details>
+              {% endif %}
               <div class="display-options" role="group" aria-label="Content display">
                 <a href="{{ url_for('index', etimon=selected.number, plaintext=0) }}" hx-get="{{ url_for('index', etimon=selected.number, plaintext=0) }}"{% if not plaintext %} aria-current="true"{% endif %}>Formatted</a>
                 <a href="{{ url_for('index', etimon=selected.number, plaintext=1) }}" hx-get="{{ url_for('index', etimon=selected.number, plaintext=1) }}"{% if plaintext %} aria-current="true"{% endif %}>Plain text</a>
               </div>
-              <p id="table-hint" class="visually-hidden">{{ table_rows | length }} rows · Drag column edges or row borders to resize. Double-click a content cell to edit. Close saves to server memory; a server restart discards edits.</p>
+              <p id="table-hint" class="visually-hidden">{{ table_rows | length }} rows · Drag column edges or row borders to resize. {% if edit_mode %}Double-click a content cell to edit. Close saves to the database.{% else %}Switch to Edit mode to change content.{% endif %} Export Excel downloads the updated workbook.</p>
               <details class="column-chooser">
                 <summary>Table columns</summary>
                 <fieldset>

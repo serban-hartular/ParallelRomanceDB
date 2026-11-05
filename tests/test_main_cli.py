@@ -12,6 +12,7 @@ from unittest.mock import patch
 from openpyxl import Workbook
 
 from extract_sheet import excel_to_dataframe
+from lexicon_db import LexiconDB
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,8 +20,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ServerCommandTests(unittest.TestCase):
     def launch(self, *args):
-        with patch.object(sys, 'argv', ['main.py', *map(str, args)]):
-            runpy.run_path(str(ROOT / 'main.py'), run_name='__main__')
+        # Each CLI case gets a fresh database unless it explicitly tests reuse.
+        with TemporaryDirectory() as directory:
+            options = list(map(str, args))
+            if '--database' not in options:
+                options += ['--database', str(Path(directory) / 'test.sqlite3')]
+            with patch.object(sys, 'argv', ['main.py', *options]):
+                runpy.run_path(str(ROOT / 'main.py'), run_name='__main__')
 
     def test_custom_workbook_loads_once_with_first_or_named_sheet(self):
         with TemporaryDirectory() as directory:
@@ -43,7 +49,7 @@ class ServerCommandTests(unittest.TestCase):
                     run.assert_called_once()
                     app = run.call_args.args[0]
                     self.assertEqual(app.config['EXCEL_PATH'], str(source))
-                    self.assertEqual(app.extensions['lexicon_df'].attrs['sheet_name'], expected)
+                    self.assertEqual(app.extensions['lexicon_store'].to_dataframe().attrs['sheet_name'], expected)
                     self.assertIn(expected, app.test_client().get('/').get_data(as_text=True))
                     self.assertEqual(run.call_args.kwargs['host'], '127.0.0.1')
                     self.assertEqual(run.call_args.kwargs['port'], 5000)
@@ -54,6 +60,28 @@ class ServerCommandTests(unittest.TestCase):
                 self.launch()
         loader.assert_called_once_with(str(ROOT / 'db' / 'example.xlsx'), None)
         run.assert_called_once()
+
+    def test_database_reuse_and_export_without_a_source_file_or_server(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source.xlsx'
+            database = root / 'saved.sqlite3'
+            workbook = Workbook()
+            workbook.active.append([None, 'LIMBA FRANCEZĂ'])
+            workbook.active.append(['ETIMON/', 'original'])
+            workbook.save(source)
+            workbook.close()
+            store = LexiconDB(database, source)
+            store.save_cell((1, 'ETIMON/', 1, 'LIMBA FRANCEZĂ'), 0, [{'insert': 'saved edit\n'}])
+            store.close()
+            source.unlink()
+            output = StringIO()
+            with patch('extract_sheet.excel_to_dataframe') as loader, patch('waitress.serve') as run:
+                with redirect_stdout(output):
+                    self.launch(source, '--database', database, '--export', '--export-dir', root / 'exports')
+            self.assertTrue(Path(output.getvalue().strip()).is_file())
+            loader.assert_not_called()
+            run.assert_not_called()
 
     def test_binding_port_and_proxy_options(self):
         for arguments, host, port in [

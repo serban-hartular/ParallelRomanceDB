@@ -1,40 +1,33 @@
-"""Flask interface for browsing and editing an in-memory Romance-language workbook.
+"""Flask interface for a persistent SQLite lexicon imported from Excel.
 
 Run with .venv/bin/python main.py [workbook.xlsx] [--sheet NAME], then open
 http://127.0.0.1:5000.
 """
 
 import argparse
-from functools import lru_cache, wraps
-from hashlib import sha256
+from functools import wraps
 from ipaddress import ip_address
 import json
 import os
 from pathlib import Path
 import re
 from secrets import compare_digest, token_hex
-from threading import RLock
+import sqlite3
 from xml.etree.ElementTree import ParseError
 from zipfile import BadZipFile
 
-from flask import Flask, abort, render_template, request, session
+from flask import Flask, abort, render_template, request, send_file, session
 from itsdangerous import BadSignature, URLSafeSerializer
 from openpyxl.utils.exceptions import InvalidFileException
 from waitress import serve
 
-from df_search import COLUMN_ORDER, LABEL_ORDER, get_etimon, search_dataframe
-from cell_editing import render_delta, validate_line_height
+from df_search import COLUMN_ORDER, LABEL_ORDER, get_etimon
 from extract_sheet import excel_to_dataframe
+from lexicon_db import EditConflict, LexiconDB, default_database_path
 from search_highlighting import highlight_content
-from text_normalization import remove_diacritics
 
 
 DEFAULT_EXCEL_PATH = Path(__file__).parent / 'db' / 'example.xlsx'
-
-
-def _ordered_values(values, preferred):
-    present = set(values.dropna())
-    return [value for value in preferred if value in present] + sorted(present - set(preferred))
 
 
 def _filter_values(values):
@@ -44,35 +37,8 @@ def _filter_values(values):
     return sorted(set(value for value in values if value))
 
 
-def _etimon_entries(df):
-    """Build result titles from the first available language's etymon entry."""
-    etimon_rows = df.loc[df['label'].str.contains(r'^\s*ETIMON\s*/', case=False, na=False)]
-    entries = {}
-    for number in sorted(df['etimon_number'].unique().tolist()):
-        rows = etimon_rows.loc[etimon_rows['etimon_number'].eq(number)].sort_values('label_number')
-        form = 'No language form'
-        language = ''
-        for candidate in COLUMN_ORDER[:6]:
-            texts = rows.loc[rows['column'].eq(candidate), 'plaintext_content'].dropna()
-            text = next((value.strip() for value in texts if value.strip()), '')
-            if text:
-                # The workbook places the headword before grammatical notes.
-                first_line = next(line.strip() for line in text.splitlines() if line.strip())
-                form = re.split(r',|\s{2,}', first_line, maxsplit=1)[0].strip() or first_line
-                language = candidate
-                break
-        entries[number] = {'number': number, 'form': form, 'language': language}
-    return entries
-
-
-def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None):
-    """Load one worksheet at startup and create the browsing application.
-
-    Search results are cached in server memory. Each browser's signed
-    session remembers its search criteria, selection, and display mode.
-    Only small preferences are stored in the cookie, not workbook content
-    or the potentially long list of matches. Restart to reload the file.
-    """
+def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None, database_path=None):
+    """Open a database, importing the selected workbook only on first use."""
     app = Flask(__name__)
     app.config.from_mapping(
         SECRET_KEY=os.environ.get('FLASK_SECRET_KEY') or token_hex(32),
@@ -87,18 +53,16 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
     if not re.fullmatch(r'#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?', app.config['SEARCH_HIGHLIGHT_COLOR']):
         raise ValueError('SEARCH_HIGHLIGHT_COLOR must be a #RGB or #RRGGBB hex color.')
 
-    df = excel_to_dataframe(app.config['EXCEL_PATH'], app.config['SHEET_NAME'])
-    source_label = f"{Path(app.config['EXCEL_PATH']).name} · {df.attrs['sheet_name']}"
-    app.extensions['lexicon_df'] = df
-    entries = _etimon_entries(df)
-    labels = _ordered_values(df['label'], LABEL_ORDER)
-    columns = _ordered_values(df['column'], COLUMN_ORDER)
-    dataset_key = sha256(
-        f"{Path(app.config['EXCEL_PATH']).resolve()}:{app.config['SHEET_NAME']}".encode()
-    ).hexdigest()[:16]
-    data_lock = RLock()
-    revisions = {}
-    cell_line_heights = df.attrs.setdefault('cell_line_heights', {})
+    path = database_path or app.config.get('DATABASE_PATH')
+    if path is None:
+        path = ':memory:' if app.testing else default_database_path(app.config['EXCEL_PATH'], app.config['SHEET_NAME'])
+    store = LexiconDB(path, app.config['EXCEL_PATH'], app.config['SHEET_NAME'],
+                      loader=excel_to_dataframe, row_colors=app.config['ROW_BACKGROUND_COLORS'])
+    app.config['DATABASE_PATH'] = str(path)
+    app.config.setdefault('EXPORT_DIRECTORY', str(Path(path).resolve().parent / 'exports') if str(path) != ':memory:' else str(Path(app.root_path) / 'exports'))
+    app.extensions['lexicon_store'] = store
+    source_label = f"{store.metadata['source_name']} · {store.metadata['sheet_name']}"
+    dataset_key = store.metadata['id']
     # A fresh salt also prevents an editor opened before restart saving over
     # a newly loaded workbook, even when FLASK_SECRET_KEY is stable.
     editor_tokens = URLSafeSerializer(app.secret_key, salt=f'cell-editor-{token_hex(16)}')
@@ -106,17 +70,12 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
     def locked(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
-            with data_lock:
+            with store.transaction():
                 return function(*args, **kwargs)
         return wrapper
 
     def cell_key(etimon, row, column):
         return (int(etimon), row['label'], int(row['label_number']), column)
-
-    def cell_mask(key):
-        etimon, label, number, column = key
-        return (df['etimon_number'].eq(etimon) & df['label'].eq(label)
-                & df['label_number'].eq(number) & df['column'].eq(column))
 
     @app.before_request
     def limit_request():
@@ -141,17 +100,13 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
             response.headers['Strict-Transport-Security'] = 'max-age=31536000'
         return response
 
-    @lru_cache(maxsize=128)
-    def matching_numbers(query, label, column):
-        if not query and not label and not column:
-            return tuple(entries)
-        return tuple(search_dataframe(
-            df, query, label=label or None, column=column or None, case_sensitive=False,
-        ))
-
     @app.get('/')
     @locked
     def index():
+        edit_mode = bool(session.get('edit_mode', False))
+        entries = store.entries()
+        labels = store.choices('label', LABEL_ORDER)
+        columns = store.choices('column', COLUMN_ORDER)
         if 'edit_csrf' not in session:
             session['edit_csrf'] = token_hex(32)
         if 'reset' in request.args:
@@ -178,7 +133,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
         }
         if 'search' in session:
             session['search'] = criteria
-        numbers = matching_numbers(
+        numbers = store.matching_numbers(
             criteria['query'], tuple(criteria['label']), tuple(criteria['column']),
         )
         requested = request.args.get('etimon', type=int)
@@ -191,6 +146,8 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
             session['plaintext'] = request.args.get('plaintext') == '1'
         plaintext = session.get('plaintext', False)
 
+        df = store.to_dataframe(selected if selected is not None else -1)
+        cell_line_heights = df.attrs['cell_line_heights']
         table = get_etimon(df, selected, plaintext=plaintext) if selected is not None else None
         table_columns = list(table.columns[2:]) if table is not None else []
         table_rows = table.to_dict('records') if table is not None else []
@@ -200,13 +157,17 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
             if record.background_color
         }
         label_backgrounds = df.attrs.get('label_backgrounds', {})
+        empty_backgrounds = df.attrs['empty_cell_backgrounds']
         background_rows = []
         for row in table_rows:
             label_color = label_backgrounds.get((selected, row['label'], row['label_number']), '')
             backgrounds = {'label': label_color, 'label_number': label_color} if label_color else {}
             for column in table_columns:
                 color = cell_backgrounds.get((row['label'], row['label_number'], column), '')
-                if not row[column]:
+                key = cell_key(selected, row, column)
+                if key in empty_backgrounds:
+                    color = empty_backgrounds[key] or ('var(--label-background)' if row[column] else '')
+                elif not row[column]:
                     color = label_color
                 if color:
                     backgrounds[column] = color
@@ -237,6 +198,15 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
             }
             for row in table_rows
         ]
+        def editor_info(row, column, original):
+            key = cell_key(selected, row, column)
+            record = store.cell(key)
+            return {
+                'id': record['id'], 'html': original[column],
+                'line_height': record['line_height'],
+                'token': editor_tokens.dumps([*key, record['revision']]),
+            }
+
         grid_rows = [
             {
                 'id': json.dumps([row['label'], row['label_number']], ensure_ascii=False),
@@ -255,19 +225,12 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
                     },
                 },
                 'editors': {
-                    column['field']: {
-                        'html': original[column['title']],
-                        'line_height': line_heights.get(column['title']),
-                        'token': editor_tokens.dumps([
-                            *cell_key(selected, row, column['title']),
-                            revisions.get(cell_key(selected, row, column['title']), 0),
-                        ]),
-                    }
+                    column['field']: editor_info(row, column['title'], original)
                     for column in grid_columns
                 },
             }
-            for row, highlights, backgrounds, original, line_heights in zip(
-                table_rows, highlighted_rows, background_rows, formatted_rows, line_height_rows,
+            for row, highlights, backgrounds, original in zip(
+                table_rows, highlighted_rows, background_rows, formatted_rows,
             )
         ]
         selected_entry = entries.get(selected)
@@ -298,6 +261,8 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
             max_search_length=app.config['MAX_SEARCH_LENGTH'],
             grid_columns=grid_columns,
             plaintext=plaintext,
+            edit_mode=edit_mode,
+            row_labels=store.row_labels(selected),
             grid_payload={
                 'dataset': dataset_key,
                 'etimon': selected,
@@ -307,18 +272,66 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
                 'criteria': criteria,
                 'title': page_title,
                 'csrf': session['edit_csrf'],
+                'edit_mode': edit_mode,
+                'total': len(entries),
             },
         ))
         response.vary.add('HX-Request')
         response.headers['Cache-Control'] = 'no-store'
         return response
 
+    def mutation(function):
+        @wraps(function)
+        def wrapper(*args, **kwargs):
+            csrf = request.headers.get('X-CSRF-Token', '')
+            if not csrf or not compare_digest(csrf.encode(), session.get('edit_csrf', '').encode()):
+                return {'error': 'Your editing session expired. Reload the page before editing.'}, 403
+            if request.path != '/mode' and not session.get('edit_mode', False):
+                return {'error': 'Switch to Edit mode before making changes.'}, 403
+            response = app.make_response(function(*args, **kwargs))
+            response.headers['Cache-Control'] = 'no-store'
+            return response
+        return wrapper
+
+    @app.post('/mode')
+    @mutation
+    def set_mode():
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict) or not isinstance(body.get('edit_mode'), bool):
+            return {'error': 'Choose Search or Edit mode.'}, 400
+        session['edit_mode'] = body['edit_mode']
+        return {'edit_mode': body['edit_mode']}
+
+    @app.post('/rows')
+    @mutation
+    def add_row():
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict) or type(body.get('etimon')) is not int or not isinstance(body.get('label'), str):
+            return {'error': 'Choose an etymon and row type.'}, 400
+        try:
+            result = store.add_row(body['etimon'], body['label'], body.get('text'))
+        except ValueError as error:
+            return {'error': str(error)}, 400
+        session['etimon'] = result['etimon']
+        return result, 201
+
+    @app.post('/etymons')
+    @mutation
+    def add_etymon():
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return {'error': 'Enter French text before creating an entry.'}, 400
+        try:
+            result = store.add_etymon(body.get('text'))
+        except ValueError as error:
+            return {'error': str(error)}, 400
+        session.pop('search', None)
+        session['etimon'] = result['etimon']
+        return result, 201
+
     @app.post('/cell')
-    @locked
+    @mutation
     def save_cell():
-        csrf = request.headers.get('X-CSRF-Token', '')
-        if not csrf or not compare_digest(csrf.encode(), session.get('edit_csrf', '').encode()):
-            return {'error': 'Your editing session expired. Reload the page before editing.'}, 403
         body = request.get_json(silent=True)
         if not isinstance(body, dict) or not isinstance(body.get('token'), str):
             return {'error': 'Invalid cell edit.'}, 400
@@ -327,38 +340,22 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None)
         except BadSignature:
             return {'error': 'This cell has expired. Cancel and reload before editing.'}, 409
         key, revision = tuple(signed[:-1]), signed[-1]
-        if revisions.get(key, 0) != revision:
-            return {'error': 'Someone else changed this cell. Copy your draft, then cancel and reload.'}, 409
         try:
-            line_height = validate_line_height(body.get('line_height', cell_line_heights.get(key)))
-            html, plaintext = render_delta(body.get('ops'), line_height=line_height)
+            store.save_cell(key, revision, body.get('ops'),
+                            line_height_provided='line_height' in body, line_height=body.get('line_height'))
+        except EditConflict as error:
+            return {'error': str(error)}, 409
         except ValueError as error:
             return {'error': str(error)}, 400
-        mask = cell_mask(key)
-        if mask.any():
-            index = df.index[mask][0]
-        else:
-            # Add content to a currently empty language/notes cell, without
-            # changing row identifiers or importing a new worksheet row.
-            index = len(df)
-            df.loc[index] = {
-                'etimon_number': key[0], 'column': key[3], 'label': key[1],
-                'label_number': key[2], 'content': '', 'plaintext_content': '',
-                'nodiacritics_plaintext': '', 'background_color': '',
-            }
-        df.at[index, 'content'] = html
-        df.at[index, 'plaintext_content'] = plaintext
-        df.at[index, 'nodiacritics_plaintext'] = remove_diacritics(plaintext)
-        if line_height is None:
-            cell_line_heights.pop(key, None)
-        else:
-            cell_line_heights[key] = line_height
-        revisions[key] = revision + 1
-        columns[:] = _ordered_values(df['column'], COLUMN_ORDER)
-        entries.clear()
-        entries.update(_etimon_entries(df))
-        matching_numbers.cache_clear()
         response = app.json.response({'saved': True})
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+
+    @app.get('/export')
+    def export_excel():
+        from excel_export import export_timestamped
+        path = export_timestamped(store, app.config['EXPORT_DIRECTORY']).resolve()
+        response = send_file(path, as_attachment=True, download_name=path.name)
         response.headers['Cache-Control'] = 'no-store'
         return response
 
@@ -393,6 +390,9 @@ def main(argv=None):
         '--sheet', '-s', metavar='NAME',
         help='Exact worksheet name (default: the first worksheet).',
     )
+    parser.add_argument('--database', type=Path, help='SQLite file; an existing database is reopened without importing Excel.')
+    parser.add_argument('--export', action='store_true', help='Write a timestamped updated workbook and exit.')
+    parser.add_argument('--export-dir', type=Path, help='Export directory (default: exports beside the database).')
     binding = parser.add_mutually_exclusive_group()
     binding.add_argument('--local', dest='host', action='store_const', const='127.0.0.1',
                          help='Listen on localhost only (default).')
@@ -414,9 +414,16 @@ def main(argv=None):
         settings['TRUSTED_HOSTS'] = args.trusted_host
     if args.secure_cookies:
         settings['SESSION_COOKIE_SECURE'] = True
+    if args.export_dir:
+        settings['EXPORT_DIRECTORY'] = str(args.export_dir.resolve())
     try:
-        server = create_app(args.excel_file, sheet_name=args.sheet, test_config=settings)
-    except (OSError, ValueError, BadZipFile, InvalidFileException, ParseError, KeyError) as error:
+        server = create_app(args.excel_file, sheet_name=args.sheet, test_config=settings, database_path=args.database)
+        if args.export:
+            from excel_export import export_timestamped
+            print(export_timestamped(server.extensions['lexicon_store'], server.config['EXPORT_DIRECTORY']))
+            server.extensions['lexicon_store'].close()
+            return 0
+    except (OSError, ValueError, sqlite3.Error, BadZipFile, InvalidFileException, ParseError, KeyError) as error:
         parser.error(f'Could not load {args.excel_file}: {error}')
     proxy_settings = {}
     if args.trusted_proxy:

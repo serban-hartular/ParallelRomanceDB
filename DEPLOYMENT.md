@@ -1,10 +1,10 @@
 # Running Parallel Words on another machine
 
 Status (2026-11-05): the user reports a successful remote deployment of the
-previous browsing version. Inline Quill editing now updates the shared server
-DataFrame in memory, with no disk writes. Restarting discards edits. Run one
-application process; multiple processes do not share edits. Remote deployment
-of the editing changes has not been verified here. Read [HANDOFF.md](HANDOFF.md) for the development state and
+previous browsing version. The latest local-only stage stores edits in SQLite
+and exports full updated workbooks. Saved edits survive restarts. Keep one
+application process while editor-token signing remains process-specific. Remote
+deployment of these persistence changes has not been verified here. Read [HANDOFF.md](HANDOFF.md) for the development state and
 continuation prompt, and [README.md](README.md) for workbook usage.
 
 Install `requirements.txt` into a virtual environment on the destination machine.
@@ -44,7 +44,7 @@ hostnames are unrestricted so local/IP access works without configuration.
 the entire loaded worksheet.** Hiding columns, search filters, and `HX-Request`
 headers do not restrict access. For private data, use a VPN or authenticate all
 requests at a reverse proxy. **Every reachable visitor can also edit the shared
-in-memory data; there are no separate editing permissions.** Direct HTTP leaves traffic and cookies
+database content and export full workbooks; there are no separate editing permissions.** Direct HTTP leaves traffic and cookies
 unencrypted; use HTTPS for Internet access.
 
 ## HTTPS and proxy headers
@@ -55,6 +55,8 @@ one proxy connecting from `127.0.0.1`:
 
 ```bash
 .venv/bin/python main.py /srv/lexicon.xlsx --local --port 8080 \
+  --database /var/lib/parallel-words/research.sqlite3 \
+  --export-dir /var/lib/parallel-words/exports \
   --trusted-host words.example.org --trusted-proxy 127.0.0.1 --secure-cookies
 ```
 
@@ -127,8 +129,12 @@ Run as a dedicated **unprivileged** account. Use a port above 1023 and let the
 proxy listen on 80/443. The account needs read access to the selected workbook,
 code, configuration, templates, and static files, execute access to Python,
 and traversal permission on their parent directories. The web app does not
-need to write the workbook or project directory. Keep code/configuration and
-data owned by an administrator rather than writable by the server account;
+need to write the source workbook or project directory. It now needs a separate
+writable directory for SQLite (including its journal) and timestamped exports,
+for example `/var/lib/parallel-words`. When launching outside systemd, create
+that directory with ownership for the service account first. Set `--database`
+and `--export-dir` explicitly rather than using a sidecar beside a read-only
+source workbook. Keep code/configuration and source workbooks owned by an administrator;
 do not use `chmod 777`. A typical arrangement is `/opt/parallel-words` for code
 and `/srv/parallel-words` for workbooks, with group-readable files and directories
 traversable by the service account. Avoid serving the project directory as a
@@ -158,7 +164,9 @@ Group=xldb
 WorkingDirectory=/opt/parallel-words
 EnvironmentFile=/etc/parallel-words.env
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/opt/parallel-words/.venv/bin/python /opt/parallel-words/main.py /srv/parallel-words/lexicon.xlsx --local --port 8080 --trusted-host words.example.org --trusted-proxy 127.0.0.1 --secure-cookies
+StateDirectory=parallel-words
+ReadWritePaths=/var/lib/parallel-words
+ExecStart=/opt/parallel-words/.venv/bin/python /opt/parallel-words/main.py /srv/parallel-words/lexicon.xlsx --database /var/lib/parallel-words/research.sqlite3 --export-dir /var/lib/parallel-words/exports --local --port 8080 --trusted-host words.example.org --trusted-proxy 127.0.0.1 --secure-cookies
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
@@ -174,7 +182,8 @@ WantedBy=multi-user.target
 Adapt paths and the sheet option, and create the venv on the destination rather
 than copying the development venv. `ProtectHome=true` intentionally prevents
 loading files from `/home`; place the deployment outside it. The read-only
-filesystem protection permits temporary buffers in the service's private `/tmp`.
+filesystem protection permits temporary buffers in the service's private `/tmp`
+and persistent SQLite/export writes in the dedicated state directory.
 See [systemd's execution settings](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html).
 
 ## Limits and verification
@@ -191,17 +200,24 @@ See [systemd's execution settings](https://www.freedesktop.org/software/systemd/
   at 500 characters; unknown column/label filter values are rejected. These are
   bounds, not a rate limiter. Apply proxy rate limits/network restrictions for
   public traffic.
-- The workbook is loaded once into memory. Large workbooks, broad searches,
-  and many simultaneous clients can consume substantial memory/CPU. There is
-  no pagination, background job queue, or automatic workbook reload. Restart
-  after source changes; check memory and response times with your real dataset.
-- The app exposes browsing/static routes and POST `/cell` for in-memory edits.
+- Excel is imported only when initializing a database. Restarts reopen SQLite,
+  preserving edits even if the original workbook is absent. Source changes
+  are not automatically reimported. Normal export uses the saved workbook
+  template and creates a new timestamped full workbook. Back up the database
+  using SQLite backup tools, or stop the app before copying it. Large workbooks
+  and exports still need memory/CPU; there is no pagination or job queue.
+- The app exposes browsing/static routes, GET `/export`, POST `/mode`, POST `/cell`,
+  POST `/rows`, and POST `/etymons`. It starts in Search mode; Edit mode enables
+  cell saves and entry creation. Modes are session preferences, not authorization.
   Edits require a session-bound CSRF token and a signed cell/revision token.
+  Creation and mode changes require the CSRF token; new entries require French text.
   The server accepts validated text/format operations rather than HTML,
-  rejects stale saves, and locks reads/writes to keep the DataFrame consistent.
-  These checks do not authenticate visitors. There is no edit persistence;
-  keep one application process, and do not restart expecting edits to survive.
-  Source workbooks and the project directory still need no write permissions.
+  rejects stale saves, and uses transactions to keep SQLite consistent.
+  These checks do not authenticate visitors. Keep one application process
+  for the current editor-token implementation. Source workbooks and the
+  project directory still need no write permissions; the state directory does.
+- Existing SQLite databases upgrade to schema version 2 on startup without
+  reimporting the workbook. Back up the database before updating the service.
 
 Before opening access, verify from a second machine that HTTPS, any required
 authentication, searches, selection, highlighting, and scrolling work. Check

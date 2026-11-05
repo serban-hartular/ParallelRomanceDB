@@ -14,7 +14,7 @@
     configured = true;
   }
 
-  function open(cell, { html, lineHeight, onSave, onClose }) {
+  function open(cell, { html, lineHeight, onSave, onBeforeClose, onClose }) {
     if (current || typeof Quill === "undefined") return false;
     configure();
     const element = cell.getElement();
@@ -26,6 +26,7 @@
     const originalHeight = cell.getRow().getElement().style.height;
     const panel = document.createElement("div");
     panel.className = "cell-editor";
+    panel.style.backgroundColor = cellStyle.backgroundColor;
     panel.setAttribute("role", "group");
     panel.setAttribute("aria-label", "Edit cell");
     const toolbar = document.createElement("div");
@@ -135,6 +136,12 @@
     quill.root.setAttribute("aria-label", "Cell contents");
     quill.root.setAttribute("role", "textbox");
     quill.root.setAttribute("aria-multiline", "true");
+    // Linguistic entries mix languages; leave spelling and wording to editors.
+    quill.root.setAttribute("spellcheck", "false");
+    quill.root.setAttribute("autocomplete", "off");
+    quill.root.setAttribute("autocorrect", "off");
+    quill.root.setAttribute("autocapitalize", "off");
+    quill.root.setAttribute("writingsuggestions", "false");
     let saving = false;
     let selection = { index: 0, length: 0 };
 
@@ -180,6 +187,7 @@
     updateSize();
 
     function restore() {
+      onBeforeClose?.();
       current = null;
       element.classList.remove("is-editing");
       element.replaceChildren(...originalNodes);
@@ -213,7 +221,8 @@
       }
     }
 
-    current = { finish, focus: () => quill.focus() };
+    const activeEditor = { finish, focus: () => quill.focus({ preventScroll: true }) };
+    current = activeEditor;
     close.addEventListener("click", () => finish());
     cancel.addEventListener("click", () => finish(false));
     panel.addEventListener("keydown", event => {
@@ -224,7 +233,19 @@
       }
     });
     cell.getRow().normalizeHeight();
-    quill.focus();
+    // A native double-click selection can finish after the editor replaces the
+    // cell. Give Quill an explicit caret, then repair focus after that event.
+    function focusContents() {
+      window.getSelection()?.removeAllRanges();
+      quill.setSelection(Math.max(0, quill.getLength() - 1), 0, 'silent');
+      quill.focus({ preventScroll: true });
+    }
+    focusContents();
+    requestAnimationFrame(() => {
+      if (current !== activeEditor) return;
+      const selection = window.getSelection();
+      if (document.activeElement !== quill.root || !quill.root.contains(selection?.anchorNode)) focusContents();
+    });
     return true;
   }
 

@@ -18,7 +18,12 @@
   <body id="app-shell" hx-target="#workspace" hx-swap="outerHTML" hx-sync="#app-shell:replace" hx-indicator="#request-status">
     <header class="site-header">
       <a class="brand" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}" aria-label="Parallel Words, {{ source_label }}, show all etimons">Parallel Words<span title="{{ source_label }}">{{ source_label }}</span></a>
-      <span class="collection-count">{{ total }} etimon{% if total != 1 %}s{% endif %} in the collection</span>
+      <div class="header-tools">
+        <button type="button" class="mode-toggle" data-toggle-edit aria-pressed="{{ 'true' if edit_mode else 'false' }}">Edit mode</button>
+        <button type="button" class="add-entry" data-add-etymon{% if not edit_mode %} hidden{% endif %}>Add etymon</button>
+        <a class="export-link" href="{{ url_for('export_excel') }}" data-export-excel>Export Excel</a>
+        <span class="collection-count">{{ total }} etimon{% if total != 1 %}s{% endif %} in the collection</span>
+      </div>
     </header>
 
     <main>
@@ -57,5 +62,17 @@
       <p id="request-status" class="request-status" role="status" aria-live="polite">Updating…</p>
       {% include '_workspace.html' %}
     </main>
+    <dialog id="create-entry-dialog" aria-labelledby="create-entry-title">
+      <form id="create-entry-form">
+        <h2 id="create-entry-title">Add entry</h2>
+        <label for="create-entry-text">French text</label>
+        <textarea id="create-entry-text" rows="5" required maxlength="16000" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" writingsuggestions="false"></textarea>
+        <p class="creation-error" role="status"></p>
+        <div class="creation-actions">
+          <button type="button" data-cancel-entry>Cancel</button>
+          <button type="submit">Create</button>
+        </div>
+      </form>
+    </dialog>
   </body>
 </html>

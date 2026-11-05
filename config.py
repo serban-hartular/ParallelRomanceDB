@@ -3,6 +3,16 @@
 # Search-match background color, as #RGB or #RRGGBB. Standard highlight yellow.
 SEARCH_HIGHLIGHT_COLOR = '#ffff00'
 
+# Backgrounds for newly created rows, sampled from the original workbook.
+# Imported rows retain their own colors. Changes apply to future rows only.
+# Use the canonical row labels here; workbook spelling/spacing is preserved.
+ROW_BACKGROUND_COLORS = {
+    'ETIMON/ CORESPONDENTE ROMANICE': '#D9E2F3',  # Blue
+    'SENSURI DE BAZĂ': '#F7CAAC',  # Orange
+    'EXTENSII SEMANTICE (METAFORIZĂRI,  METONIMII)': '#FEF2CB',  # Yellow
+    'SENSURI SPECIALIZATE': '#B7E1CD',  # Green
+}
+
 # Set to the public hostname(s), e.g. ['words.example.org'], to reject other
 # Host headers. CLI --trusted-host overrides this list. None accepts any host.
 TRUSTED_HOSTS = None
@@ -10,7 +20,7 @@ TRUSTED_HOSTS = None
 # Enable only behind HTTPS; CLI --secure-cookies also enables this setting.
 SESSION_COOKIE_SECURE = False
 
-# Edits are stored only in memory; there are no upload endpoints. Waitress limits
+# Edits are stored in SQLite; there are no upload endpoints. Waitress limits
 # incoming bodies to 64 KiB and headers to 16 KiB in main.py.
 MAX_CONTENT_LENGTH = 64 * 1024
 MAX_QUERY_STRING_LENGTH = 8 * 1024

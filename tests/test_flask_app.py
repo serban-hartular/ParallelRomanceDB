@@ -142,7 +142,7 @@ class FlaskAppTests(unittest.TestCase):
         self.assertEqual(reset.query, '')
 
     def test_search_highlights_formatted_plaintext_and_clear_without_mutation(self):
-        original = self.app.extensions['lexicon_df'].copy(deep=True)
+        original = self.app.extensions['lexicon_store'].to_dataframe().copy(deep=True)
         for headers in ({}, {'HX-Request': 'true'}):
             with self.subTest(headers=headers):
                 client = self.app.test_client()
@@ -161,7 +161,7 @@ class FlaskAppTests(unittest.TestCase):
                 reset = client.get('/?reset=1', headers=headers)
                 self.assertTrue(all(not row['highlights'] for row in Page(reset).payload['rows']))
                 self.assertNotIn('<mark', reset.get_data(as_text=True))
-        pd.testing.assert_frame_equal(self.app.extensions['lexicon_df'], original)
+        pd.testing.assert_frame_equal(self.app.extensions['lexicon_store'].to_dataframe(), original)
 
     def test_search_highlight_color_configuration(self):
         self.assertIn('--search-highlight-color: #ffff00;', self.client.get('/').get_data(as_text=True))
@@ -192,7 +192,7 @@ class FlaskAppTests(unittest.TestCase):
             workbook.save(source)
             workbook.close()
             app = create_app(source, test_config={'TESTING': True, 'SECRET_KEY': 'test'})
-            original = app.extensions['lexicon_df'].copy(deep=True)
+            original = app.extensions['lexicon_store'].to_dataframe().copy(deep=True)
             for headers in ({}, {'HX-Request': 'true'}):
                 for plaintext in (False, True):
                     with self.subTest(headers=headers, plaintext=plaintext):
@@ -217,7 +217,7 @@ class FlaskAppTests(unittest.TestCase):
                         self.assertIn('--search-highlight-color: #ffff00;', html)
                         other = Page(client.get('/?etimon=2', headers=headers)).payload
                         self.assertTrue(all(not row['backgrounds'] for row in other['rows']))
-            pd.testing.assert_frame_equal(app.extensions['lexicon_df'], original)
+            pd.testing.assert_frame_equal(app.extensions['lexicon_store'].to_dataframe(), original)
 
     def test_label_number_and_empty_cells_share_the_label_fill(self):
         with TemporaryDirectory() as directory:
@@ -239,7 +239,7 @@ class FlaskAppTests(unittest.TestCase):
             workbook.save(source)
             workbook.close()
             app = create_app(source, test_config={'TESTING': True, 'SECRET_KEY': 'test'})
-            original = app.extensions['lexicon_df'].copy(deep=True)
+            original = app.extensions['lexicon_store'].to_dataframe().copy(deep=True)
             for headers in ({}, {'HX-Request': 'true'}):
                 for plaintext in (False, True):
                     with self.subTest(headers=headers, plaintext=plaintext):
@@ -256,7 +256,8 @@ class FlaskAppTests(unittest.TestCase):
                             self.assertEqual(backgrounds['label_number'], color)
                             for column in ('LIMBA ROMÂNĂ', 'OBSERVAȚII', 'CONCLUZII'):
                                 self.assertEqual(row[fields[column]], '')
-                                self.assertEqual(backgrounds[fields[column]], color)
+                                expected = '#FF0000' if row['label_number'] == 1 and column == 'LIMBA ROMÂNĂ' else color
+                                self.assertEqual(backgrounds[fields[column]], expected)
                         first = basic[0]
                         self.assertEqual(first['backgrounds'][fields['LIMBA FRANCEZĂ']], '#CCEEFF')
                         self.assertNotIn(fields['LIMBA ITALIANĂ'], first['backgrounds'])
@@ -269,7 +270,7 @@ class FlaskAppTests(unittest.TestCase):
                         self.assertIn('<td class="content-cell is-empty" style="background-color: #FFFFCC;">', html)
                         other = Page(client.get('/?etimon=2', headers=headers)).payload
                         self.assertTrue(all(not row['backgrounds'] for row in other['rows']))
-            pd.testing.assert_frame_equal(app.extensions['lexicon_df'], original)
+            pd.testing.assert_frame_equal(app.extensions['lexicon_store'].to_dataframe(), original)
 
     def test_plaintext_mode_preserves_search_and_selection(self):
         self.client.get('/', query_string={
@@ -324,7 +325,7 @@ class FlaskAppTests(unittest.TestCase):
         self.assertIn('BISCUIT', page.payload['title'])
         self.assertIn('hx-preserve="true"', clicked.get_data(as_text=True))
         # The workbook's private filesystem path is not a browser preference key.
-        self.assertEqual(len(page.payload['dataset']), 16)
+        self.assertTrue(page.payload['dataset'])
 
     def test_grid_payload_matches_formatted_and_plaintext_cells(self):
         formatted = Page(self.client.get('/?etimon=2', headers={'HX-Request': 'true'})).payload

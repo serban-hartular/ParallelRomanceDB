@@ -1,6 +1,7 @@
 # XLDB development handoff
 
-Updated 2026-11-05 for inline Quill editing in the shared in-memory DataFrame.
+Updated 2026-11-05 for Search/Edit modes, adding rows/etymons, and structural
+Excel export, following SQLite and cell editing improvements.
 Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 
 **Copy into the next chat**
@@ -8,7 +9,7 @@ Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 > Continue the XLDB project in `/home/hartular/Lingv/XLDB`. Read `README.md`
 > and `HANDOFF.md` first; also read `DEPLOYMENT.md` before deployment work.
 > The app is branded Parallel Words and uses Flask + htmx + Tabulator, with
-> Waitress for local/public serving. It imports one Excel file/sheet at startup,
+> Waitress for local/public serving. It imports one Excel sheet when initializing SQLite,
 > supports multiple column/label filters and case/diacritic-insensitive search,
 > and displays resizable tables with persistent scrollbars, a collapsible
 > ETYMONS list, previous/next navigation, and configurable search highlighting.
@@ -17,24 +18,40 @@ Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 > Preserve original workbook text, formatting, and label spelling/spacing.
 > CLI options select the workbook, sheet, local/public/specific interface, port,
 > trusted hosts/proxy, and secure cookies. The user reports remote deployment works.
-> Double-clicking a content cell opens Quill inline; Close saves to the shared
-> DataFrame only, Cancel/Escape discards. All edits vanish on server restart;
-> the workbook stays untouched. There is no authentication: reachable visitors
-> can read and edit. Run one application process. SQLite persistence, row
-> insertion, and accounts remain future plans.
+> The header's Edit mode toggle enables Quill and creation controls; Search
+> mode is read-only. Search controls and filters remain available in both modes,
+> with the current search retained when switching. Double-clicking a
+> content cell in Edit mode opens Quill inline; Close saves to SQLite,
+> Cancel/Escape discards. Saved edits survive restart; startup reopens
+> the database without reimporting Excel. Export Excel writes/downloads a new
+> timestamped full workbook with only the selected sheet updated. The source
+> stays untouched. This stage assumes one local user. Authentication, edit
+> tracking/locks remain future work. Add row offers the three non-etymon labels;
+> Add etymon assigns the next number. Both require initial French text in a
+> Create/Cancel dialog; the user preferred this over empty placeholder records.
+> New entries export inside the proper Excel group and survive reimport.
+> New rows use the four type defaults in `config.py` (`ROW_BACKGROUND_COLORS`),
+> saved in SQLite and used throughout the browser and Excel export. Imported
+> colors and exact label spelling/spacing remain intact.
+> Future edit access is
+> intended to use a shared password and self-declared editor names.
 > Inspect the current Git state and preserve existing changes. No implementation
 > request is pending; I will provide the next task.
 
 **Current state and continuation**
 
-- Application code is committed at `5f57829` (`Cell backgrounds. Made server
-  work for outside world (not checked yet).`). Existing README/HANDOFF/DEPLOYMENT
-  changes were preserved when adding inline editing. Check `git status` when
-  resuming; this work does not commit, push, or deploy anything.
-- Latest behavior: Quill opens inside a double-clicked content cell. Close or
+- The latest existing commit is `5faea3c` (`Added cell edit.`). SQLite/export
+  work is uncommitted. Check `git status` when resuming; this work does not
+  commit, push, or deploy anything.
+- Latest behavior: Search mode is read-only; Edit mode enables Quill, Add row,
+  and Add etymon. Each browser session remembers the mode. Quill opens inside
+  a double-clicked content cell in Edit mode. Close or
   Ctrl/Cmd+Enter saves; Cancel or Escape discards. Changes update the running
-  DataFrame only. No-op closes preserve exact original HTML. Labels/numbers
+  SQLite database. No-op closes preserve exact original HTML. Labels/numbers
   remain fixed. Imported backgrounds and all search/layout behavior remain.
+- Cell editors disable browser spellchecking, autocomplete, autocorrection,
+  automatic capitalization, and writing suggestions on Quill's editable root,
+  so English assistance does not interfere with multilingual entries.
 - Typography: Quill starts with the cell's line height. A Typography toggle
   reveals a font-size input (pt, Apply size/Enter) and whole-cell line-spacing
   select. Text selection survives menu focus; font size affects the selection
@@ -46,9 +63,274 @@ Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 - `README.md` describes operation and import contracts; this file records
   development details; `DEPLOYMENT.md` contains remote deployment examples and
   limitations. Maintain all affected documents when behavior changes.
-- Preserve source Excel files and label spelling/spacing. The user explicitly
-  chose in-memory DataFrame updates, rather than SQLite or workbook saves.
-  SQLite, uploads, accounts, and row insertion are not implemented.
+- Preserve source Excel files and label spelling/spacing. The latest task
+  replaces in-memory updates with SQLite and timestamped full-workbook exports.
+  The explicit `overwrite_sheet` Python helper is tested on temporary files;
+  the website never overwrites an existing workbook. Password access,
+  attribution/locks/history, uploads, and accounts are absent.
+
+**SQLite and export workflow**
+
+`lexicon_db.py` owns persistence. `cells` keeps the original eight data fields
+plus integer `id`, `revision`, and `line_height`. `row_metadata` retains logical
+row keys, original sheet row positions, and label backgrounds; `sheet_columns`
+retains headings and Excel column positions; `dataset` stores UUID identity,
+source labels, schema version 2, and the complete original workbook bytes.
+Excel import adds `row_positions` and `column_positions` to DataFrame attrs.
+
+Default database: `<workbook filename>[.<sheet-name hash>].sqlite3` beside the
+workbook. `--database PATH` selects an explicit file. Existing initialized
+databases win over Excel, even if the source was moved/deleted. Restart never
+reimports or overwrites saved edits; choose a new database path for another
+import. `create_app(..., database_path=...)` supports Python callers. TESTING
+apps use isolated `:memory:` databases unless a path is explicitly provided.
+
+`app.extensions['lexicon_store']` exposes the store; `lexicon_df` is removed.
+SQL performs searches, filter choices, title lookup, cell lookup, and writes.
+Case-insensitive literal search uses `instr(search_fold(nodiacritics_plaintext),
+normalized_query)` with Python uppercase semantics; SQL LIKE wildcards are
+not introduced. Only the selected etymon's rows become a detached DataFrame
+for the existing `get_etimon` pivot. `to_dataframe()` is an explicit snapshot,
+not a writable live database. The old process-local search cache is removed.
+
+`excel_export.py` reads an atomic DB snapshot. `workbook_bytes` starts from
+the saved workbook archive and patches only changed cells in the original
+worksheet XML. Other ZIP members, macros, drawings, formulas, formatting,
+blank label cells, and extra sheets stay intact. No-op export returns the
+original workbook bytes exactly. Edited cells use inline rich text, so leading
+`=` remains text. New content in a missing standard language gets a heading.
+CSS line spacing and per-run background highlights have no exact Excel mapping;
+row heights provide room, while SQLite preserves the original app settings.
+
+GET `/export` and the header's Export Excel link create/download a full workbook
+in `exports/` beside the DB, with Europe/Bucharest date/time, microseconds, and
+offset in the filename. `--export-dir` overrides the directory. CLI `--export`
+writes a new workbook and exits without serving. Names never overwrite files;
+temporary files and atomic links/replacement avoid partial final output.
+`overwrite_sheet(store, path, sheet_name=...)` is a separate opt-in helper for
+an existing workbook/sheet. It uses openpyxl-supported features and preserves
+other sheets' data; advanced unsupported workbook features may be affected.
+The normal export uses archive patching instead. No source workbook was changed.
+
+Current verification: 99 Python tests, six Node scrollbar tests, JS syntax
+checks, and fourteen Chromium browser groups after the edit-workflow
+corrections. Tests cover restart without the
+source, stable IDs/revisions, SQL search, rich-text exports, archive preservation,
+timestamp collisions, adding/clearing cells, explicit sheet overwrite, CLI
+export without serving, and the browser download. Runtime needs no new dependency;
+SQLite is part of Python. No remote SQLite deployment was performed.
+
+**Rich-text export corrections (2026-11-05)**
+
+The user reported new text adopting the original Excel cell's color and Excel
+repairing string properties in `sheet1.xml`. Saved HTML explicitly formats the
+imported runs, but new unformatted text inherits the web editor's defaults.
+The exporter incorrectly used the original Excel font as its default for all
+runs. `excel_export.py` now uses the grid/editor default (9 pt Segoe UI,
+`#253b35`) and writes explicit normal bold/italic/strike/underline/script states,
+so missing styles do not accidentally inherit the original cell's formatting.
+
+openpyxl's run serializer omits `xml:space="preserve"` for whitespace-only text,
+including standalone newlines. Export now sets it on every text run, addressing
+a possible source of Excel's repair warning without changing stored edits.
+The user subsequently confirmed fresh exports work. The exact XML repair was
+not compared against an Excel-repaired copy. The normal ZIP
+patch still changes only the selected worksheet. No shared-string table rewrite
+or wholesale workbook conversion was introduced.
+
+`tests/test_excel_export.py` adds three regressions for mixed colors/defaults,
+explicit style resets, whitespace-only runs, and clearing cells without empty
+rich-text runs. All 84 Python tests passed in a temporary checkout copy using
+the committed `db/example.xlsx` fixture: the user has renamed/deleted that
+workspace fixture, which was left untouched. A corrected export from a read-only
+snapshot of `db/research.sqlite3` retained the original red text and the new
+default-colored text through a local LibreOffice open/save. Only temporary
+files under `/tmp/xldb-export-check` were used; source workbooks, saved edits,
+and previous exports were not modified. The user subsequently confirmed the
+export now works in Excel.
+
+**Empty-cell backgrounds and editor scrolling (2026-11-05)**
+
+An empty cell previously inherited the row label's background in the browser,
+then became unfilled after saving text because its SQLite record had no fill.
+`LexiconDB._original_empty_backgrounds()` now recovers the original blank-cell
+positions/fills from the workbook snapshot already stored in SQLite, once per
+store. It includes missing standard columns and falls back to label fills.
+Detached DataFrame attrs carry a copy as `empty_cell_backgrounds`; the page
+uses these fills for formerly empty cells even after they gain content. Blank
+cells' own Excel fills take precedence. Neutral label backgrounds stay neutral
+after adding text. Existing databases and edits work without schema migration
+or source workbook access. Stored cell text and Excel export remain unchanged.
+The editor panel also takes its cell's computed background when opening.
+
+`cell_editor.js` calls `onBeforeClose` before removing the expanded editor.
+`app.js` captures both table scroll offsets there, restores them after row
+height normalization, and carries them through the saved-edit htmx refresh,
+restoring them after data replacement/redraw. Cancel and no-op Close preserve
+position too. Refresh snapshots are consumed once and only for the same
+etymon; ordinary etymon navigation keeps its existing scroll reset behavior.
+
+New coverage checks formerly empty colored and neutral cells, reopening an
+existing database without its source workbook, editor backgrounds, and a
+large table scrolled in both directions through Save, Cancel, and no-op Close.
+The full Python/browser suites run in a temporary project copy with the
+committed example fixture, preserving the user's workspace workbook changes.
+
+**Search/Edit modes and creating entries (2026-11-05)**
+
+`session['edit_mode']` defaults to false. POST `/mode` accepts a boolean and
+requires the existing CSRF header. Search mode disables opening Quill and the
+server rejects POST `/cell`, `/rows`, and `/etymons` with 403 unless that session
+is in Edit mode. This is a workflow boundary, not access control: anyone can
+enable Edit mode. Search criteria are active in both modes; switching mode
+retains them. Creating an etymon clears saved search criteria.
+
+The user initially proposed empty French placeholders, then offered to require
+initial text. The accepted implementation uses a native dialog with a required
+French textarea, Create, and Cancel. No DB row/number is allocated until a valid
+submission. The server also rejects whitespace-only text. Initial text is escaped
+through the existing Delta renderer; rich formatting is available in Quill afterward.
+No hidden workbook metadata, auxiliary worksheet, or importer changes were needed.
+Completely clearing a row afterward still leaves it in SQLite, while the importer
+retains its prior rule of skipping completely empty Excel rows.
+
+`LexiconDB.add_row` validates one of three non-etymon categories, reuses label
+spelling/spacing through accent/whitespace-insensitive category lookup, and
+assigns max(label_number)+1 within that exact label/etymon. Missing categories
+use the canonical label. `add_etymon` assigns max(etimon_number)+1 and creates
+its marker row numbered 1. Both insert the submitted French text, revision 1,
+in a BEGIN IMMEDIATE transaction. Row and cell IDs remain stable. New rows
+follow their category; new etymons follow the existing collection.
+
+Schema version 2 adds `source_row` and `style_row` to `row_metadata`. Version 1
+databases migrate transactionally on startup without reading source files or
+changing content/revisions/IDs. `sheet_row` is the current export position;
+`source_row` retains the original template coordinate, null for additions.
+`style_row` points to a matching original donor row for new entries. Row positions
+shift in descending order to satisfy uniqueness. Original blank-cell formatting
+uses source coordinates after shifts, and background caches notice rows created
+by another connection.
+
+`excel_rows.py` inserts new worksheet rows into the original archive before
+`excel_export.py` applies cell edits. It copies donor row/cell styles without
+copying values/formulas, writes actual labels, shifts A1 references in formulas
+(including other sheets), named ranges, validations, merges, and layout, and
+adjusts owned table/drawing/comment coordinates. A matching inherited label is
+made explicit only when an inserted category would otherwise relabel following
+data. Ordinary cell-only exports keep the existing single-worksheet patch path.
+Unrelated ZIP members are retained; affected reference parts may change during
+row insertion. No source workbook is overwritten.
+
+The browser refreshes the workspace, updates the header count, selects a new
+etymon, reveals the French column when needed, and focuses the new French cell.
+The current implementation uses native viewport coordinates to reveal the cell;
+pinned Tabulator 6.3.1's `Table.scrollToColumn` leaves its outer Promise pending,
+and renderer centering was unreliable for the basic renderer. Opening
+creation dialogs/mode changes is blocked during an active cell edit; focus
+returns to Quill. Cancel/Escape in the creation dialog leaves SQLite unchanged.
+
+`tests/test_creation.py` covers migration, browser-local modes and server-side
+mutation enforcement, required text, atomic numbering/concurrent connections,
+restart without the source, label spelling, inserted row positions/styles,
+inherited labels, and export/reimport including formulas on other sheets.
+Tests still use a temporary project copy and the committed example fixture
+because the user's workspace example file was renamed/deleted; those workbook
+changes and the production SQLite database were left untouched.
+The complete twelve-group Chromium run passed, including read-only Search
+mode, mode transitions, required-text/Cancel behavior, both creation commands,
+French-cell focus, and all previous editor/scroll/export regressions. A temporary
+workbook with inserted rows and a new etymon also passed a local LibreOffice
+open/save and reimport check. Actual Microsoft Excel verification of structural
+insertion remains for the user's environment.
+
+**Export recursion correction (2026-11-05)**
+
+The user encountered RecursionError exporting after adding rows. This was
+reproduced from a read-only snapshot of `db/research.sqlite3`: `deepcopy(row)`
+in `excel_rows.py` followed DOM parent/sibling/document links through the
+worksheet instead of copying only the row subtree. The prior small fixture
+did not expose the failure. Donor rows now use `cloneNode(deep=True)` and only
+the actual `style_row` donors are cloned. No recursion-limit changes or DB
+changes are needed.
+
+The new regression in `tests/test_creation.py` exports through GET `/export`
+after adding a row and an etymon to a 1,200-row worksheet, verifying original
+data, inserted data, copied fills/heights, an unrelated sheet, and source-file
+preservation. All 95 Python tests pass. A read-only snapshot of the user's DB
+also exported successfully: four added rows retained and all ten edited cells
+matched their saved text. The corrected temporary copy is
+`/tmp/xldb-fixed-row-export.xlsx`; the user's DB, source files, and old exports
+were not modified. Restart the running server to load the fix, then export again.
+Previous browser/scrollbar checks remain the latest frontend verification;
+this correction changes only Python XML cloning.
+
+**Edit workflow, focus, and new-cell borders (2026-11-05)**
+
+Search controls remain visible and functional in Edit mode. `main.py` applies
+the same query/label/column criteria in both modes. The mode only gates cell
+editing and creation; toggling it keeps the current filters. Add row is now a
+native details/summary dropdown with three category buttons. Each button carries
+the exact existing label spelling in `data-row-label` and opens the French-text
+dialog. The summary has an explicit button role and accessible name; Escape and
+outside clicks use the existing details handling.
+
+After creation, `app.js` waits for layout and adjusts only the table viewport
+using row/cell bounding rectangles, accounting for frozen columns, then focuses
+the French cell without scrolling the page. This replaces the basic renderer's
+unreliable center-scroll calculation. The browser fixture includes fifty existing
+basic-sense rows and checks that the 51st new row is actually visible with a
+nonzero scroll offset, rather than checking focus alone.
+
+The double-click handler prevents native default selection. `cell_editor.js`
+clears an outside browser selection, sets a collapsed Quill caret at the end,
+and focuses the editor with preventScroll. A following animation frame repairs
+any native double-click focus/selection override, guarded against a closed
+editor. Toolbar/action text is not selectable. Browser tests type through the
+keyboard immediately after double-clicking populated and empty cells, without
+using fill() or clicking the editable region to repair focus.
+
+The user's source formatting had borderless cells and cells missing their top
+edge. Copying those formats into independent new rows left visible gaps.
+`excel_rows.py` now completes new cells' left/right/top/bottom edges, preserving
+existing edge styles/colors and borrowing missing edges from compatible source
+borders, with thin automatic-color edges as fallback. It appends border/cell-XF
+definitions to `xl/styles.xml`, leaving existing style indices and cells intact.
+It creates styled blank cells for all known columns in each new row. A read-only
+export of the user's current database confirmed every added cell has four edges.
+
+Verification: all 96 Python tests and thirteen Chromium groups pass, including
+Edit-mode text/column searches, immediate typing, the dropdown and creation,
+visible-row scrolling, complete new borders, unchanged original borders, and
+the earlier editor/export regressions. The source workbooks and research DB
+remain unchanged; tests use the temporary checkout with the original fixture.
+
+**Default backgrounds for created rows (2026-11-05)**
+
+The last matching donor row sometimes had an atypical fill (yellow for a basic
+sense). `config.py` now defines `ROW_BACKGROUND_COLORS` using the workbook's
+usual type colors: etymon `#D9E2F3`, basic sense `#F7CAAC`, extension `#FEF2CB`,
+and specialized sense `#B7E1CD`. All four canonical labels and valid hex colors
+are required at startup; `#RGB` expands to uppercase `#RRGGBB`. The store matches
+actual labels by its existing accent/whitespace-insensitive type key, retaining
+their original text. Flask passes its config to `LexiconDB`; standalone stores
+default to the same setting and accept an optional `row_colors` mapping.
+
+Creation persists the default in `row_metadata.background_color` and the initial
+French cell; later edits into blank cells of created rows retain that color.
+Browser presentation uses the saved row color across labels, numbers, populated
+and empty cells, including Quill. Export appends solid fills and cell-XF styles
+for added rows, retaining donor fonts/heights/borders and completing outlines.
+Imported rows/cells and source files keep their own fills. Changing configuration
+and restarting affects future rows, without rewriting saved row colors. No schema
+migration is needed. Existing app-created rows keep their saved row background;
+this change does not recolor a previously yellow row orange in the database.
+
+Verification: 99 Python tests, six Node scrollbar checks, JS syntax checks,
+and fourteen Chromium groups. Regressions cover missing donor types, all four
+defaults, exact imported label spellings, configuration overrides, invalid settings,
+editing/restarting/exporting with persisted colors, and a new orange basic-sense
+row inside a newly created etymon. Tests use temporary workbooks and databases;
+the user's workbooks and research database remain untouched.
 
 **Run and verification**
 
@@ -70,11 +352,12 @@ node tests/test_scrollbars.js
 
 - Existing environment: Python 3.13.12, Flask 3.1.3, pandas 3.1.0,
   openpyxl 3.1.5, Waitress 3.0.2. Direct dependencies are recorded in `requirements.txt`.
-- Latest verification: 70 Python tests, six Node scrollbar interaction tests,
-  and JavaScript syntax checks. Six real Chromium check groups exercise inline
+- Latest verification: 81 Python tests, six Node scrollbar interaction tests,
+  and JavaScript syntax checks. Seven real Chromium check groups exercise inline
   editing under the app's CSP, rich text/whitespace, no-op/Cancel, shared saves,
   conflicts, search/plaintext, empty-cell fill/clear, selected font size,
-  inherited line height, and whole-cell spacing/save/reopen/Cancel. Scrollbar tests use
+  inherited line height, whole-cell spacing/save/reopen/Cancel, and full-workbook
+  Excel downloads. Scrollbar tests use
   simulated geometry. No remote editing deployment has been tested here.
 - Manual Waitress smoke checks bound only `127.0.0.1` on an ephemeral port:
   full page and htmx search returned 200; an unapproved Host returned 400;
@@ -200,18 +483,20 @@ an empty table with the standard columns. Default values are HTML; the
 **Application and frontend architecture**
 
 - `main.py` has `create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None,
-  test_config=None)`. Importing the module exposes `app = create_app()` for
-  Flask and loads the default workbook. Default source is `db/example.xlsx`,
-  relative to `main.py`. The imported df is in `app.extensions['lexicon_df']`.
+  test_config=None, database_path=None)`. Importing exposes `app = create_app()`
+  and opens/initializes the default SQLite database. Default first-import source
+  is `db/example.xlsx`, relative to `main.py`. The store is exposed as
+  `app.extensions['lexicon_store']`.
 - Direct script execution calls `main(argv=None)`: an optional positional file
   and `--sheet/-s NAME` are parsed before creating the app. Only the selected
   workbook is loaded; `--help` loads none. Omitted arguments retain the example
   and the first worksheet. Explicit relative paths resolve from the shell's
   current directory. Common file/format/sheet/layout errors print an argparse
   startup error and exit 2 without starting Flask; factory calls still raise.
-- The workbook is read once per app creation. Restart after changes. Match
-  tuples are held in a bounded LRU cache. Signed Flask sessions hold each
-  browser's criteria, selection, and plaintext mode, not the full match list.
+- The workbook is read only for initial DB creation. All saved edits persist;
+  SQL searches read current data without a process-local match cache.
+  Signed Flask sessions hold each browser's criteria, selection, and plaintext
+  mode, not the full match list.
   `FLASK_SECRET_KEY` is optional; otherwise a fresh key is generated on startup.
 - GET `/` accepts `search=1&q=...&column=...&label=...`, with repeated `column`
   and `label` parameters for multiple selections, `etimon=N`,
@@ -221,7 +506,7 @@ an empty table with the standard columns. Default values are HTML; the
 - Search filters use checkbox dropdowns; no checked values means all. An
   **All columns/labels** button clears that filter's checkboxes. Criteria store
   sorted, deduplicated lists in the session and grid payload; older sessions
-  containing single strings are migrated on read. The match cache uses tuples.
+  containing single strings are migrated on read. SQL filters use bound values.
   The frontend restores checkboxes and selection counts after htmx updates.
 - Result titles use the first nonempty etymon entry in French, then Romanian,
   Italian, Spanish, Portuguese, Catalan. The first line is shortened before
@@ -290,8 +575,10 @@ an empty table with the standard columns. Default values are HTML; the
   the generated highlights.
 - Each grid row also has `backgrounds`, mapping internal content fields and
   `label`/`label_number` to effective fill colors. The label fill colors both
-  identifier cells and every empty content cell. Populated content cells keep
-  their own fill; unfilled populated cells retain the standard content surface.
+  identifier cells and empty content cells without their own Excel fill.
+  Originally empty cells retain that background when filled by editing.
+  Originally populated cells keep their own fill; unfilled populated cells
+  retain the standard content surface.
   `formatRow` applies colors to all actual Tabulator cells (including frozen
   cells, padding, and resized area), clearing old inline colors when absent.
   Empty cells also get `is-empty`, sharing `--label-background` with identifier
@@ -309,8 +596,8 @@ an empty table with the standard columns. Default values are HTML; the
   be hidden. Both column widths and row heights can be resized.
 - localStorage stores column widths/visibility per workbook and row heights
   per etymon and label/number pair, using `xldb.layout.v1.<dataset hash>`.
-  Dataset identity comes from the workbook path and requested sheet, not file
-  contents. Reset layout clears preferences for that dataset. In-memory
+  Dataset identity is the database's persisted UUID, so moving it preserves
+  layout keys. Reset layout clears preferences for that dataset. In-memory
   preferences still work when localStorage is unavailable.
 - **Upgrade-sensitive detail:** restoring individual row heights uses
   `row._getSelf().setHeight(height)`, an isolated private-API adapter for
@@ -347,7 +634,7 @@ an empty table with the standard columns. Default values are HTML; the
   an HTTPS reverse proxy. No built-in TLS or login is provided.
 - Stable keys come from `FLASK_SECRET_KEY`; otherwise browser preferences reset
   on restart. HttpOnly/SameSite=Lax stay enabled. Source workbook access remains read-only;
-  the shared DataFrame accepts edits through POST `/cell`.
+  SQLite accepts edits through POST `/cell` and exports through GET `/export`.
 - All Flask responses get CSP, nosniff, frame denial, and same-origin referrer
   policy. CSP allows inline styles for Excel/Tabulator, but scripts only from
   self. htmx allowEval=false, selfRequestsOnly=true, historyCacheSize=0; keep JSON
@@ -368,10 +655,13 @@ an empty table with the standard columns. Default values are HTML; the
 
 **Discussed future direction and remaining limits**
 
-The original plan considered SQLite before editing and a side-panel Quill editor.
-The user subsequently requested Quill inside the double-clicked cell and chose
-the existing in-memory DataFrame as the save destination. That behavior is now
-implemented. Database persistence, adding rows, accounts, and export remain future work.
+The first Quill implementation used an in-memory DataFrame. SQLite, Excel
+export, mode switching, and entry creation now support a single local user. The team
+prefers Excel and does not want individual passwords; future access should
+start with one shared editing password and remembered self-declared names.
+Do not require per-user accounts or prioritize impersonation prevention over
+that preference. Attribution, cell locks with expiry, row/etymon warnings,
+and history remain separate future tasks.
 
 `static/cell_editor.js` owns a single active editor. It loads original HTML
 from `row.editors[field]`, including in plaintext view; it never imports search
@@ -385,23 +675,24 @@ POST `/cell` accepts a signed cell/revision token and Quill insert operations.
 It requires a session-bound CSRF header. `cell_editing.py` validates only text
 and allowlisted inline styles, then escapes and renders HTML; it never accepts
 client HTML, images, links, or arbitrary CSS. HTML, plaintext, and normalized
-search text update together, cached matches clear, and titles rebuild. Cell
+search text update atomically in SQLite; later queries rebuild titles. Cell
 fills stay separate. Empty content cells can be populated; clearing a cell
-retains its record/row identity. Label/number editing and row insertion are absent.
+retains its record/row identity. Existing label/number editing is absent;
+new rows receive their type and number through the creation controls.
 
-An RLock protects all DataFrame reads/writes during requests. Per-cell revisions
-reject stale saves, including conflicting empty-cell edits. A process-specific
-signing salt expires editor tokens at restart even with a stable session key.
-Cell identity uses the current immutable (etymon, label, number, column) tuple;
-introduce persistent stable IDs before adding row insertion/reordering or a
-database. One process is required: DataFrames/revisions are not shared between
-processes. Waitress's four threads share the one app. Other browsers see changes
-on their next request; there is no push synchronization or authentication.
+A store RLock serializes use of its SQLite connection. Read transactions keep
+each page consistent; BEGIN IMMEDIATE transactions validate revision and commit
+edits atomically. Cell IDs/revisions persist in SQLite, including for newly
+populated empty cells. Tokens still carry the logical location and revision;
+a process-specific signing salt expires them at restart. Keep one application
+process while that token mechanism remains. Other browsers see changes on
+their next request; there is no push synchronization or authentication.
 
 Whole-cell spacing is a validated unitless number in [0.5, 4]. POST `/cell`
 accepts `line_height` separately from Quill's inline Delta. It is stored in
-`df.attrs['cell_line_heights']`, keyed by the same cell identity tuple, and on
-the rendered HTML's outer div. Grid editor metadata includes `line_height`;
+the SQLite cell's `line_height` field and on the rendered HTML's outer div.
+Detached DataFrame snapshots expose it through `attrs['cell_line_heights']`.
+Grid editor metadata includes `line_height`;
 Tabulator cells and fallback `<td>` elements apply it in both display modes.
 The existing eight DataFrame columns are unchanged. Omitting spacing on a
 save retains a prior setting. Empty cells can retain spacing as metadata.

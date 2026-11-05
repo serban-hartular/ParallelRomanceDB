@@ -40,7 +40,9 @@ class CellEditingTests(unittest.TestCase):
         return payload['rows'][row]['editors'][field]
 
     def save(self, payload, ops, client=None, row=0, field='content_0', token=None, **formatting):
-        return (client or self.client).post('/cell', json={
+        target = client or self.client
+        target.post('/mode', json={'edit_mode': True}, headers={'X-CSRF-Token': payload['csrf']})
+        return target.post('/cell', json={
             'token': token or self.editor(payload, row, field)['token'], 'ops': ops, **formatting,
         }, headers={'X-CSRF-Token': payload['csrf']})
 
@@ -56,13 +58,13 @@ class CellEditingTests(unittest.TestCase):
         displayed = self.payload(other)
         self.assertIn('Prăjitură', displayed['title'])
         self.assertIn('font-weight: bold', self.editor(displayed)['html'])
-        frame = self.app.extensions['lexicon_df']
+        frame = self.app.extensions['lexicon_store'].to_dataframe()
         self.assertEqual(frame.iloc[0]['plaintext_content'], 'Prăjitură')
         self.assertEqual(frame.iloc[0]['nodiacritics_plaintext'], 'Prajitura')
         self.assertEqual(frame.iloc[0]['background_color'], '#AAFFAA')
         self.assertEqual(sha256(self.path.read_bytes()).digest(), self.original)
         restarted = create_app(self.path, test_config={'TESTING': True, 'SECRET_KEY': 'edit-test-key'})
-        self.assertIn('café', restarted.extensions['lexicon_df'].iloc[0]['plaintext_content'])
+        self.assertIn('café', restarted.extensions['lexicon_store'].to_dataframe().iloc[0]['plaintext_content'])
 
     def test_editing_plaintext_or_highlighted_display_loads_original_html(self):
         payload = self.payload(url='/?search=1&q=cafe&plaintext=1')
@@ -81,11 +83,41 @@ class CellEditingTests(unittest.TestCase):
         self.assertEqual(self.save(payload, [{'insert': 'new text\n'}], row=row, field=field).status_code, 200)
         updated = self.payload()
         self.assertEqual(updated['rows'][row][field], '<div style="white-space: pre-wrap">new text</div>')
+        self.assertEqual(updated['rows'][row]['backgrounds'][field], '#FFFFAA')
         self.assertEqual(self.save(updated, [{'insert': '\n'}], row=row, field=field).status_code, 200)
         cleared = self.payload()
         self.assertEqual(cleared['rows'][row]['id'], identity)
         self.assertEqual(cleared['rows'][row][field], '')
         self.assertEqual(cleared['rows'][row]['backgrounds'][field], '#FFFFAA')
+
+    def test_originally_empty_cell_keeps_its_own_fill_after_edit_and_restart(self):
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(self.path)
+        workbook.active['C3'].fill = PatternFill('solid', fgColor='ABCDEF')
+        workbook.save(self.path)
+        workbook.close()
+        database = Path(self.directory.name) / 'fills.sqlite3'
+        app = create_app(self.path, database_path=database, test_config={'TESTING': True})
+        self.addCleanup(app.extensions['lexicon_store'].close)
+        client = app.test_client()
+        payload = self.payload(client)
+        self.assertEqual(payload['rows'][1]['backgrounds']['content_1'], '#ABCDEF')
+        self.assertEqual(self.save(payload, [{'insert': 'filled\n'}], client=client,
+                                   row=1, field='content_1').status_code, 200)
+        # Reopening also covers old initialized databases: no reimport or
+        # migration is needed to recover the formerly empty cell's fill.
+        self.path.unlink()
+        restarted = create_app(self.path, database_path=database, test_config={'TESTING': True})
+        self.addCleanup(restarted.extensions['lexicon_store'].close)
+        response = restarted.test_client().get('/?plaintext=1')
+        self.assertEqual(Page(response).payload['rows'][1]['backgrounds']['content_1'], '#ABCDEF')
+        self.assertIn('background-color: #ABCDEF', response.get_data(as_text=True))
+
+    def test_uncolored_empty_cell_keeps_neutral_background_after_edit(self):
+        payload = self.payload()
+        self.assertEqual(self.save(payload, [{'insert': 'new\n'}], field='content_2').status_code, 200)
+        self.assertEqual(self.payload()['rows'][0]['backgrounds']['content_2'], 'var(--label-background)')
 
     def test_stale_edits_conflict_and_different_cells_do_not(self):
         first = self.payload()
@@ -105,7 +137,7 @@ class CellEditingTests(unittest.TestCase):
         self.assertEqual(self.editor(updated)['line_height'], 2)
         self.assertIn('line-height: 2', self.editor(updated)['html'])
         self.assertIsNone(self.editor(updated, field='content_1')['line_height'])
-        self.assertEqual(self.app.extensions['lexicon_df'].attrs['cell_line_heights'][
+        self.assertEqual(self.app.extensions['lexicon_store'].to_dataframe().attrs['cell_line_heights'][
             (1, 'ETIMON/ CORESPONDENTE ROMANICE', 1, 'LIMBA FRANCEZĂ')
         ], 2)
         response = self.client.get('/?plaintext=1')
@@ -131,6 +163,7 @@ class CellEditingTests(unittest.TestCase):
     def test_filling_a_missing_standard_language_updates_available_filters(self):
         payload = self.payload()
         self.assertEqual(self.save(payload, [{'insert': 'italiano\n'}], field='content_2').status_code, 200)
+        self.client.post('/mode', json={'edit_mode': False}, headers={'X-CSRF-Token': payload['csrf']})
         response = self.client.get('/', query_string={
             'search': '1', 'q': 'italiano', 'column': 'LIMBA ITALIANĂ',
         })
