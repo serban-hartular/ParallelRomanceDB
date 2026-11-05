@@ -1,8 +1,10 @@
 """SQLite source of truth for one imported worksheet and its export template."""
 
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from hashlib import sha256
 from io import BytesIO
+import json
 from pathlib import Path
 import re
 import sqlite3
@@ -24,6 +26,9 @@ FRAME_COLUMNS = (
 )
 KEY_SQL = 'etimon_number=? AND label=? AND label_number=? AND "column"=?'
 _DEFAULT_ROW_COLORS = object()
+ACTIVE_CELL_SQL = '''EXISTS (SELECT 1 FROM row_metadata r
+    WHERE r.etimon_number=cells.etimon_number AND r.label=cells.label
+    AND r.label_number=cells.label_number AND r.trash_id IS NULL)'''
 
 
 def default_database_path(excel_path, sheet_name=None):
@@ -55,7 +60,7 @@ class LexiconDB:
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = RLock()
         self._empty_backgrounds = None
-        self._empty_background_count = -1
+        self._empty_background_rows = None
         self.connection = sqlite3.connect(self.path, check_same_thread=False, isolation_level=None, timeout=10)
         self.connection.row_factory = sqlite3.Row
         self._finalizer = finalize(self, self.connection.close)
@@ -88,7 +93,18 @@ class LexiconDB:
                         self.connection.execute('UPDATE row_metadata SET source_row=sheet_row')
                         self.connection.execute('UPDATE dataset SET schema_version=2')
                 self.metadata['schema_version'] = 2
-            if self.metadata['schema_version'] != 2:
+            if self.metadata['schema_version'] == 2:
+                with self.transaction(write=True):
+                    if self.connection.execute('SELECT schema_version FROM dataset').fetchone()[0] == 2:
+                        self.connection.execute('''CREATE TABLE trash (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL,
+                            etimon_number INTEGER NOT NULL, label TEXT, label_number INTEGER,
+                            title TEXT NOT NULL, deleted_at TEXT NOT NULL, restored_at TEXT)''')
+                        self.connection.execute('ALTER TABLE row_metadata ADD COLUMN trash_id INTEGER REFERENCES trash(id)')
+                        self.connection.execute('ALTER TABLE row_metadata ADD COLUMN generation INTEGER NOT NULL DEFAULT 0')
+                        self.connection.execute('UPDATE dataset SET schema_version=3')
+                self.metadata['schema_version'] = 3
+            if self.metadata['schema_version'] != 3:
                 raise ValueError('Unsupported Parallel Words database schema version.')
             if sheet_name is not None and sheet_name != self.metadata['sheet_name']:
                 raise ValueError('The selected database contains a different worksheet. Choose another database.')
@@ -165,10 +181,10 @@ class LexiconDB:
             self._finalizer()
 
     def _records(self, etimon=None):
-        sql = 'SELECT * FROM cells'
+        sql = 'SELECT * FROM cells WHERE ' + ACTIVE_CELL_SQL
         values = ()
         if etimon is not None:
-            sql += ' WHERE etimon_number=?'
+            sql += ' AND etimon_number=?'
             values = (etimon,)
         return [dict(row) for row in self.connection.execute(sql + ' ORDER BY id', values)]
 
@@ -178,7 +194,7 @@ class LexiconDB:
             records = self._records(etimon)
             frame = pd.DataFrame.from_records(records, columns=FRAME_COLUMNS)
             frame.attrs['sheet_name'] = self.metadata['sheet_name']
-            rows = self.connection.execute('SELECT * FROM row_metadata').fetchall()
+            rows = self.connection.execute('SELECT * FROM row_metadata WHERE trash_id IS NULL').fetchall()
             frame.attrs['label_backgrounds'] = {
                 (row['etimon_number'], row['label'], row['label_number']): row['background_color']
                 for row in rows if row['background_color']
@@ -187,10 +203,11 @@ class LexiconDB:
                 (row['etimon_number'], row['label'], row['label_number'], row['column']): row['line_height']
                 for row in records if row['line_height'] is not None
             }
-            if len(rows) != self._empty_background_count:
+            identities = tuple((row['id'], row['sheet_row']) for row in rows)
+            if identities != self._empty_background_rows:
                 self._empty_backgrounds = None
             frame.attrs['empty_cell_backgrounds'] = self._original_empty_backgrounds().copy()
-            self._empty_background_count = len(rows)
+            self._empty_background_rows = identities
             return frame
 
     def _original_empty_backgrounds(self):
@@ -213,7 +230,7 @@ class LexiconDB:
                 for name in COLUMN_ORDER:
                     columns.setdefault(name, None)
                 backgrounds = {}
-                for row in self.connection.execute('SELECT * FROM row_metadata'):
+                for row in self.connection.execute('SELECT * FROM row_metadata WHERE trash_id IS NULL'):
                     for name, number in columns.items():
                         key = (row['etimon_number'], row['label'], row['label_number'], name)
                         if row['source_row'] is None:
@@ -237,7 +254,7 @@ class LexiconDB:
     def row_labels(self, etimon=None):
         """Three allowed types, retaining existing spelling and spacing."""
         rows = self.connection.execute('''SELECT label FROM row_metadata
-            ORDER BY etimon_number=? DESC, sheet_row''', (etimon,)).fetchall()
+            ORDER BY trash_id IS NULL DESC, etimon_number=? DESC, sheet_row''', (etimon,)).fetchall()
         return [next((row['label'] for row in rows if self._label_kind(row['label']) == self._label_kind(label)), label)
                 for label in LABEL_ORDER[1:]]
 
@@ -245,7 +262,7 @@ class LexiconDB:
         with self.transaction(write=True):
             rows = [dict(row) for row in self.connection.execute(
                 'SELECT * FROM row_metadata WHERE etimon_number=? ORDER BY sheet_row', (etimon,))]
-            if not rows:
+            if not any(row['trash_id'] is None for row in rows):
                 raise ValueError('This etymon does not exist.')
             if label not in self.row_labels(etimon):
                 raise ValueError('Choose one of the three non-etymon row types.')
@@ -295,14 +312,14 @@ class LexiconDB:
     def choices(self, field, preferred):
         if field not in ('column', 'label'):
             raise ValueError('Unknown filter field.')
-        values = {row[0] for row in self.connection.execute(f'SELECT DISTINCT "{field}" FROM cells')}
+        values = {row[0] for row in self.connection.execute(f'SELECT DISTINCT "{field}" FROM cells WHERE {ACTIVE_CELL_SQL}')}
         return [value for value in preferred if value in values] + sorted(values - set(preferred))
 
     def entries(self):
         result = {}
-        for (number,) in self.connection.execute('SELECT DISTINCT etimon_number FROM row_metadata ORDER BY etimon_number'):
+        for (number,) in self.connection.execute('SELECT DISTINCT etimon_number FROM row_metadata WHERE trash_id IS NULL ORDER BY etimon_number'):
             rows = self.connection.execute('''SELECT "column", plaintext_content, label FROM cells
-                WHERE etimon_number=? ORDER BY label_number, id''', (number,)).fetchall()
+                WHERE etimon_number=? AND ''' + ACTIVE_CELL_SQL + ' ORDER BY label_number, id', (number,)).fetchall()
             markers = [row for row in rows if re.match(r'^\s*ETIMON\s*/', row['label'], re.IGNORECASE)]
             form, language = 'No language form', ''
             for candidate in COLUMN_ORDER[:6]:
@@ -317,7 +334,7 @@ class LexiconDB:
         return result
 
     def matching_numbers(self, query, labels=(), columns=()):
-        sql = 'SELECT DISTINCT etimon_number FROM cells WHERE instr(search_fold(nodiacritics_plaintext), ?) > 0'
+        sql = 'SELECT DISTINCT etimon_number FROM cells WHERE ' + ACTIVE_CELL_SQL + ' AND instr(search_fold(nodiacritics_plaintext), ?) > 0'
         values = [remove_diacritics(query).upper()]
         for field, selected in (('label', labels), ('column', columns)):
             if selected:
@@ -326,12 +343,18 @@ class LexiconDB:
         return tuple(row[0] for row in self.connection.execute(sql + ' ORDER BY etimon_number', values))
 
     def cell(self, key):
-        row = self.connection.execute(f'SELECT * FROM cells WHERE {KEY_SQL}', key).fetchone()
-        return dict(row) if row else {'id': None, 'revision': 0, 'line_height': None}
+        row = self.connection.execute(f'SELECT * FROM cells WHERE {KEY_SQL} AND {ACTIVE_CELL_SQL}', key).fetchone()
+        metadata = self.connection.execute('''SELECT generation FROM row_metadata
+            WHERE etimon_number=? AND label=? AND label_number=? AND trash_id IS NULL''', key[:3]).fetchone()
+        result = dict(row) if row else {'id': None, 'revision': 0, 'line_height': None}
+        result['generation'] = metadata[0] if metadata else None
+        return result
 
-    def save_cell(self, key, revision, ops, *, line_height_provided=False, line_height=None):
+    def save_cell(self, key, revision, ops, *, line_height_provided=False, line_height=None, generation=None):
         with self.transaction(write=True):
             current = self.cell(key)
+            if current['generation'] is None or (generation is not None and current['generation'] != generation):
+                raise EditConflict('This row was deleted or restored. Cancel and reload before editing.')
             if current['revision'] != revision:
                 raise EditConflict('Someone else changed this cell. Copy your draft, then cancel and reload.')
             row = self.connection.execute('''SELECT source_row, background_color FROM row_metadata
@@ -356,6 +379,70 @@ class LexiconDB:
                     nodiacritics_plaintext=?, line_height=?, revision=revision+1 WHERE id=?''',
                     (html, plaintext, remove_diacritics(plaintext), height, current['id']))
 
+    def deletion_version(self, etimon, label=None, label_number=None):
+        """Fingerprint the active target, so a stale page cannot discard edits."""
+        scope, values = 'etimon_number=?', [etimon]
+        if label is not None:
+            scope += ' AND label=? AND label_number=?'
+            values.extend((label, label_number))
+        rows = self.connection.execute('SELECT id, generation FROM row_metadata WHERE '
+                                       + scope + ' AND trash_id IS NULL ORDER BY id', values).fetchall()
+        if not rows:
+            raise ValueError('This item no longer exists in the collection.')
+        cells = [tuple(cell) for cell in self.connection.execute('SELECT id, revision FROM cells WHERE '
+                  + scope + ' AND ' + ACTIVE_CELL_SQL + ' ORDER BY id', values)]
+        identity = [tuple(row) for row in rows]
+        return sha256(json.dumps([identity, cells]).encode()).hexdigest()
+
+    def delete_row(self, etimon, label, label_number, *, expected=None):
+        if self._label_kind(label) == self._label_kind(LABEL_ORDER[0]):
+            raise ValueError('Use Delete etymon to remove an etymon and its rows.')
+        return self._trash(etimon, label, label_number, expected)
+
+    def delete_etymon(self, etimon, *, expected=None):
+        return self._trash(etimon, None, None, expected)
+
+    def _trash(self, etimon, label, label_number, expected):
+        with self.transaction(write=True):
+            version = self.deletion_version(etimon, label, label_number)
+            if expected is not None and expected != version:
+                raise EditConflict('This item changed since the page loaded. Reload and review it before deleting.')
+            title = self.entries()[etimon]['form']
+            cursor = self.connection.execute('''INSERT INTO trash
+                (kind, etimon_number, label, label_number, title, deleted_at) VALUES (?, ?, ?, ?, ?, ?)''',
+                ('etymon' if label is None else 'row', etimon, label, label_number, title,
+                 datetime.now(timezone.utc).isoformat()))
+            trash_id = cursor.lastrowid
+            sql = 'UPDATE row_metadata SET trash_id=?, generation=generation+1 WHERE etimon_number=? AND trash_id IS NULL'
+            values = [trash_id, etimon]
+            if label is not None:
+                sql += ' AND label=? AND label_number=?'
+                values.extend((label, label_number))
+            self.connection.execute(sql, values)
+            self._empty_backgrounds = None
+            return trash_id
+
+    def list_trash(self):
+        """Local administrative recovery; no web restore endpoint is exposed."""
+        with self.transaction():
+            return [dict(row) for row in self.connection.execute('''SELECT trash.*,
+                (SELECT count(*) FROM row_metadata WHERE trash_id=trash.id) AS row_count
+                FROM trash WHERE restored_at IS NULL ORDER BY id''')]
+
+    def restore_trash(self, trash_id):
+        with self.transaction(write=True):
+            entry = self.connection.execute('SELECT * FROM trash WHERE id=? AND restored_at IS NULL', (trash_id,)).fetchone()
+            if entry is None:
+                raise ValueError('No unrestored Trash entry has that ID.')
+            if entry['kind'] == 'row' and not self.connection.execute('''SELECT 1 FROM row_metadata
+                WHERE etimon_number=? AND trash_id IS NULL''', (entry['etimon_number'],)).fetchone():
+                raise ValueError('Restore the containing etymon first, then restore this row.')
+            self.connection.execute('UPDATE row_metadata SET trash_id=NULL, generation=generation+1 WHERE trash_id=?', (trash_id,))
+            self.connection.execute('UPDATE trash SET restored_at=? WHERE id=?',
+                                    (datetime.now(timezone.utc).isoformat(), trash_id))
+            self._empty_backgrounds = None
+            return dict(entry)
+
     def export_snapshot(self):
         with self.transaction():
             dataset = dict(self.connection.execute('SELECT * FROM dataset').fetchone())
@@ -364,4 +451,6 @@ class LexiconDB:
                 'columns': [dict(row) for row in self.connection.execute('SELECT * FROM sheet_columns ORDER BY sheet_column')],
                 'rows': [dict(row) for row in self.connection.execute('SELECT * FROM row_metadata ORDER BY sheet_row')],
                 'cells': self._records(),
+                'trashed_etymons': [row[0] for row in self.connection.execute(
+                    "SELECT etimon_number FROM trash WHERE kind='etymon' AND restored_at IS NULL")],
             }

@@ -37,7 +37,7 @@ The command uses Waitress rather than Flask's development server. For remote
 deployment, read [DEPLOYMENT.md](DEPLOYMENT.md), covering HTTPS proxies,
 `--trusted-host`, `--trusted-proxy`, `--secure-cookies`, firewall access, service
 permissions, and request limits. **There is no login: every reachable user can
-read, edit, and export the database content.** This stage assumes one local user;
+read, edit, delete, and export the database content.** This stage assumes one local user;
 put private data behind a VPN or authenticated proxy before allowing remote access.
 
 Omitting the file keeps the bundled example. Omitting `--sheet` (or `-s`) selects
@@ -69,7 +69,7 @@ An explicit `--sheet` adds a short sheet-name hash so different sheets get
 different databases. A database contains one imported worksheet, with the
 original eight DataFrame fields in `cells`, plus permanent cell IDs, persisted
 revisions, and line spacing. Supporting tables retain row/column positions,
-label fills, dataset identity, and the entire imported workbook template.
+label fills, Trash entries, dataset identity, and the entire imported workbook template.
 The website reads and writes SQLite; a temporary DataFrame for the selected
 etymon is used only to reconstruct its display table.
 
@@ -122,7 +122,44 @@ existing sheet and preserves the other sheets' data. It uses openpyxl's
 supported worksheet features; advanced drawings and unsupported Excel features
 can be affected. Normal timestamped export preserves the original archive's
 unrelated parts instead. There are no accounts, shared-password access,
-editing locks, or audit history in this first database stage.
+editing locks, or cell edit history in this first database stage.
+
+**Deleting and recovering rows/etymons**
+
+In Edit mode, **Delete row** appears beneath each non-etymon row's label;
+**Delete etymon** in the table toolbar removes the whole etymon, in every
+language. An etymon marker cannot be deleted as an individual row. Close or
+cancel an open cell editor first. The dialog identifies the item, asks
+“Are you really, really sure?”, and requires typing `DELETE` before **Move to
+Trash** becomes available. Cancel or Escape leaves everything intact. If another
+edit changed the item since the page loaded, reload and review it before deleting.
+
+Deleted items disappear from searches, navigation, counts, and Excel exports.
+SQLite retains every cell's exact text, formatting, ID, revision, and spacing,
+plus its row metadata. The `trash` table records the item, UTC deletion time,
+etymon, and (for a single row) its label/number; `row_metadata.trash_id` links
+the retained rows to that entry. There is no automatic purge. Numbers remain
+reserved and surviving app entries are not renumbered. Excel exports physically
+remove deleted rows and adjust references; references to deleted cells become
+`#REF!`, and ranges shrink. Reimporting Excel numbers rows/etymons sequentially,
+as with any workbook import.
+
+Recovery is a **local administrator command**, requiring access to the database
+file on the server; there is no browser recovery endpoint or administrator login:
+
+```bash
+.venv/bin/python trash.py db/research.sqlite3 list
+.venv/bin/python trash.py db/research.sqlite3 restore 12  # Use the listed Trash ID.
+```
+
+Recovery restores the entire Trash entry with its existing IDs and saved
+formatting. It works while the server is running; refresh the browser afterward.
+If a row was deleted separately before deleting its etymon, restore the etymon
+first, then the row's separate entry. Restored entries are marked with a UTC
+recovery time and omitted from the pending Trash list. Editors opened before
+deletion/recovery must reload before saving. On startup, older databases migrate
+automatically to schema 3 without reimporting or rewriting their content.
+Python callers can use `store.list_trash()` and `store.restore_trash(trash_id)`.
 
 **Workbook layout and import errors**
 
@@ -285,7 +322,7 @@ its title, count, and navigation updated; creating it clears prior search filter
 Initial text is required so new entries survive Excel export/reimport without
 hidden placeholders or auxiliary sheets. If all content is subsequently cleared
 from a row, SQLite retains it, but the Excel importer still skips empty rows.
-Existing databases upgrade automatically to schema version 2 on startup,
+Existing databases upgrade automatically to schema version 3 on startup,
 retaining data, IDs, and revisions; no workbook reimport is needed.
 
 Simultaneous edits to different cells are accepted. A stale save to a cell

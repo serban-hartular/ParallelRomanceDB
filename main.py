@@ -204,14 +204,23 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
             return {
                 'id': record['id'], 'html': original[column],
                 'line_height': record['line_height'],
-                'token': editor_tokens.dumps([*key, record['revision']]),
+                'token': editor_tokens.dumps([*key, record['revision'], record['generation']]),
             }
+
+        def deletion_token(label=None, number=None):
+            return editor_tokens.dumps({
+                'kind': 'etymon' if label is None else 'row', 'etimon': selected,
+                'label': label, 'label_number': number,
+                'version': store.deletion_version(selected, label, number),
+            })
 
         grid_rows = [
             {
                 'id': json.dumps([row['label'], row['label_number']], ensure_ascii=False),
                 'label': row['label'],
                 'label_number': row['label_number'],
+                'delete_token': deletion_token(row['label'], int(row['label_number']))
+                    if edit_mode and store._label_kind(row['label']) != store._label_kind(LABEL_ORDER[0]) else None,
                 **{column['field']: row[column['title']] for column in grid_columns},
                 'highlights': {
                     column['field']: highlights[column['title']]
@@ -274,6 +283,8 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
                 'csrf': session['edit_csrf'],
                 'edit_mode': edit_mode,
                 'total': len(entries),
+                'delete_etymon_token': deletion_token() if edit_mode and selected is not None else None,
+                'etymon_name': selected_entry['form'] if selected_entry else '',
             },
         ))
         response.vary.add('HX-Request')
@@ -337,12 +348,14 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
             return {'error': 'Invalid cell edit.'}, 400
         try:
             signed = editor_tokens.loads(body['token'])
+            if not isinstance(signed, list) or len(signed) != 6:
+                raise BadSignature('Wrong token type.')
         except BadSignature:
             return {'error': 'This cell has expired. Cancel and reload before editing.'}, 409
-        key, revision = tuple(signed[:-1]), signed[-1]
+        key, revision, generation = tuple(signed[:4]), signed[4], signed[5]
         try:
             store.save_cell(key, revision, body.get('ops'),
-                            line_height_provided='line_height' in body, line_height=body.get('line_height'))
+                            line_height_provided='line_height' in body, line_height=body.get('line_height'), generation=generation)
         except EditConflict as error:
             return {'error': str(error)}, 409
         except ValueError as error:
@@ -350,6 +363,29 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
         response = app.json.response({'saved': True})
         response.headers['Cache-Control'] = 'no-store'
         return response
+
+    @app.post('/trash')
+    @mutation
+    def delete_entry():
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict) or body.get('confirmation') != 'DELETE' or not isinstance(body.get('token'), str):
+            return {'error': 'Type DELETE to confirm moving this item to Trash.'}, 400
+        try:
+            target = editor_tokens.loads(body['token'])
+            if not isinstance(target, dict) or target.get('kind') not in ('row', 'etymon'):
+                raise BadSignature('Wrong token type.')
+        except BadSignature:
+            return {'error': 'This deletion request expired. Reload and review the item again.'}, 409
+        try:
+            if target['kind'] == 'row':
+                trash_id = store.delete_row(target['etimon'], target['label'], target['label_number'], expected=target['version'])
+            else:
+                trash_id = store.delete_etymon(target['etimon'], expected=target['version'])
+        except EditConflict as error:
+            return {'error': str(error)}, 409
+        except ValueError as error:
+            return {'error': str(error)}, 400
+        return {'trashed': True, 'trash_id': trash_id}
 
     @app.get('/export')
     def export_excel():

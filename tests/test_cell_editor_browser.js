@@ -384,6 +384,72 @@ workbook.close()
     await page.keyboard.press('Escape');
     console.log('ok - New basic-sense rows are orange in new etymons and retain that color in Quill');
 
+    await newSense.dblclick();
+    await page.getByRole('button', { name: 'Delete etymon', exact: true }).click();
+    assert.equal(await page.locator('#delete-entry-dialog').isVisible(), false);
+    await page.keyboard.press('Escape');
+    await page.locator('.tabulator-row .delete-row').click();
+    assert.ok((await page.locator('#delete-entry-description').textContent()).includes('SENSURI DE BAZĂ #1'));
+    const confirmDelete = page.getByRole('button', { name: 'Move to Trash', exact: true });
+    assert.equal(await confirmDelete.isDisabled(), true);
+    await page.getByLabel('Type DELETE to confirm', { exact: true }).fill('yes');
+    assert.equal(await confirmDelete.isDisabled(), true);
+    await page.keyboard.press('Escape');
+    assert.equal((await payload()).rows.length, 2);
+    await page.locator('.tabulator-row .delete-row').click();
+    await page.getByLabel('Type DELETE to confirm', { exact: true }).fill('DELETE');
+    await confirmDelete.click();
+    await waitState(page, () => JSON.parse(document.querySelector('.workspace-data').textContent).rows.length === 1);
+    await waitGrid();
+    assert.equal((await payload()).etimon, 4);
+    const db = path.join(directory, 'browser.xlsx.sqlite3');
+    const admin = (...args) => execFileSync(process.env.XLDB_PYTHON || path.join(root, '.venv/bin/python'),
+      [path.join(root, 'trash.py'), db, ...args], { encoding: 'utf8' });
+    const rowTrash = admin('list').match(/^(\d+) ·/)[1];
+    admin('restore', rowTrash);
+    await page.goto(`${url}?etimon=4`);
+    await waitGrid();
+    assert.equal((await payload()).rows.length, 2);
+    assert.equal(await page.locator('.tabulator-cell[tabulator-field="content_0"]').filter({ hasText: 'sens du nouveau mot' })
+      .evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(247, 202, 172)');
+    console.log('ok - Row deletion requires typed confirmation, Escape cancels, open editing blocks deletion, and local recovery restores the row');
+
+    await page.getByRole('button', { name: 'Delete etymon', exact: true }).click();
+    assert.ok((await page.locator('#delete-entry-description').textContent()).includes('ALL its rows'));
+    await page.locator('[data-cancel-delete]').click();
+    assert.equal((await payload()).total, 4);
+    await page.getByRole('button', { name: 'Delete etymon', exact: true }).click();
+    await page.getByLabel('Type DELETE to confirm', { exact: true }).fill('DELETE');
+    await confirmDelete.click();
+    await waitState(page, () => JSON.parse(document.querySelector('.workspace-data').textContent).total === 3);
+    assert.equal((await payload()).etimon, null);
+    assert.ok((await page.locator('.collection-count').textContent()).startsWith('3 '));
+    const trashedDownloadEvent = page.waitForEvent('download');
+    await page.getByRole('link', { name: 'Export Excel', exact: true }).click();
+    const trashedDownload = await trashedDownloadEvent;
+    execFileSync(process.env.XLDB_PYTHON || path.join(root, '.venv/bin/python'), ['-c', `
+import sys
+from io import BytesIO
+from pathlib import Path
+from openpyxl import load_workbook
+book = load_workbook(BytesIO(Path(sys.argv[1]).read_bytes()), rich_text=True)
+sheet = book.worksheets[0]
+assert sum(str(row[0] or '').startswith('ETIMON/') for row in sheet.iter_rows(values_only=True)) == 3
+assert not any('quatrième' in str(cell.value) or 'sens du nouveau mot' in str(cell.value) for row in sheet for cell in row)
+book.close()
+`, await trashedDownload.path()]);
+    const etymonTrash = admin('list').match(/^(\d+) ·/)[1];
+    admin('restore', etymonTrash);
+    await page.goto(`${url}?reset=1&etimon=4`);
+    await waitGrid();
+    assert.equal((await payload()).total, 4);
+    assert.equal((await payload()).rows.length, 2);
+    await page.getByRole('button', { name: 'Edit mode', exact: true }).click();
+    await waitState(page, () => !JSON.parse(document.querySelector('.workspace-data').textContent).edit_mode);
+    await waitGrid();
+    assert.equal(await page.locator('[data-delete-row], [data-delete-etymon]').count(), 0);
+    console.log('ok - Etymon deletion updates filtered navigation/counts and Excel, recovery restores all rows, and Search mode hides deletion');
+
     assert.deepEqual(errors, []);
     console.log("Browser editor checks passed.");
   } finally {

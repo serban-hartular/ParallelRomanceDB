@@ -135,7 +135,8 @@ def workbook_bytes(store):
     snapshot = store.export_snapshot()
     template = snapshot['dataset']['workbook']
     changed = [cell for cell in snapshot['cells'] if cell['revision']]
-    if not changed:
+    deleted = any(row.get('trash_id') is not None for row in snapshot['rows'])
+    if not changed and not deleted:
         return template
     title = snapshot['dataset']['sheet_name']
     if any(row['source_row'] is None for row in snapshot['rows']):
@@ -227,7 +228,11 @@ def workbook_bytes(store):
                 exported.comment = archive.comment
                 for member in archive.infolist():
                     exported.writestr(member, document.toxml(encoding='utf-8') if member.filename == part else archive.read(member.filename))
-            return output.getvalue()
+            payload = output.getvalue()
+            if deleted:
+                from excel_rows import insert_workbook_rows
+                payload = insert_workbook_rows(payload, snapshot, part, deleting=True)
+            return payload
     finally:
         workbook.close()
 

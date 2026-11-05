@@ -1,6 +1,6 @@
 # XLDB development handoff
 
-Updated 2026-11-05 for Search/Edit modes, adding rows/etymons, and structural
+Updated 2026-11-05 for recoverable deletion, Search/Edit modes, adding rows/etymons, and structural
 Excel export, following SQLite and cell editing improvements.
 Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 
@@ -33,6 +33,10 @@ Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 > New rows use the four type defaults in `config.py` (`ROW_BACKGROUND_COLORS`),
 > saved in SQLite and used throughout the browser and Excel export. Imported
 > colors and exact label spelling/spacing remain intact.
+> Edit mode also offers Delete row (except etymon markers) and Delete etymon,
+> with a strong dialog requiring DELETE. Items are soft-deleted into Trash;
+> local administrators recover them with `trash.py DATABASE list` or
+> `trash.py DATABASE restore ID`. No web recovery/admin login is exposed.
 > Future edit access is
 > intended to use a shared password and self-declared editor names.
 > Inspect the current Git state and preserve existing changes. No implementation
@@ -40,8 +44,8 @@ Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 
 **Current state and continuation**
 
-- The latest existing commit is `5faea3c` (`Added cell edit.`). SQLite/export
-  work is uncommitted. Check `git status` when resuming; this work does not
+- The latest existing commit is `7bf0fd5` (`Switch to sqlite, implemented add etymon/row.`).
+  Deletion/recovery work is uncommitted. Check `git status` when resuming; this work does not
   commit, push, or deploy anything.
 - Latest behavior: Search mode is read-only; Edit mode enables Quill, Add row,
   and Add etymon. Each browser session remembers the mode. Quill opens inside
@@ -75,7 +79,7 @@ Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 plus integer `id`, `revision`, and `line_height`. `row_metadata` retains logical
 row keys, original sheet row positions, and label backgrounds; `sheet_columns`
 retains headings and Excel column positions; `dataset` stores UUID identity,
-source labels, schema version 2, and the complete original workbook bytes.
+source labels, schema version 3, and the complete original workbook bytes.
 Excel import adds `row_positions` and `column_positions` to DataFrame attrs.
 
 Default database: `<workbook filename>[.<sheet-name hash>].sqlite3` beside the
@@ -112,8 +116,8 @@ an existing workbook/sheet. It uses openpyxl-supported features and preserves
 other sheets' data; advanced unsupported workbook features may be affected.
 The normal export uses archive patching instead. No source workbook was changed.
 
-Current verification: 99 Python tests, six Node scrollbar tests, JS syntax
-checks, and fourteen Chromium browser groups after the edit-workflow
+Current verification: 111 Python tests, six Node scrollbar tests, JS syntax
+checks, and sixteen Chromium browser groups after the edit-workflow
 corrections. Tests cover restart without the
 source, stable IDs/revisions, SQL search, rich-text exports, archive preservation,
 timestamp collisions, adding/clearing cells, explicit sheet overwrite, CLI
@@ -332,6 +336,53 @@ editing/restarting/exporting with persisted colors, and a new orange basic-sense
 row inside a newly created etymon. Tests use temporary workbooks and databases;
 the user's workbooks and research database remain untouched.
 
+**Recoverable deletion (2026-11-05)**
+
+Edit mode shows Delete row beneath non-marker labels and Delete etymon in the
+toolbar. A modal names the target, warns that all languages (and all rows for an
+etymon) are affected, requires exact `DELETE`, and defaults focus to Cancel.
+Escape cancels. Open Quill editors block deletion. After deletion, the workspace
+refreshes navigation/counts/results; row deletion retains table scroll offsets.
+
+Schema 3 adds `trash` (kind, etymon, optional row label/number, title, UTC deletion
+and recovery timestamps) and `row_metadata.trash_id`/`generation`. Migrations from
+versions 1/2 are transactional and preserve cells/template. Soft deletion keeps
+all original row/cell records, IDs, rich text, spacing, colors, revisions, and
+source/style coordinates. Active queries exclude rows with a Trash link.
+Creation counts trashed rows when reserving numbers/positions, so restoration
+does not collide or reverse the order of later added rows. No purge is provided.
+
+POST `/trash` requires Edit mode, session CSRF, exact confirmation, and a signed
+target/fingerprint token from the current page. Fingerprints cover row identity,
+generation, cell IDs/revisions, and (for an etymon) all active rows. Changes after
+page load abort deletion instead of discarding unseen edits. Cell edit tokens
+now also include the row generation; deletion and recovery increment it without
+changing cell revisions, so stale editors cannot resurrect/overwrite restored
+data and no-op restored originals still export byte-for-byte.
+
+`LexiconDB.list_trash()`/`restore_trash(id)` support local recovery; `trash.py`
+provides `DATABASE list` and `DATABASE restore ID`. No recovery HTTP endpoint or
+admin login is introduced. Recovery can run alongside Waitress under SQLite's
+write lock; refresh the browser afterward. Independently trashed rows retain
+separate entries when their etymon is later deleted; recover the etymon first.
+The presentation cache tracks active row identities/positions, including changes
+committed by another connection.
+
+Export first reconstructs the full row layout, patches active edits, then
+physically removes trashed rows/etymon sections (including label-only/blank rows
+in deleted etymons) from XML. `RowRemoval` shrinks ranges, produces `#REF!` for
+deleted direct references, and adjusts formulas/layout/owned parts using the
+existing structural exporter. Newly exposed inherited labels become explicit
+with their saved fills. Unrelated workbook parts remain intact. App numbers
+remain stable; Excel reimport numbers sequentially as usual.
+
+Tests use temporary copies/workbooks/databases; the user's source workbooks and
+research database have not been changed. Coverage includes exact recovery after
+restart, v1/v2 migrations, separate row/etymon restoration, complete-collection
+deletion, reserved numbering/order, stale editors/confirmations, CLI recovery,
+original/added row removal, label inheritance/fills, references/merges/validations,
+and confirmation/cancellation/recovery/Excel download in Chromium.
+
 **Run and verification**
 
 ```bash
@@ -352,11 +403,12 @@ node tests/test_scrollbars.js
 
 - Existing environment: Python 3.13.12, Flask 3.1.3, pandas 3.1.0,
   openpyxl 3.1.5, Waitress 3.0.2. Direct dependencies are recorded in `requirements.txt`.
-- Latest verification: 81 Python tests, six Node scrollbar interaction tests,
-  and JavaScript syntax checks. Seven real Chromium check groups exercise inline
+- Latest verification: 111 Python tests, six Node scrollbar interaction tests,
+  and JavaScript syntax checks. Sixteen real Chromium check groups exercise inline
   editing under the app's CSP, rich text/whitespace, no-op/Cancel, shared saves,
   conflicts, search/plaintext, empty-cell fill/clear, selected font size,
-  inherited line height, whole-cell spacing/save/reopen/Cancel, and full-workbook
+  inherited line height, whole-cell spacing/save/reopen/Cancel, creation/default
+  colors, scroll retention, confirmed deletion, local recovery, and full-workbook
   Excel downloads. Scrollbar tests use
   simulated geometry. No remote editing deployment has been tested here.
 - Manual Waitress smoke checks bound only `127.0.0.1` on an ephemeral port:
@@ -366,6 +418,10 @@ node tests/test_scrollbars.js
   check, not a committed socket-based test.
 - `tests/__init__.py` preserves discovery with `python -m unittest -v` from
   the project root. Workbook fixture paths are relative to that root.
+- The user removed/renamed `db/example.xlsx` in their working tree. The latest
+  tests ran in `/tmp/xldb-creation-tests-u62wko89`, with the original committed
+  example restored only in that temporary checkout. Do not restore/replace the
+  user's workbooks or run the import-based `main` tests against a live database.
 - Optional `tests/test_cell_editor_browser.js` uses Playwright + Chromium and
   creates an isolated temporary workbook and ephemeral loopback Waitress server.
   Node 18 testing used Playwright 1.51.1 installed only under `/tmp/xldb-browser`,

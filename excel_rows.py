@@ -1,5 +1,6 @@
-"""Insert database rows into workbook XML while retaining unrelated ZIP parts."""
+"""Insert/remove database rows in workbook XML, retaining unrelated ZIP parts."""
 
+from bisect import bisect_right
 from io import BytesIO
 import posixpath
 import re
@@ -55,11 +56,47 @@ class RowInsertion:
         return ('=' if equals else '') + ''.join(result) if changed else expression
 
 
-def insert_workbook_rows(template, snapshot, part):
-    added = [row for row in snapshot['rows'] if row['source_row'] is None]
-    if not added:
+class RowRemoval(RowInsertion):
+    def __init__(self, positions, title):
+        super().__init__(positions, title)
+        self.removed = set(self.positions)
+
+    def number(self, number):
+        return max(1, number - bisect_right(self.positions, number))
+
+    def reference(self, reference):
+        """Shrink ranges; a direct reference to a removed cell becomes #REF!."""
+        removed = self.removed
+        def area(value):
+            addresses = value.split(':')
+            matches = [re.fullmatch(r'(\$?[A-Z]{1,3})?(\$?)([1-9]\d*)', item, re.IGNORECASE) for item in addresses]
+            if not all(matches) or len(matches) > 2:
+                return value
+            numbers = [int(match[3]) for match in matches]
+            if len(numbers) == 1:
+                if numbers[0] in removed:
+                    return '#REF!'
+            else:
+                start, end = sorted(numbers)
+                while start in removed and start <= end:
+                    start += 1
+                while end in removed and end >= start:
+                    end -= 1
+                if start > end:
+                    return '#REF!'
+                numbers = [start, end] if numbers[0] <= numbers[1] else [end, start]
+            return ':'.join(f'{match[1] or ""}{match[2]}{self.number(number)}' for match, number in zip(matches, numbers))
+        areas = [area(value) for value in reference.split(' ')]
+        return ' '.join(value for value in areas if value != '#REF!') or '#REF!'
+
+
+def insert_workbook_rows(template, snapshot, part, *, deleting=False):
+    added = [] if deleting else [row for row in snapshot['rows'] if row['source_row'] is None]
+    removed = {row['sheet_row'] for row in snapshot['rows'] if row.get('trash_id') is not None} if deleting else set()
+    if not added and not removed:
         return template
-    shift = RowInsertion([row['sheet_row'] for row in added], snapshot['dataset']['sheet_name'])
+    shift = (RowRemoval(removed, snapshot['dataset']['sheet_name']) if deleting else
+             RowInsertion([row['sheet_row'] for row in added], snapshot['dataset']['sheet_name']))
     with ZipFile(BytesIO(template)) as archive:
         documents = {}
 
@@ -93,6 +130,41 @@ def insert_workbook_rows(template, snapshot, part):
             cell.appendChild(inline)
 
         data = sheet.getElementsByTagNameNS(namespace, 'sheetData')[0]
+        shared = []
+        if 'xl/sharedStrings.xml' in archive.namelist():
+            for item in ElementTree.fromstring(archive.read('xl/sharedStrings.xml')):
+                shared.append(''.join(item.itertext()))
+        def label_text(row):
+            cell = next((item for item in row.childNodes if item.nodeType == item.ELEMENT_NODE
+                         and item.localName == 'c' and item.getAttribute('r') == f'A{row.getAttribute("r")}'), None)
+            if cell is None:
+                return ''
+            nodes = cell.getElementsByTagNameNS(namespace, 'v') or cell.getElementsByTagNameNS(namespace, 't') or cell.getElementsByTagNameNS(namespace, 'f')
+            value = ''.join(node.firstChild.data for node in nodes if node.firstChild)
+            return shared[int(value)] if cell.getAttribute('t') == 's' and value.isdigit() else value
+
+        if deleting:
+            # Label-only/blank rows are not DB records, but belong to the
+            # etymon section too. Remove these along with a trashed etymon.
+            current, start = 0, None
+            trashed_etymons = set(snapshot.get('trashed_etymons', ()))
+            last = 1
+            for row in data.childNodes:
+                if row.nodeType != row.ELEMENT_NODE or row.localName != 'row':
+                    continue
+                number = int(row.getAttribute('r'))
+                last = max(last, number)
+                if re.match(r'^\s*ETIMON\s*/', label_text(row), re.IGNORECASE):
+                    if current in trashed_etymons:
+                        removed.update(range(start, number))
+                    current += 1
+                    start = number
+            if current in trashed_etymons:
+                removed.update(range(start, last + 1))
+            shift = RowRemoval(removed, snapshot['dataset']['sheet_name'])
+            for row in list(data.childNodes):
+                if row.nodeType == row.ELEMENT_NODE and row.localName == 'row' and int(row.getAttribute('r')) in removed:
+                    data.removeChild(row)
         style_cache = {}
 
         def bordered_style(style_id):
@@ -158,9 +230,8 @@ def insert_workbook_rows(template, snapshot, part):
         fill_style_cache = {}
         fill_cache = {}
 
-        def new_row_style(style_id, color):
-            """Use the saved row color and a full outline, retaining other styles."""
-            style_id = bordered_style(style_id)
+        def filled_style(style_id, color):
+            """Use the saved row color, retaining all other style properties."""
             if not color:
                 return style_id
             key = (style_id, color)
@@ -226,7 +297,9 @@ def insert_workbook_rows(template, snapshot, part):
             if name == 'xl/calcChain.xml':
                 target_id = next(item.getAttribute('sheetId') for item in document('xl/workbook.xml').getElementsByTagNameNS(namespace, 'sheet')
                                  if item.getAttribute('name') == shift.title)
-            for node in doc.getElementsByTagName('*'):
+            for node in list(doc.getElementsByTagName('*')):
+                if node.parentNode is None:
+                    continue
                 if name == part:
                     if node.localName == 'row' and node.hasAttribute('r'):
                         node.setAttribute('r', str(shift.number(int(node.getAttribute('r')))))
@@ -237,9 +310,20 @@ def insert_workbook_rows(template, snapshot, part):
                         if node.hasAttribute(attribute):
                             before = node.getAttribute(attribute)
                             after = shift.reference(before)
+                            if deleting and after == '#REF!':
+                                if attribute in ('activeCell', 'topLeftCell'):
+                                    after = re.sub(r'\d+', lambda match: str(shift.number(int(match[0]))), before)
+                                elif node.localName == 'dimension':
+                                    after = 'A1'
+                                else:
+                                    node.parentNode.removeChild(node)
+                                    modified = True
+                                    break
                             if after != before:
                                 node.setAttribute(attribute, after)
                                 modified = True
+                    if node.parentNode is None:
+                        continue
                     # Drawing and VML anchors use zero-based row coordinates.
                     if node.localName in ('row', 'Row') and not node.hasAttribute('r') and node.firstChild and node.firstChild.nodeType == node.TEXT_NODE:
                         text = node.firstChild.data
@@ -266,7 +350,12 @@ def insert_workbook_rows(template, snapshot, part):
                     if node.hasAttribute('i'):
                         chain_sheet = node.getAttribute('i')
                     if chain_sheet == target_id:
-                        node.setAttribute('r', shift.reference(node.getAttribute('r')))
+                        address = shift.reference(node.getAttribute('r'))
+                        if address == '#REF!':
+                            node.parentNode.removeChild(node)
+                            modified = True
+                            continue
+                        node.setAttribute('r', address)
                         modified = True
                 if node.localName in ('f', 'formula', 'formula1', 'formula2', 'definedName') and node.firstChild and node.firstChild.nodeType == node.TEXT_NODE:
                     before = node.firstChild.data
@@ -281,6 +370,14 @@ def insert_workbook_rows(template, snapshot, part):
                         modified = True
             if not modified:
                 documents.pop(name, None)
+            elif deleting:
+                for container_name, child_name in (('mergeCells', 'mergeCell'), ('dataValidations', 'dataValidation'), ('rowBreaks', 'brk')):
+                    for container in doc.getElementsByTagNameNS(namespace, container_name):
+                        count = len(container.getElementsByTagNameNS(namespace, child_name))
+                        if count:
+                            container.setAttribute('count', str(count))
+                        else:
+                            container.parentNode.removeChild(container)
 
         # Insert only style/layout attributes from a matching source row.
         for record in sorted(added, key=lambda row: row['sheet_row']):
@@ -312,7 +409,7 @@ def insert_workbook_rows(template, snapshot, part):
                                       and column_index_from_string(re.match(r'[A-Z]+', item.getAttribute('r'))[0]) > column), None)
                     row.insertBefore(cell, following)
                 style_id = int(cell.getAttribute('s') or row.getAttribute('s') or 0)
-                cell.setAttribute('s', str(new_row_style(style_id, record['background_color'])))
+                cell.setAttribute('s', str(filled_style(bordered_style(style_id), record['background_color'])))
             write_label(row, record['label'])
             following = next((item for item in data.childNodes if item.nodeType == item.ELEMENT_NODE
                               and item.localName == 'row' and int(item.getAttribute('r')) > number), None)
@@ -320,11 +417,8 @@ def insert_workbook_rows(template, snapshot, part):
 
         # Inserting a different category after an existing label-only row must
         # not relabel the following original rows that inherit its blank A cell.
-        shared = []
-        if 'xl/sharedStrings.xml' in archive.namelist():
-            for item in ElementTree.fromstring(archive.read('xl/sharedStrings.xml')):
-                shared.append(''.join(item.itertext()))
-        metadata = {row['sheet_row']: row for row in snapshot['rows']}
+        metadata = {(shift.number(row['sheet_row']) if deleting else row['sheet_row']): row
+                    for row in snapshot['rows'] if not deleting or row.get('trash_id') is None}
         inserted = {row['sheet_row']: row for row in added}
         inherited = None
         for row in data.childNodes:
@@ -343,10 +437,14 @@ def insert_workbook_rows(template, snapshot, part):
                 if cell.getAttribute('t') == 's' and value.isdigit():
                     value = shared[int(value)]
             if value.strip():
-                inherited = None
-            elif number in metadata and inherited is not None and metadata[number]['label'] != inherited:
+                inherited = value if deleting else None
+            elif number in metadata and (deleting or inherited is not None) and metadata[number]['label'] != inherited:
                 write_label(row, metadata[number]['label'])
-                inherited = None
+                if deleting:
+                    cell = next(item for item in row.childNodes if item.nodeType == item.ELEMENT_NODE
+                                and item.localName == 'c' and item.getAttribute('r') == f'A{number}')
+                    cell.setAttribute('s', str(filled_style(int(cell.getAttribute('s') or 0), metadata[number]['background_color'])))
+                inherited = metadata[number]['label'] if deleting else None
 
         workbook = document('xl/workbook.xml')
         calculations = workbook.getElementsByTagNameNS(namespace, 'calcPr')

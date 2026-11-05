@@ -74,5 +74,19 @@
         </div>
       </form>
     </dialog>
+    <dialog id="delete-entry-dialog" aria-labelledby="delete-entry-title" aria-describedby="delete-entry-description">
+      <form id="delete-entry-form">
+        <h2 id="delete-entry-title">Are you really, really sure?</h2>
+        <p id="delete-entry-description"></p>
+        <p>The entire item, in every language, will disappear from the collection and Excel exports. An administrator can recover it from Trash.</p>
+        <label for="delete-entry-confirmation">Type DELETE to confirm</label>
+        <input id="delete-entry-confirmation" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off">
+        <p class="deletion-error" role="status"></p>
+        <div class="creation-actions">
+          <button type="button" data-cancel-delete autofocus>Cancel</button>
+          <button type="submit" class="delete-entry" disabled>Move to Trash</button>
+        </div>
+      </form>
+    </dialog>
   </body>
 </html>

@@ -209,6 +209,17 @@ h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 .creation-actions button { padding: 7px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); cursor: pointer; }
 .creation-actions [type="submit"] { background: var(--green); color: white; }
 .creation-error { color: #9c3428; font-size: 12px; }
+.delete-entry { padding: 6px 9px; border: 1px solid #b56b61; border-radius: 4px; background: var(--surface); color: #9c3428; font-size: 11px; cursor: pointer; }
+.delete-entry:disabled { opacity: .5; cursor: default; }
+.delete-row { display: block; margin-top: 8px; padding: 3px 6px; font-size: 10px; }
+#delete-entry-dialog { width: min(520px, 90vw); border: 1px solid var(--line); border-radius: 6px; padding: 22px; background: var(--surface); color: var(--ink); }
+#delete-entry-dialog::backdrop { background: #253b3580; }
+#delete-entry-dialog h2 { margin-top: 0; }
+#delete-entry-description { white-space: pre-wrap; font-weight: bold; }
+#delete-entry-dialog label { display: block; margin: 16px 0 6px; }
+#delete-entry-confirmation { box-sizing: border-box; width: 100%; padding: 8px; border: 1px solid var(--line); font: inherit; }
+#delete-entry-dialog [type="submit"] { background: #9c3428; color: white; }
+.deletion-error { color: #9c3428; font-size: 12px; }
 @media (max-width: 1000px) {
   .workspace-toolbar { flex-wrap: wrap; }
   .workspace-tools { flex-shrink: 1; flex-wrap: wrap; }

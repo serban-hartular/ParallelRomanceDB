@@ -12,6 +12,7 @@
   let mutationBusy = false;
   let pendingFocus = null;
   let creationButton = null;
+  let deletionTarget = null;
 
   function editing() { return window.XLDBCellEditor?.active; }
 
@@ -169,7 +170,25 @@
     const definitions = [
       {
         title: "Label", field: "label", width: 180, minWidth: 100,
-        frozen: true, formatter: "textarea", cssClass: "grid-label",
+        frozen: true, variableHeight: true, cssClass: "grid-label",
+        formatter(cell) {
+          const row = cell.getRow().getData();
+          const label = document.createElement('div');
+          label.style.whiteSpace = 'pre-wrap';
+          label.textContent = row.label;
+          if (instance.payload.edit_mode && row.delete_token) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'delete-entry delete-row';
+            button.textContent = 'Delete row';
+            button.dataset.deleteRow = row.delete_token;
+            button.dataset.rowLabel = row.label;
+            button.dataset.rowNumber = row.label_number;
+            button.setAttribute('aria-label', `Delete row: ${row.label} #${row.label_number}`);
+            label.appendChild(button);
+          }
+          return label;
+        },
       },
       {
         title: "No.", field: "label_number", width: 55, minWidth: 45,
@@ -417,6 +436,30 @@
   });
 
   document.addEventListener("click", event => {
+    const deletion = event.target.closest('[data-delete-row], [data-delete-etymon]');
+    if (deletion) {
+      event.preventDefault();
+      if (editing()) {
+        showError('Close or cancel the cell editor before deleting an item.');
+        window.XLDBCellEditor.focus();
+        return;
+      }
+      if (mutationBusy || workspaceBusy || active?.updating) return;
+      const payload = JSON.parse(document.querySelector('.workspace-data').textContent);
+      if (!payload.edit_mode) return;
+      deletionTarget = { token: deletion.dataset.deleteRow || payload.delete_etymon_token, csrf: payload.csrf,
+        etimon: payload.etimon, row: deletion.hasAttribute('data-delete-row') };
+      const dialog = document.getElementById('delete-entry-dialog');
+      dialog.querySelector('form').reset();
+      dialog.querySelector('[type="submit"]').disabled = true;
+      dialog.querySelector('.deletion-error').textContent = '';
+      dialog.querySelector('#delete-entry-description').textContent = deletionTarget.row
+        ? `Delete ${deletion.dataset.rowLabel} #${deletion.dataset.rowNumber} from etymon ${payload.etimon}: ${payload.etymon_name}?`
+        : `Delete etymon ${payload.etimon}: ${payload.etymon_name}, including ALL its rows?`;
+      dialog.showModal();
+      dialog.querySelector('[data-cancel-delete]').focus();
+      return;
+    }
     const operation = event.target.closest('[data-toggle-edit], [data-add-row], [data-add-etymon]');
     if (operation) {
       event.preventDefault();
@@ -527,8 +570,50 @@
     if (event.target.closest('[data-cancel-entry]') && !mutationBusy) document.getElementById('create-entry-dialog').close();
   });
   document.addEventListener('cancel', event => {
-    if (event.target.id === 'create-entry-dialog' && mutationBusy) event.preventDefault();
+    if (['create-entry-dialog', 'delete-entry-dialog'].includes(event.target.id) && mutationBusy) event.preventDefault();
   }, true);
+
+  document.addEventListener('input', event => {
+    if (event.target.id === 'delete-entry-confirmation') {
+      document.querySelector('#delete-entry-form [type="submit"]').disabled = mutationBusy || event.target.value !== 'DELETE';
+    }
+  });
+  document.addEventListener('click', event => {
+    if (event.target.closest('[data-cancel-delete]') && !mutationBusy) document.getElementById('delete-entry-dialog').close();
+  });
+  document.addEventListener('submit', async event => {
+    if (event.target.id !== 'delete-entry-form') return;
+    event.preventDefault();
+    if (mutationBusy || !deletionTarget || document.getElementById('delete-entry-confirmation').value !== 'DELETE') return;
+    const target = deletionTarget;
+    const dialog = document.getElementById('delete-entry-dialog');
+    const submit = event.target.querySelector('[type="submit"]');
+    mutationBusy = true;
+    submit.disabled = true;
+    try {
+      const response = await fetch('/trash', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': target.csrf },
+        body: JSON.stringify({ token: target.token, confirmation: 'DELETE' }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Could not move the item to Trash.');
+      dialog.close();
+      if (target.row && active) {
+        const viewport = active.element.querySelector('.tabulator-tableholder');
+        active.editScroll = { etimon: target.etimon, left: viewport.scrollLeft, top: viewport.scrollTop };
+      }
+      await htmx.ajax('GET', target.row ? `/?etimon=${target.etimon}` : '/', {
+        target: '#workspace', swap: 'outerHTML', source: document.body,
+      });
+      await updates;
+    } catch (error) {
+      dialog.querySelector('.deletion-error').textContent = error.message;
+      showError(error.message || 'Could not reach the server.');
+    } finally {
+      mutationBusy = false;
+      submit.disabled = document.getElementById('delete-entry-confirmation').value !== 'DELETE';
+    }
+  });
 
   document.addEventListener("keydown", event => {
     if (event.key !== "Escape") return;
