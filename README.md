@@ -312,7 +312,8 @@ that etymon. Existing entries keep their numbers.
 
 **Add etymon** in the header creates the next etymon number across the whole
 collection, with an etymon row numbered 1. Both commands open a dialog requiring
-initial **French text**. **Create** commits the new entry to SQLite; **Cancel**
+initial **French text**, prefilled with `[To be added]` and selected for easy
+replacement. Keep it or enter your own text. **Create** commits the new entry to SQLite; **Cancel**
 or Escape discards the dialog without creating anything. Initial text can have
 multiple lines; use Quill afterward to add rich formatting. The display updates
 and scrolls to the new row, bringing the French cell into view and focusing it.

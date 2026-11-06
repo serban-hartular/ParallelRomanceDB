@@ -28,7 +28,8 @@ Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 > stays untouched. This stage assumes one local user. Authentication, edit
 > tracking/locks remain future work. Add row offers the three non-etymon labels;
 > Add etymon assigns the next number. Both require initial French text in a
-> Create/Cancel dialog; the user preferred this over empty placeholder records.
+> Create/Cancel dialog, prefilled with `[To be added]` and selected for easy
+> replacement. The default may be saved unchanged.
 > New entries export inside the proper Excel group and survive reimport.
 > New rows use the four type defaults in `config.py` (`ROW_BACKGROUND_COLORS`),
 > saved in SQLite and used throughout the browser and Excel export. Imported
@@ -44,6 +45,11 @@ Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 
 **Current state and continuation**
 
+- Creation-dialog update (2026-11-06): Add row/Add etymon prefill the French
+  textarea with `[To be added]` on every opening and select it for replacement.
+  Create may save the default unchanged; Cancel still creates nothing.
+  Verified in a targeted Chromium check, including replacement, reopening,
+  and saving the literal default for both types; JS syntax checks pass.
 - The latest existing commit is `7bf0fd5` (`Switch to sqlite, implemented add etymon/row.`).
   Deletion/recovery work is uncommitted. Check `git status` when resuming; this work does not
   commit, push, or deploy anything.

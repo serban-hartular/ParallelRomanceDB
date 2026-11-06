@@ -475,10 +475,13 @@
           operation.closest('.add-row-menu')?.removeAttribute('open');
           const dialog = document.getElementById('create-entry-dialog');
           dialog.querySelector('form').reset();
+          const text = dialog.querySelector('textarea');
+          text.value = '[To be added]';
           dialog.querySelector('.creation-error').textContent = '';
           dialog.querySelector('h2').textContent = operation.matches('[data-add-row]') ? 'Add row' : 'Add etymon';
           dialog.showModal();
-          dialog.querySelector('textarea').focus();
+          text.focus();
+          text.select();
         }
       }
       return;

@@ -311,8 +311,8 @@ workbook.close()
     assert.equal(await page.locator('.add-row-options').isVisible(), true);
     assert.equal(await page.locator('[data-add-row]').count(), 3);
     await page.getByRole('button', { name: 'SENSURI DE BAZĂ', exact: true }).click();
-    await page.getByRole('button', { name: 'Create', exact: true }).click();
     assert.equal(await page.locator('#create-entry-dialog').isVisible(), true);
+    assert.equal(await page.getByLabel('French text', { exact: true }).inputValue(), '[To be added]');
     await page.getByLabel('French text', { exact: true }).fill('   ');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await page.locator('.creation-error').getByText('Enter French text', { exact: false }).waitFor();
@@ -340,6 +340,7 @@ workbook.close()
     console.log('ok - Add row dropdown requires text, Cancel changes nothing, and the new row is focused and scrolled into view');
 
     await page.getByRole('button', { name: 'Add etymon', exact: true }).click();
+    assert.equal(await page.getByLabel('French text', { exact: true }).inputValue(), '[To be added]');
     await page.getByLabel('French text', { exact: true }).fill('quatrième mot');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await waitState(page, () => JSON.parse(document.querySelector('.workspace-data').textContent).etimon === 4);
