@@ -7,6 +7,13 @@ A small catalog database lists the collections and stores browser preferences.
 
 Read [HANDOFF.md](HANDOFF.md) for development continuity and
 [DEPLOYMENT.md](DEPLOYMENT.md) before deployment work.
+Use [MANUAL_TESTING.md](MANUAL_TESTING.md) for the user acceptance checklist.
+As of 2026-11-07, the user has not started that checklist: all 72 tasks,
+including administrator checks T60–T72, remain pending. Automated test results
+are recorded separately in HANDOFF.md.
+Administration is available at `/admin/` (also linked from the page header).
+See [ADMIN_DESIGN.md](ADMIN_DESIGN.md) for its interface and access rules; the
+[original static preview](design/admin/index.html) remains available as a design reference.
 
 **Create collections and start the server**
 
@@ -36,7 +43,8 @@ locally in the browser, keyed by collection identity.
 
 No collections are imported automatically. An empty catalog shows an empty
 landing page until an administrator creates a collection. Creation/import and
-registration are local commands; there is no browser administration interface.
+registration remain local commands; the browser administration interface covers
+passwords, Trash/recovery, history, and active editors.
 
 To put the catalog elsewhere, pass the same path to both commands:
 
@@ -93,6 +101,58 @@ exclusive. Waitress serves the app. Read [DEPLOYMENT.md](DEPLOYMENT.md) for
 HTTPS proxy settings, trusted hosts, secure cookies, and service permissions.
 Browsing, search, and Excel download are public. Editing requires the shared
 global edit password and a self-declared editor name, as described below.
+
+**Administration**
+
+Set a separate global administrator password locally before using `/admin/`:
+
+```bash
+.venv/bin/python manage_access.py set-admin-password
+# If the server uses a custom access file:
+.venv/bin/python manage_access.py --database /path/to/access.sqlite3 set-admin-password
+```
+
+Use the same access file as the running server (normally `data/access.sqlite3`).
+The command prompts twice with hidden input; no default admin password is created.
+Use a different password from the shared edit password. Until it is configured,
+the admin login page explains that local setup is required. The same command
+resets a forgotten administrator password and revokes existing administrator logins.
+
+Open **Admin** in the header, or visit `/admin/`, and enter an administrator name
+and password. This browser-session login is independent of editing: the edit
+password grants no administration access, and an admin login does not silently
+activate editing. Admin sign-out leaves an independent editor login intact.
+The interface uses plain HTML forms and works with JavaScript disabled.
+
+The overview and collection selector lead to:
+
+- **Passwords:** change either global password after re-entering the current
+  administrator password. Changing the edit password revokes editor logins while
+  retaining admin access. Changing the admin password signs out all administrators,
+  including the current one, without revoking independent editor logins.
+- **Trash:** filter pending/recovered rows or etymons, inspect retained text, then
+  review and confirm recovery. Restore a containing etymon before a separately
+  deleted row. Original IDs, numbers, content, and formatting return, recovery is
+  attributed to the admin name, and open collection views update automatically.
+  Large previews show at most 200 cells; recovery restores the complete entry.
+- **History:** filter by etymon, editor, action, outcome, and local date range;
+  browse 50 events per page; inspect before/after text and escaped formatting
+  snapshots. Saved changes are the default; activity shows cancelled, unchanged,
+  active, expired, and revoked editors. Unsaved typing is never recorded.
+- **Active editors:** see current cell locks and contact/expiry times, with a
+  manual Refresh link. This does not provide forced lock takeover.
+
+Times display Europe/Bucharest with UTC offsets; storage remains UTC. Every
+admin POST checks the admin grant and CSRF. Recovery confirmations also bind the
+collection, item, and login's form context. Admin pages are uncached. There is no
+permanent purge, revision revert, workbook upload, or browser collection creation.
+Local tools remain available. Use HTTPS for remote admin access, as for editing.
+
+The access database upgrades additively from schema 1 to 2, retaining existing
+credentials and grants and adding `admin_events`. Password changes and their
+audit metadata commit together, without passwords/hashes in audit records.
+Recoveries use the collection's existing transactional history. Collection schema
+7 and workbook data are unchanged by the access upgrade. No reimport is needed.
 
 **Edit access and attribution**
 
@@ -156,8 +216,8 @@ Administrators can inspect history locally:
 .venv/bin/python history.py data/collections/COLLECTION-ID.sqlite3 --json
 ```
 
-`--json` includes exact before/after snapshots. History is not exposed through
-a public web route or exported into Excel. There is no browser history/revert UI.
+`--json` includes exact before/after snapshots. History is available through the protected admin interface or local CLI;
+it is not public or exported into Excel. There is no revision-revert UI.
 Cell editors now acquire an exclusive lock before Quill opens. Another editor
 cannot open that cell or delete its containing row/etymon, including from another
 tab under the same login. The server names the person holding the lock. Editing
@@ -234,8 +294,8 @@ needed.
 
 `access_control.py` separates credentials, browser sessions, and authorization.
 Credentials have role (`editor`/`admin`) and scope (`global`/`collection`) fields;
-only the **global editor** grant is implemented. Later administrator or
-collection-specific policies belong in the authorization layer. There are no
+the **global editor** and **global administrator** grants are implemented.
+Collection-specific policies remain future work in the authorization layer. There are no
 personal accounts or name-uniqueness rules; names are self-declared.
 Hashing uses [Werkzeug's password helpers](https://werkzeug.palletsprojects.com/en/stable/utils/#werkzeug.security.generate_password_hash),
 and cookie lifetime follows [Flask's browser-session settings](https://flask.palletsprojects.com/en/stable/web-security/#set-cookie-options).
@@ -310,7 +370,7 @@ The overwrite helper copies the database's selected sheet into the named
 existing sheet and preserves the other sheets' data. It uses openpyxl's
 supported worksheet features; advanced drawings and unsupported Excel features
 can be affected. Normal timestamped export preserves the original archive's
-unrelated parts instead. Personal accounts and a browser history/revert interface remain future work.
+unrelated parts instead. Personal accounts and revision revert remain future work.
 
 **Deleting and recovering rows/etymons**
 
@@ -332,8 +392,8 @@ remove deleted rows and adjust references; references to deleted cells become
 `#REF!`, and ranges shrink. Reimporting Excel numbers rows/etymons sequentially,
 as with any workbook import.
 
-Recovery is a **local administrator command**, requiring access to the database
-file on the server; there is no browser recovery endpoint or administrator login:
+Recovery is available in **Admin → Trash**. Local administrator commands remain
+available for access to the database file on the server:
 
 ```bash
 .venv/bin/python trash.py data/collections/COLLECTION-ID.sqlite3 list
@@ -585,7 +645,12 @@ deployed remotely by this work.
 | `collection_catalog.py` | Collection registry, separate databases, scoped browser preferences |
 | `manage_collections.py` | Local create/import/register/list commands |
 | `access_control.py` | Scoped credentials, revocable browser logins, authorization policy |
-| `manage_access.py` | Local hidden-prompt setup/change of the global edit password |
+| `manage_access.py` | Local hidden-prompt setup/reset of global editor/admin passwords |
+| `admin.py` | Protected HTML administration routes and independent administrator login |
+| `admin_data.py` | Collection-scoped Trash/history previews, SQL filters/pagination, active editors |
+| `templates/admin/`, `static/admin.css` | Plain HTML administration pages and styling |
+| `MANUAL_TESTING.md` | 72 user acceptance tasks and isolated test setup |
+| `ADMIN_DESIGN.md` | Administration access rules, pages, routes, and implementation notes |
 | `history.py` | Local attribution/history inspection, including before/after JSON |
 | `lexicon_db.py` | SQLite schema, first import, SQL searches, atomic edits, export snapshots |
 | `excel_export.py` | Full timestamped workbook export and explicit existing-sheet overwrite |
@@ -660,5 +725,4 @@ in `df.attrs['cell_line_heights']`, keyed by
 `(etimon_number, label, label_number, column)`. SQLite stores it on the cell
 record, and formatted HTML includes it too. Snapshot mutations do not save edits.
 
-Quill and new rows/etymons save to SQLite with edit attribution. Collection-specific access policies and a browser history/revert interface
-remain future work.
+Quill and new rows/etymons save to SQLite with edit attribution. Collection-specific access policies and revision revert remain future work.

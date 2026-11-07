@@ -1,0 +1,14 @@
+{% extends 'admin/base.html' %}
+{% block title %}Review restoration · {{ collection.name }}{% endblock %}
+{% block content %}
+<p class="eyebrow">{{ collection.name }} · Trash #{{ item.id }}</p><h1>Review restoration</h1>
+{% if item.restored_at %}<p class="notice">This item has already been recovered. No further recovery is needed.</p>
+{% elif item.parent_deleted %}<p class="notice">Restore the containing etymon first.</p>{% if item.parent_id %}<p><a href="{{ url_for('admin.trash_item',collection_id=collection.id,trash_id=item.parent_id) }}">View parent etymon →</a></p>{% endif %}
+{% else %}
+<p>Restore {{ item.row_count }} row(s) and {{ item.cell_count }} populated cell(s) in <strong>{{ collection.name }}</strong>, etymon <strong>{{ item.etimon_number }} · {{ item.title }}</strong>?</p>
+{% if item.label %}<p>Row: <strong>{{ item.label }} #{{ item.label_number }}</strong>.</p>{% endif %}
+<p>The original IDs, numbers, formatting, and backgrounds will be retained. The recovery will be recorded under <strong>{{ administrator.name }}</strong>. Rows deleted separately before this entry will remain in their own Trash items.</p>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ target }}"><button type="submit">Restore this {{ 'row' if item.kind == 'row' else 'etymon' }}</button></form>
+{% endif %}
+<p><a href="{{ url_for('admin.trash_item',collection_id=collection.id,trash_id=item.id) }}">Cancel / back to item</a></p>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends 'admin/base.html' %}
+{% block title %}Administration overview{% endblock %}
+{% block content %}
+<p class="eyebrow">Administration</p><h1>Overview</h1>
+<p>Manage access and recover or inspect work across collections.</p>
+{% include 'admin/_collection.html' %}
+{% if collection %}
+<h2>{{ collection.name }}</h2>
+<table class="summary-table"><caption class="visually-hidden">Collection overview</caption><tbody>
+<tr><th scope="row">Etymons</th><td>{{ summary.etymons }}</td><td><a href="{{ back_url }}">Open collection ↗</a></td></tr>
+<tr><th scope="row">Items awaiting recovery</th><td>{{ summary.trash }}</td><td><a href="{{ url_for('admin.trash',collection_id=collection.id) }}">Open Trash →</a></td></tr>
+<tr><th scope="row">Active cell editors</th><td>{{ summary.editors }}</td><td><a href="{{ url_for('admin.editors',collection_id=collection.id) }}">See who is editing →</a></td></tr>
+<tr><th scope="row">Latest saved change</th><td>{% if summary.latest %}{{ summary.latest.editor_name }} · {{ actions.get(summary.latest.action,summary.latest.action) }}<br><span class="muted">{{ local_time(summary.latest.occurred_at) }}</span>{% else %}No saved changes yet{% endif %}</td>
+<td>{% if summary.latest %}<a href="{{ url_for('admin.event',collection_id=collection.id,event_id=summary.latest.id) }}">View change →</a>{% endif %}</td></tr>
+</tbody></table>
+{% else %}<p class="empty">No collections are available yet. Use manage_collections.py to create or register a collection locally.</p>{% endif %}
+<div class="notice">Passwords apply to all collections. Trash, history, and active editors belong to the selected collection.</div>
+{% endblock %}

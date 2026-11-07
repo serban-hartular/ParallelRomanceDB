@@ -1,0 +1,8 @@
+{% if collections|length > 1 %}
+<form class="collection-form" method="get" action="{{ url_for('admin.choose') }}">
+  <input type="hidden" name="section" value="{{ section }}">
+  <label for="collection">Collection</label><select name="collection_id" id="collection">
+  {% for option in collections %}<option value="{{ option.id }}"{% if collection and option.id == collection.id %} selected{% endif %}>{{ option.name }}</option>{% endfor %}
+  </select><button type="submit">Open</button>
+</form>
+{% endif %}

@@ -1,0 +1,5 @@
+<p class="pagination">
+  {% if listing.previous %}<a href="{{ page_link(listing.previous) }}" rel="prev">← Previous</a>{% else %}<span class="muted">Previous</span>{% endif %}
+  <span>Page {{ listing.page }} · {{ listing.total }} result{{ '' if listing.total == 1 else 's' }} · 50 per page</span>
+  {% if listing.next %}<a href="{{ page_link(listing.next) }}" rel="next">Next →</a>{% else %}<span class="muted">Next</span>{% endif %}
+</p>

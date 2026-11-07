@@ -1,0 +1,17 @@
+{% extends 'admin/base.html' %}
+{% block title %}History event {{ event.id }} · {{ collection.name }}{% endblock %}
+{% block content %}
+<p class="eyebrow">{{ collection.name }} · Event #{{ event.id }}</p><h1>{{ actions.get(event.action,event.action) }} · {{ event.status|capitalize }}</h1>
+<dl class="metadata"><dt>Editor</dt><dd>{{ event.editor_name }}</dd><dt>Etymon / row</dt><dd>{{ event.etimon_number }}{% if event.label %} · {{ event.label }} #{{ event.label_number }}{% endif %}</dd><dt>Language</dt><dd>{{ event.column_name or 'All / not applicable' }}</dd><dt>Started</dt><dd>{{ local_time(event.started_at) }}</dd><dt>Finished</dt><dd>{{ local_time(event.finished_at or (event.occurred_at if event.status != 'active' else none)) }}</dd></dl>
+{% if event.status == 'active' %}<p class="notice">Editing in progress. Unsaved typing is not transmitted to the server.</p>
+{% elif event.status != 'saved' %}<p class="notice">No change saved. This record describes an editing session, not a saved revision.</p>{% endif %}
+<div class="comparison">
+{% for label,snapshot in [('Before',event.before),('After',event.after)] %}<div><h2>{{ label }}</h2>
+{% if snapshot %}{% if 'rows' in snapshot %}<p>{{ snapshot.rows|length }} row(s) · {{ snapshot.cells|length }} populated cell(s)</p>{% endif %}
+{% for cell in snapshot_cells(snapshot) %}<div class="preview-cell"><p class="muted">{{ cell.get('label','Cell') }}{% if cell.get('label_number') %} #{{ cell.label_number }}{% endif %}{% if cell.get('column') %} · {{ cell['column'] }}{% endif %}</p><pre>{{ cell.get('plaintext_content','') }}</pre><p class="muted">Line spacing: {{ cell.get('line_height') or 'Inherited' }}</p><details><summary>Formatting (HTML as text)</summary><pre class="snapshot">{{ cell.get('content','') }}</pre></details></div>{% endfor %}
+<details class="help-detail"><summary>Snapshot details</summary><pre class="snapshot">{{ snapshot_json(snapshot) }}</pre></details>
+{% else %}<p class="muted">{% if event.status == 'active' %}Not saved yet.{% elif event.status != 'saved' %}No saved content change.{% else %}No snapshot for this side of the operation.{% endif %}</p>{% endif %}
+</div>{% endfor %}
+</div>
+<p><a href="{{ url_for('admin.history',collection_id=collection.id) }}">Back to history</a>{% if event.trash_id %} · <a href="{{ url_for('admin.trash_item',collection_id=collection.id,trash_id=event.trash_id) }}">View Trash item</a>{% endif %}</p>
+{% endblock %}

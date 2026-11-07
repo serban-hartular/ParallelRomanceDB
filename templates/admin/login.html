@@ -1,0 +1,21 @@
+{% extends 'admin/base.html' %}
+{% block title %}Administrator sign in{% endblock %}
+{% block content %}
+<h1>Administrator sign in</h1>
+{% if configured %}
+<div class="login-panel panel"><p>Use the separate administrator password. The editing password does not grant access here.</p>
+<form method="post" action="{{ url_for('admin.login') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="next" value="{{ destination }}">
+  <fieldset><legend class="visually-hidden">Administrator login</legend>
+    <label for="name">Administrator name</label><input id="name" name="name" type="text" required maxlength="120" autocomplete="off" autofocus>
+    <label for="password">Administrator password</label><input id="password" name="password" type="password" required maxlength="1024" autocomplete="current-password">
+    <p class="muted">Access lasts for this browser session.</p><button type="submit">Sign in</button>
+  </fieldset>
+</form></div>
+{% else %}
+<p>Administration is not enabled yet. The server administrator must set the first administrator password locally.</p>
+<pre>.venv/bin/python manage_access.py set-admin-password</pre>
+<p>For a custom access database, add <code>--database /path/to/access.sqlite3</code> before the command. Use the same access file as the running server.</p>
+{% endif %}
+<p><a href="{{ url_for('index') }}">Back to collections</a></p>
+{% endblock %}

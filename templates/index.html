@@ -32,6 +32,7 @@
         <button type="button" class="auth-button" data-sign-out{% if not editor_name %} hidden{% endif %}>Sign out</button>
         <button type="button" class="add-entry" data-add-etymon{% if not edit_mode %} hidden{% endif %}>Add etymon</button>
         <a class="export-link" href="{{ url_for('export_excel') }}" data-export-excel>Export Excel</a>
+        <a class="auth-button" href="{{ url_for('admin.overview') }}" data-admin-link>Admin</a>
         <span class="collection-count">{{ total }} etimon{% if total != 1 %}s{% endif %} in the collection</span>
       </div>
     </header>

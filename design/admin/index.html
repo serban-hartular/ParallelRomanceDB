@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Parallel Words · Administration design</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="preview-note"><strong>Design preview</strong> · All records are examples. Forms are inactive. No login or database connection.</div>
+  <header class="site-header">
+    <a class="brand" href="#overview">Parallel Words <span>Administration</span></a>
+    <div class="identity">Signed in as <strong>Elena</strong> <span class="example">example</span> · <a href="#login">Sign out / login preview</a></div>
+  </header>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Administration">
+      <p class="nav-label">Administration</p>
+      <a href="#overview">Overview</a>
+      <a href="#passwords">Passwords</a>
+      <a href="#trash">Trash</a>
+      <a href="#history">History</a>
+      <a href="#editors">Active editors</a>
+      <p class="nav-note">In the application, each item opens its own page. This preview puts the screens together.</p>
+      <a href="../../ADMIN_DESIGN.md">Read the design</a>
+      <a href="../../MANUAL_TESTING.md">Manual test checklist</a>
+    </nav>
+    <main id="content">
+      <section id="overview" aria-labelledby="overview-title" tabindex="-1">
+        <div class="section-heading"><div><p class="eyebrow">Administration</p><h1 id="overview-title">Overview</h1></div><span class="muted">Snapshot: 7 Nov 2026, 15:41 UTC+02:00</span></div>
+        <p>Manage access and recover or inspect work across collections.</p>
+        <form class="collection-form">
+          <label for="overview-collection">Collection</label>
+          <select id="overview-collection" disabled><option>Gastronomy</option><option>Fashion</option></select>
+          <button type="button" disabled>Open</button>
+        </form>
+        <table class="summary-table"><caption class="visually-hidden">Gastronomy overview</caption>
+          <tbody>
+            <tr><th scope="row">Etymons</th><td>84</td><td><span class="muted">Open collection ↗</span></td></tr>
+            <tr><th scope="row">Items awaiting recovery</th><td>2</td><td><a href="#trash">Open Trash →</a></td></tr>
+            <tr><th scope="row">Active cell editors</th><td>2</td><td><a href="#editors">See who is editing →</a></td></tr>
+            <tr><th scope="row">Latest saved change</th><td>Ana · Cell saved<br><span class="muted">7 Nov 2026, 15:32 UTC+02:00</span></td><td><a href="#event-detail">View change →</a></td></tr>
+          </tbody>
+        </table>
+        <div class="notice">Passwords apply to all collections. Trash, history, and active editors belong to the selected collection.</div>
+      </section>
+
+      <section id="passwords" aria-labelledby="passwords-title" tabindex="-1">
+        <p class="eyebrow">Global access</p><h2 id="passwords-title">Passwords</h2>
+        <p>The edit password allows content changes. The separate administrator password allows access to these tools.</p>
+        <div class="form-columns">
+          <form class="panel">
+            <h3>Global edit password</h3>
+            <p class="muted">Configured · changed 6 Nov 2026, 10:12 UTC+02:00</p>
+            <fieldset disabled>
+              <legend class="visually-hidden">Change global edit password</legend>
+              <label for="edit-current-admin">Current administrator password</label>
+              <input id="edit-current-admin" type="password" autocomplete="current-password" maxlength="1024">
+              <label for="edit-new-password">New edit password</label>
+              <input id="edit-new-password" type="password" autocomplete="new-password" maxlength="1024">
+              <label for="edit-repeat-password">Repeat new edit password</label>
+              <input id="edit-repeat-password" type="password" autocomplete="new-password" maxlength="1024">
+              <p class="notice">All editors will be signed out. Open drafts cannot be saved under the old login; their text remains available to copy.</p>
+              <button type="button" disabled>Change edit password and sign out editors</button>
+            </fieldset>
+          </form>
+          <form class="panel">
+            <h3>Global administrator password</h3>
+            <p class="muted">Configured · changed 5 Nov 2026, 09:40 UTC+02:00</p>
+            <fieldset disabled>
+              <legend class="visually-hidden">Change global administrator password</legend>
+              <label for="admin-current-password">Current administrator password</label>
+              <input id="admin-current-password" type="password" autocomplete="current-password" maxlength="1024">
+              <label for="admin-new-password">New administrator password</label>
+              <input id="admin-new-password" type="password" autocomplete="new-password" maxlength="1024">
+              <label for="admin-repeat-password">Repeat new administrator password</label>
+              <input id="admin-repeat-password" type="password" autocomplete="new-password" maxlength="1024">
+              <p class="notice">All administrators, including you, will be signed out. Independent editor logins will stay active.</p>
+              <button type="button" disabled>Change administrator password and sign out</button>
+            </fieldset>
+          </form>
+        </div>
+      </section>
+
+      <section id="trash" aria-labelledby="trash-title" tabindex="-1">
+        <p class="eyebrow">Gastronomy</p><h2 id="trash-title">Trash</h2>
+        <p>Deleted content is kept here until it is recovered. Recovering an item preserves its numbers, text, and formatting.</p>
+        <form class="filter-form">
+          <fieldset disabled><legend class="visually-hidden">Filter Trash</legend>
+            <div><label for="trash-collection">Collection</label><select id="trash-collection"><option>Gastronomy</option><option>Fashion</option></select></div>
+            <div><label for="trash-kind">Item type</label><select id="trash-kind"><option>All types</option><option>Rows</option><option>Etymons</option></select></div>
+            <div><label for="trash-etymon">Etymon number</label><input id="trash-etymon" type="number" min="1" placeholder="Any"></div>
+            <div><label for="trash-status">Status</label><select id="trash-status"><option>Awaiting recovery</option><option>Recovered</option></select></div>
+            <button type="button" disabled>Apply filters</button>
+          </fieldset>
+        </form>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="Trash entries">
+          <table><caption>2 items awaiting recovery · times shown in UTC+02:00</caption>
+            <thead><tr><th scope="col">Deleted</th><th scope="col">Item</th><th scope="col">Etymon / row</th><th scope="col">Deleted by</th><th scope="col">Size</th><th scope="col">Details</th></tr></thead>
+            <tbody>
+              <tr><td>7 Nov 2026<br>15:18</td><td><span class="tag">Row</span></td><td><strong>42 · café</strong><br>SENSURI DE BAZĂ #3</td><td>Bob</td><td>1 row<br>3 populated cells</td><td><a href="#trash-detail">View item →</a></td></tr>
+              <tr><td>7 Nov 2026<br>14:55</td><td><span class="tag">Etymon</span></td><td><strong>57 · velouté</strong><br>All rows in this deletion</td><td>Ana</td><td>4 rows<br>9 populated cells</td><td><span class="muted">Item details</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="pagination"><span class="muted">Previous</span> <span>Page 1 of 1</span> <span class="muted">Next</span></p>
+        <article id="trash-detail" class="panel" aria-labelledby="trash-detail-title">
+          <p class="eyebrow">Item details · Trash #18</p><h3 id="trash-detail-title">Recover a row in Gastronomy</h3>
+          <dl class="metadata"><dt>Etymon</dt><dd>42 · café</dd><dt>Row</dt><dd>SENSURI DE BAZĂ #3</dd><dt>Deleted by</dt><dd>Bob · 7 Nov 2026, 15:18 UTC+02:00</dd></dl>
+          <div class="table-scroll" tabindex="0" role="region" aria-label="Retained row text">
+            <table><caption>Retained cell text</caption><thead><tr><th scope="col">Language</th><th scope="col">Text</th></tr></thead>
+              <tbody><tr><th scope="row">LIMBA FRANCEZĂ</th><td>café à la crème</td></tr><tr><th scope="row">LIMBA ROMÂNĂ</th><td>cafea cu frișcă</td></tr><tr><th scope="row">LIMBA ITALIANĂ</th><td>caffè con panna</td></tr></tbody>
+            </table>
+          </div>
+          <details class="confirmation"><summary>Review restoration</summary>
+            <h4>Restore SENSURI DE BAZĂ #3?</h4>
+            <p>This will restore one row and its three populated cells to <strong>etymon 42 · café</strong> in <strong>Gastronomy</strong>. Its original IDs, number, formatting, and backgrounds will be retained.</p>
+            <p>The recovery will be recorded under <strong>Elena</strong>. Open collection views will pick up the change automatically.</p>
+            <button type="button" disabled>Restore this row</button> <span class="muted">Close this disclosure to cancel the preview.</span>
+          </details>
+          <details class="help-detail"><summary>Example: the containing etymon is also deleted</summary><p>Restore the containing etymon first, then return to recover this separately deleted row. The application will link to the parent Trash item.</p></details>
+        </article>
+      </section>
+
+      <section id="history" aria-labelledby="history-title" tabindex="-1">
+        <p class="eyebrow">Gastronomy</p><h2 id="history-title">History</h2>
+        <p>Review saved changes. Include editing activity to see drafts that were opened, cancelled, expired, or left unchanged.</p>
+        <form class="filter-form">
+          <fieldset disabled><legend class="visually-hidden">Filter history</legend>
+            <div><label for="history-collection">Collection</label><select id="history-collection"><option>Gastronomy</option><option>Fashion</option></select></div>
+            <div><label for="history-etymon">Etymon number</label><input id="history-etymon" type="number" min="1" placeholder="Any"></div>
+            <div><label for="history-editor">Editor name</label><input id="history-editor" type="search" placeholder="Any editor"></div>
+            <div><label for="history-action">Action</label><select id="history-action"><option>All changes</option><option>Cell saved</option><option>Row added</option><option>Etymon added</option><option>Row deleted</option><option>Etymon deleted</option><option>Recovered from Trash</option></select></div>
+            <div><label for="history-from">From date</label><input id="history-from" type="date"></div>
+            <div><label for="history-to">Through date</label><input id="history-to" type="date"></div>
+            <label class="check-label"><input type="checkbox"> Include editing activity</label>
+            <button type="button" disabled>Apply filters</button>
+          </fieldset>
+        </form>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="Saved history">
+          <table><caption>Saved changes · times shown in UTC+02:00</caption><thead><tr><th scope="col">Completed</th><th scope="col">Editor</th><th scope="col">Action</th><th scope="col">Etymon / row</th><th scope="col">Language</th><th scope="col">Details</th></tr></thead>
+            <tbody>
+              <tr><td>7 Nov 2026<br>15:32</td><td>Ana</td><td>Cell edit<br><span class="tag saved">Saved</span></td><td>42 · café<br>SENSURI DE BAZĂ #1</td><td>LIMBA FRANCEZĂ</td><td><a href="#event-detail">Before / after →</a></td></tr>
+              <tr><td>7 Nov 2026<br>15:18</td><td>Bob</td><td>Row deleted</td><td>42 · café<br>SENSURI DE BAZĂ #3</td><td>All languages</td><td><a href="#trash-detail">View Trash item →</a></td></tr>
+              <tr><td>7 Nov 2026<br>14:30</td><td>Elena</td><td>Recovered from Trash</td><td>18 · crème<br>SENSURI DE BAZĂ #2</td><td>All languages</td><td><span class="muted">View event</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="pagination"><span class="muted">Previous</span><span>Page 1 · up to 50 events per page</span><span class="muted">Next →</span></p>
+        <article id="event-detail" class="panel" aria-labelledby="event-detail-title">
+          <p class="eyebrow">Change #181 · Saved</p><h3 id="event-detail-title">Cell edited by Ana</h3>
+          <dl class="metadata"><dt>Collection / target</dt><dd>Gastronomy · Etymon 42 · SENSURI DE BAZĂ #1 · LIMBA FRANCEZĂ</dd><dt>Started</dt><dd>7 Nov 2026, 15:30:12 UTC+02:00</dd><dt>Saved</dt><dd>7 Nov 2026, 15:32:04 UTC+02:00</dd></dl>
+          <div class="comparison"><div><h4>Before</h4><pre>café</pre></div><div><h4>After</h4><pre>café à la crème</pre></div></div>
+          <p class="muted">Text preview. Formatting and spacing metadata will be shown when relevant.</p>
+          <details class="help-detail"><summary>Example: a cancelled or expired editor</summary><p><strong>No change saved.</strong> The event records who opened the editor and its outcome. It does not contain the person's unsaved typing. A saved change is a different outcome.</p></details>
+        </article>
+      </section>
+
+      <section id="editors" aria-labelledby="editors-title" tabindex="-1">
+        <div class="section-heading"><div><p class="eyebrow">Gastronomy</p><h2 id="editors-title">Active editors</h2></div><a href="#editors">Refresh preview</a></div>
+        <p>These cells are currently reserved for their editors. Contacts renew every 30 seconds, even without typing; a lock expires after five minutes without contact.</p>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="Active editing sessions">
+          <table><caption>2 active cell editors · snapshot at 15:41 UTC+02:00</caption><thead><tr><th scope="col">Editor</th><th scope="col">Etymon / row</th><th scope="col">Language</th><th scope="col">Started</th><th scope="col">Last contact</th><th scope="col">Expires without contact</th></tr></thead>
+            <tbody><tr><td>Ana</td><td>42 · café<br>SENSURI DE BAZĂ #2</td><td>LIMBA FRANCEZĂ</td><td>15:39:10</td><td>15:40:40</td><td>15:45:40</td></tr><tr><td>Bob</td><td>18 · crème<br>SENSURI DE BAZĂ #1</td><td>LIMBA ROMÂNĂ</td><td>15:37:30</td><td>15:41:00</td><td>15:46:00</td></tr></tbody>
+          </table>
+        </div>
+        <p class="muted">This view shows editing sessions, not typing activity. Administrators cannot silently take over a reserved cell.</p>
+      </section>
+
+      <section id="login" aria-labelledby="login-title" tabindex="-1">
+        <p class="eyebrow">Login screen preview</p><h2 id="login-title">Administrator sign in</h2>
+        <div class="login-panel panel"><p>Use the separate administrator password. The editing password does not grant access here.</p>
+          <form><fieldset disabled><legend class="visually-hidden">Administrator login</legend>
+            <label for="login-name">Administrator name</label><input id="login-name" type="text" maxlength="120" autocomplete="off" placeholder="Your name">
+            <label for="login-password">Administrator password</label><input id="login-password" type="password" maxlength="1024" autocomplete="current-password">
+            <p class="muted">Access lasts for this browser session.</p><button type="button" disabled>Sign in</button>
+          </fieldset></form>
+        </div>
+        <details class="help-detail"><summary>Example: administrator password not configured</summary><p>Administration is not enabled yet. The server administrator must set the first administrator password locally. There is no public first-password registration form.</p></details>
+      </section>
+      <footer>Static design preview · <a href="#overview">Back to overview</a> · <a href="../../ADMIN_DESIGN.md">Design notes</a></footer>
+    </main>
+  </div>
+</body>
+</html>

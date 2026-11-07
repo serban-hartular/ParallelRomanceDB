@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Administration{% endblock %} · Parallel Words</title>
+  <link rel="stylesheet" href="{{ url_for('static',filename='admin.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="{{ url_for('admin.overview') }}">Parallel Words <span>Administration</span></a>
+    {% if administrator %}<div class="identity">Signed in as <strong>{{ administrator.name }}</strong> ·
+      <form class="inline-form" method="post" action="{{ url_for('admin.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit">Sign out</button></form>
+    </div>{% endif %}
+  </header>
+  <div class="{{ 'layout' if administrator else 'guest-layout' }}">
+    {% if administrator %}<nav class="sidebar" aria-label="Administration">
+      <p class="nav-label">Administration</p>
+      <a href="{{ url_for('admin.overview',collection_id=collection.id if collection else none) }}"{% if section == 'overview' %} aria-current="page"{% endif %}>Overview</a>
+      <a href="{{ url_for('admin.passwords',collection_id=collection.id if collection else none) }}"{% if section == 'passwords' %} aria-current="page"{% endif %}>Passwords</a>
+      {% if collection %}{% for name,title in [('trash','Trash'),('history','History'),('editors','Active editors')] %}
+      <a href="{{ url_for('admin.'+name,collection_id=collection.id) }}"{% if section == name %} aria-current="page"{% endif %}>{{ title }}</a>
+      {% endfor %}{% endif %}
+      <p class="nav-note">Collection: {{ collection.name if collection else 'None selected' }}</p>
+      <a href="{{ back_url }}">Back to collections ↗</a>
+    </nav>{% endif %}
+    <main id="content">
+      {% for category,message in get_flashed_messages(with_categories=true) %}<div class="flash" role="status">{{ message }}</div>{% endfor %}
+      {% if error is defined and error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

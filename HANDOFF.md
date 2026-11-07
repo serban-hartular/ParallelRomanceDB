@@ -1,14 +1,40 @@
 # XLDB development handoff
 
-Updated 2026-11-07 for automatic updates across browsing/editing sessions.
+Updated 2026-11-07 for handoff after administration implementation; user acceptance testing is pending.
 Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 Read `README.md` first, and `DEPLOYMENT.md` before deployment work.
+
+**Current acceptance status**
+
+The user says the app looks good but has **not gone through the manual testing
+checklist**. All 72 tasks in MANUAL_TESTING.md remain unchecked and pending,
+including the 13 administrator tasks T60–T72. There are no recorded user pass/
+fail results for this checklist. Agent-run automated tests and screenshot
+reviews must not be described as completed user acceptance testing.
+
+The implementation milestone passed 210 Python tests, 48 browser groups across
+six suites, six Node scrollbar tests, and JavaScript syntax checks. Real Excel
+desktop checks, the full manual two-user workflows, and the latest remote
+HTTPS/proxy/cookie/admin checks remain for the user's acceptance pass. Earlier
+informal confirmations of editing/export apply to earlier checks, not this full
+checklist. The user's latest deployment and admin-password setup are unconfirmed;
+the agent has not deployed remotely or set real credentials.
+
+No new implementation task is pending. On continuation, preserve the working
+tree and use the user's next instructions or reported checklist task IDs to
+guide work. The checklist includes a short general pass and an admin-focused
+first pass, plus a place to record actual outcomes.
 
 **Copy into the next chat**
 
 > Continue XLDB in `/home/hartular/Lingv/XLDB`. Read README.md and HANDOFF.md
 > first; read DEPLOYMENT.md before deployment work. The app is branded Parallel
 > Words and uses Flask + htmx + Tabulator + Quill, served by Waitress.
+> The user has NOT started the manual acceptance checklist. All 72 tasks in
+> MANUAL_TESTING.md, including admin tasks T60–T72, remain pending. Automated
+> checks passed (210 Python tests, 48 browser groups, six scrollbar tests and JS
+> syntax), but these are not user manual acceptance results. Do not check off
+> tasks or assume the latest build is verified in the user's Excel/remote setup.
 > A catalog lists collections; each has a separate SQLite file, workbook
 > template, column/row definitions, content, and recoverable Trash. Collection
 > URLs and edit/delete tokens carry collection identity. The header selects a
@@ -40,8 +66,8 @@ Read `README.md` first, and `DEPLOYMENT.md` before deployment work.
 > cannot be credited to a replacement editor. Per-collection edit_history records
 > UTC times, names, permanent targets, and before/after snapshots transactionally.
 > history.py DATABASE [--etymon N] [--json] reads it locally. Credentials have
-> role/scope fields for future administrator and per-collection passwords; only
-> global edit access is implemented. Quill opening acquires an exclusive cell
+> role/scope fields; separate global editor and administrator access is implemented.
+> Collection-specific credentials remain future work. Quill opening acquires an exclusive cell
 > lease. Other editors/tabs cannot edit that cell or delete its row/etymon;
 > denials name the owner. Other cells in the same row/etymon show inline notices.
 > Heartbeats every 30 seconds keep the lock even without typing; five minutes
@@ -54,9 +80,108 @@ Read `README.md` first, and `DEPLOYMENT.md` before deployment work.
 > content/navigation without a reload and preserving layout, scroll, and searches.
 > Open editors/dialogs postpone updates with a notice; drafts and locks survive.
 > Schema 7 adds dataset.content_revision and transactional content-table triggers.
-> LIVE_REFRESH_SECONDS controls polling. This work has not been deployed remotely.
+> LIVE_REFRESH_SECONDS controls polling. The agent has not deployed this work
+> remotely; the user's latest deployment status is unconfirmed.
+> MANUAL_TESTING.md provides 72 user acceptance tasks plus an isolated-test setup.
+> /admin/ implements the approved plain-HTML design: local set-admin-password
+> bootstrap/reset, independent administrator browser-session login, global password
+> management, collection-scoped Trash preview/recovery, filtered history/activity,
+> and active editors. It works without JavaScript; POSTs require admin CSRF, and
+> restoration confirmations bind the collection/item and current form context.
+> Access schema 2 adds secret-free password-change audit metadata, preserving
+> credentials/grants. Collection schema stays 7. Password changes revoke only
+> their own role. The first admin password must be set locally; none was chosen
+> or installed by the coding agent. See ADMIN_DESIGN.md and README.md.
 > Inspect Git status and preserve
 > existing changes; no implementation request is pending until I provide one.
+
+**Working administration milestone (2026-11-07)**
+
+The user approved implementing the preview. `admin.py` registers a blueprint at
+/admin; /admin redirects to /admin/. `templates/admin/` and static/admin.css use
+ordinary HTML forms with POST/303 redirects, no client scripts or Quill/htmx.
+The main header/empty landing page link to administration; an open or opening
+editor/pending operation blocks the header link to prevent draft loss.
+
+`manage_access.py set-admin-password` bootstraps or resets the global admin
+credential locally, with hidden prompts. Use --database to match a custom access
+file. No password was generated or installed in the user's access database.
+Before bootstrap, admin login returns a local-setup explanation without a public
+registration form. Admin login requires a name and separate password and has its
+own role-aware throttling. A separately revocable admin_session cookie reference
+coexists with editor_session. Roles and global scope are checked explicitly;
+admin login does not grant editing, editor login does not grant administration,
+and admin sign-out does not revoke an independent editor grant.
+
+Access schema 2 adds admin_events, preserving all existing credentials/grants.
+The old session table name remains editor_sessions, with role-aware resolvers.
+Password changes require current admin password and repeated new password, check
+credential revision/grant again inside the write transaction, revoke only that
+role's grants, and insert secret-free audit metadata atomically. Changing admin
+password signs out the initiating administrator too. A failure of audit insertion
+rolls back the credential/grant change. Raw passwords/hashes never enter audits.
+The editor API and lease validator still accept only global editor grants.
+
+Every admin POST requires an active admin grant and admin_csrf. CSRF rotates on
+admin login/logout/admin-password reset, rejecting previous-login forms. Recovery
+confirmation tokens bind collection UUID, Trash ID, and current admin form nonce;
+cross-item/collection/context submissions fail. Admin responses are no-store and
+inherit the existing CSP/frame/cookie protections. Return URLs are restricted to
+local /admin/ paths. Names, cell text, HTML formatting and JSON snapshots are
+escaped; bearer tokens, identity/lease hashes are not passed to view templates.
+
+`admin_data.py` reads collection-local Trash/history using bounded SQL filters
+before pagination (50 events/items per page). Trash previews show at most 200
+cells with full counts; restored entries use deletion snapshots. Restore reuses
+store.restore_trash(actor=admin), preserves IDs/formatting, handles parent-first
+recovery and duplicate/stale submissions, and emits existing history/version
+updates in the same transaction. There is no purge/forced-lock/revert action.
+History supports editor, etymon, action, outcome, and local date ranges, with
+DST-correct UTC bounds. Activity is distinguished from saved content. Active
+editors reuse existing lease records/cleanup, with configurable heartbeat/expiry
+settings displayed and a manual Refresh link. Collection selection never saves
+public browser preferences; single-file and empty-catalog modes are supported.
+
+Verification: all 210 Python tests, six Node scrollbar tests, JavaScript syntax
+checks, and 48 browser groups across six suites passed. The seven new admin
+groups run with JavaScript disabled alongside a real editor. Working desktop/
+mobile screenshots were reviewed. An existing editor-browser test now explicitly
+waits for Quill after its asynchronous double-click before trying to cancel;
+without that wait it could test an editor that had not yet opened.
+
+README/DEPLOYMENT/ADMIN_DESIGN describe setup and use; MANUAL_TESTING now has
+72 tasks, including the admin flows. The original static design preview is kept
+unchanged. Tests use disposable databases/workbooks/servers. No deployment,
+commit/push, or modifications to real credentials/workbooks/collections occurred.
+
+**Manual acceptance checklist and admin design (2026-11-07)**
+
+The user requested a list of manual testing tasks for implemented functionality
+and a design for administration at /admin. MANUAL_TESTING.md includes a separate
+test catalog/access-file setup, independent Ana/Bob browser sessions, 59 tasks
+with expected results, a short first pass, and CLI recovery/history/password
+commands for the existing app. It includes Excel desktop and remote HTTPS checks
+which local automated tests cannot substitute for.
+
+ADMIN_DESIGN.md specifies ordinary HTML forms/pages for a protected overview,
+global editor/admin password management, collection-scoped Trash preview/recovery,
+saved history and editing activity, and active editors. A separate global admin
+credential/grant, local bootstrap/reset, role checks, CSRF, attribution, bounded
+SQL filtering/pagination, and parent-first Trash recovery are part of the proposed
+implementation. Password-change effects on admin versus editor grants are explicit.
+The first release excludes permanent purge, forced lock takeover, history revert,
+personal accounts, and workbook upload/collection administration.
+
+design/admin/index.html plus style.css is a local static preview: all navigation
+uses section anchors, examples are invented, forms are inactive, no scripts or
+network/database connections are included. This is a design deliverable, not
+a running /admin route. README links both documents and the preview. No runtime
+code, credentials, databases, or user workbooks were changed by this task.
+The preview was checked in Chromium at desktop/mobile sizes with JavaScript
+disabled: anchor navigation, native restoration disclosure, inactive forms,
+and page width passed; screenshots were visually reviewed. All 59 task IDs and
+document links were checked, and git diff --check passed. Runtime test results
+below are from the preceding implementation; no runtime changes required reruns.
 
 **Automatic content refresh milestone (2026-11-07)**
 
@@ -320,17 +445,19 @@ independently of the stable cookie secret.
 
 **Access storage and UI**
 
-`access_control.py` owns a separate schema-1 access database with:
+`access_control.py` owns a separate schema-2 access database with:
 
 - `credentials`: password hash, revision, role (`editor`/`admin`), scope type
   (`global`/`collection`), scope ID, and UTC update time. Only the global editor
-  credential is accepted by the current policy; future roles/scopes fail closed.
+  and global administrator credentials are accepted by separate policies;
+  collection scopes fail closed.
 - `editor_sessions`: SHA-256 of a random bearer token, credential ID/revision,
   self-declared name, UTC creation time. The raw token stays in Flask's signed
   HttpOnly/SameSite cookie, never in history, HTML payloads, or localStorage.
-- `access_metadata`: storage version.
+- `admin_events`: password-change actor/time/role/scope/revision, without secrets.
+- `access_metadata`: storage version; schema 1 upgrades additively to 2.
 
-Credential setup/reset deletes existing grants. Every request resolves its grant
+Credential setup/reset deletes existing grants for that role only. Every request resolves its grant
 against the current DB/revision; explicit Sign out revokes the grant on the server.
 Cookie lifetime is a browser session (`session.permanent=False`), with no Expires/
 Max-Age. Browser session restoration can restore cookies; Sign out explicitly
@@ -342,8 +469,8 @@ Abandoned auth records are not editing leases and do not block anyone.
 validated names (1–120 chars, no control characters) and bounded passwords;
 failed attempts are limited to ten per client IP/five minutes/process. Do not
 trust forwarded addresses beyond the existing explicit Waitress proxy settings.
-`AccessControl.can_edit` is the central policy hook for future admin/collection
-permissions. Test apps use in-memory access storage unless explicitly configured;
+`AccessControl.can_edit` and `can_admin` are the role policy hooks;
+collection-specific permissions remain future work. Test apps use in-memory access storage unless explicitly configured;
 there is no authentication bypass in testing mode. Regression clients sign in
 through the real endpoint using `tests/auth_helpers.py`.
 
@@ -400,7 +527,12 @@ may be affected by that helper's openpyxl conversion.
 
 **Verification and environment**
 
-Latest Python verification: 183 tests passed in a temporary checkout containing the
+User manual acceptance: **not started; 0 of 72 checklist tasks completed**.
+This includes all administrator tasks. The results below are previous agent-run
+automated checks and visual reviews, not a completed manual acceptance pass.
+This handoff update changed documentation only; it did not rerun runtime tests.
+
+Latest Python verification: 210 tests passed in a temporary checkout containing the
 committed `db/example.xlsx` fixture. The user removed/renamed that fixture in
 the live workspace; leave it and `db/research.sqlite3` untouched. The temporary
 checkout used for this milestone is `/tmp/xldb-creation-tests-u62wko89`, with a
@@ -408,14 +540,16 @@ symlink to the project's `.venv`. Copy current source/tests there before checks.
 Self-contained `tests/test_collections.py` runs directly in the workspace.
 Six Node scrollbar tests, JavaScript syntax checks, sixteen Chromium editor
 groups, five Chromium collection groups, six Chromium authentication groups,
-six Chromium lease groups, and eight Chromium live-update groups passed.
+six Chromium lease groups, eight Chromium live-update groups, and seven
+JavaScript-disabled administration groups passed.
 Browser checks include
 simultaneous edits from two tabs in different collections, scoped search/forms/
 export/Trash, renamed headings and row types, initial-column metadata, empty
 collection creation, editor navigation guards, and browser Back. Optional suites
 are `tests/test_cell_editor_browser.js`, `tests/test_collections_browser.js`,
 `tests/test_authentication_browser.js`, `tests/test_edit_sessions_browser.js`,
-and `tests/test_live_updates_browser.js` (eight automatic-refresh groups).
+`tests/test_live_updates_browser.js` (eight automatic-refresh groups), and
+`tests/test_admin_browser.js` (seven administration groups).
 Playwright is outside the project at `/tmp/xldb-browser/node_modules`; its
 browser installation is `/tmp/xldb-browser/browsers`. Use NODE_PATH and
 PLAYWRIGHT_BROWSERS_PATH accordingly. Browser servers/databases are temporary.
@@ -425,15 +559,22 @@ warnings in Chrome. The remote machine uses Ubuntu 24.04 ARM64 and Nginx;
 capibara.hopto.org already has a Let's Encrypt certificate on 443. Port 8080 was
 plain Waitress HTTP, so https://...:8080 cannot work without a TLS listener.
 Do not replace an existing site's configuration without checking it. This
-milestone's catalog/schema/authentication changes have only been tested locally
-and have not been installed on that machine. Existing schema-4/5/6 collections upgrade
+milestone's catalog/schema/authentication/admin changes were tested locally by
+the agent; installation and verification of the latest build on that machine
+have not been confirmed by the user. Existing schema-4/5/6 collections upgrade
 without reimport; schemas 1–3 still require a fresh collection import. Deploy the
 access DB/password setup as documented, with its directory writable by the service.
 
 **Next work, when requested**
 
-Authentication, attribution, live cell coordination, and automatic content
-refresh across browsers are implemented. Global
-administrator passwords, collection-specific passwords, and browser administration/
-history/revert UI remain future work. Do not add these without a new request.
+The immediate user-facing follow-up is the still-pending MANUAL_TESTING.md
+acceptance pass, including T60–T72 for administration. Help with setup or fix
+specific reported failures when asked; do not infer that the checklist has
+already been completed or begin unrelated features during handoff.
+
+Authentication, attribution, live cell coordination, automatic content refresh,
+and HTML administration (global passwords, Trash/recovery, history, active editors)
+are implemented. Collection-specific passwords, collection creation/import UI,
+permanent purge, personal accounts, and history revert remain future work.
+Do not add these without a new request.
 The team prefers shared passwords and self-declared names over personal accounts.

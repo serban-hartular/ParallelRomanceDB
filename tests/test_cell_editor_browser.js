@@ -430,6 +430,7 @@ workbook.close()
     console.log('ok - New basic-sense rows are orange in new etymons and retain that color in Quill');
 
     await newSense.dblclick();
+    await page.locator('.ql-editor').waitFor();
     await page.getByRole('button', { name: 'Delete etymon', exact: true }).click();
     assert.equal(await page.locator('#delete-entry-dialog').isVisible(), false);
     await page.keyboard.press('Escape');

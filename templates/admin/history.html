@@ -1,0 +1,19 @@
+{% extends 'admin/base.html' %}
+{% block title %}History · {{ collection.name }}{% endblock %}
+{% block content %}
+<p class="eyebrow">{{ collection.name }}</p><h1>History</h1>
+<p>Saved changes are shown by default. Include editing activity to inspect other editor outcomes. Dates and times use Europe/Bucharest.</p>
+{% include 'admin/_collection.html' %}
+<form class="filter-form" method="get"><fieldset><legend class="visually-hidden">Filter history</legend>
+<div><label for="etymon">Etymon number</label><input id="etymon" name="etymon" type="number" min="1" max="1000000" value="{{ request.args.get('etymon','') }}" placeholder="Any"></div>
+<div><label for="editor">Editor name</label><input id="editor" name="editor" type="search" maxlength="120" value="{{ request.args.get('editor','') }}" placeholder="Any editor"></div>
+<div><label for="action">Action</label><select id="action" name="action"><option value="">All actions</option>{% for value,label in actions.items() %}<option value="{{ value }}"{% if request.args.get('action') == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+<div><label for="status">Outcome</label><select id="status" name="status"><option value="">Default / all if activity included</option>{% for value in statuses %}<option value="{{ value }}"{% if request.args.get('status') == value %} selected{% endif %}>{{ value|capitalize }}</option>{% endfor %}</select></div>
+<div><label for="since">From date</label><input id="since" name="since" type="date" value="{{ request.args.get('since','') }}"></div><div><label for="through">Through date</label><input id="through" name="through" type="date" value="{{ request.args.get('through','') }}"></div>
+<label class="check-label"><input type="checkbox" name="activities" value="1"{% if request.args.get('activities') == '1' %} checked{% endif %}> Include editing activity</label><button type="submit">Apply filters</button><a href="{{ url_for('admin.history',collection_id=collection.id) }}">Clear</a>
+</fieldset></form>
+{% if listing['items'] %}<div class="table-scroll" role="region" aria-label="Edit history" tabindex="0"><table><caption>{{ 'Saved changes' if not request.args.get('activities') and not request.args.get('status') else 'Changes and editing activity' }}</caption><thead><tr><th scope="col">Completed / started</th><th scope="col">Editor</th><th scope="col">Action / outcome</th><th scope="col">Etymon / row</th><th scope="col">Language</th><th scope="col">Details</th></tr></thead><tbody>
+{% for event in listing['items'] %}<tr><td>{{ local_time(event.started_at if event.status == 'active' else event.finished_at or event.occurred_at) }}{% if event.status == 'active' %}<br>Started{% endif %}</td><td>{{ event.editor_name }}</td><td>{{ actions.get(event.action,event.action) }}<br><span class="tag {{ 'saved' if event.status == 'saved' else '' }}">{{ event.status|capitalize }}</span></td><td>{{ event.etimon_number }}{% if event.label %}<br>{{ event.label }} #{{ event.label_number }}{% endif %}</td><td>{{ event.column_name or 'All / not applicable' }}</td><td><a href="{{ url_for('admin.event',collection_id=collection.id,event_id=event.id) }}">View event →</a></td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="empty">No history events match these filters.</p>{% endif %}
+{% include 'admin/_pagination.html' %}
+{% endblock %}

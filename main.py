@@ -632,6 +632,8 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
         response.headers['Cache-Control'] = 'no-store'
         return response
 
+    from admin import create_admin_blueprint
+    app.register_blueprint(create_admin_blueprint(app,access,catalog,single_store))
     return app
 
 

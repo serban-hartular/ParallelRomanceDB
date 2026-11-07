@@ -1,0 +1,13 @@
+{% extends 'admin/base.html' %}
+{% block title %}Trash item {{ item.id }} · {{ collection.name }}{% endblock %}
+{% block content %}
+<p class="eyebrow">{{ collection.name }} · Trash #{{ item.id }}</p><h1>{{ 'Deleted row' if item.kind == 'row' else 'Deleted etymon' }}</h1>
+<dl class="metadata"><dt>Etymon</dt><dd>{{ item.etimon_number }} · {{ item.title }}</dd><dt>Row</dt><dd>{{ item.label ~ ' #' ~ item.label_number if item.label else 'All rows in this deletion' }}</dd><dt>Deleted by</dt><dd>{{ item.deleted_by or 'Not recorded' }} · {{ local_time(item.deleted_at) }}</dd><dt>Size</dt><dd>{{ item.row_count }} row(s) · {{ item.cell_count }} populated cell(s)</dd></dl>
+{% if item.restored_at %}<p class="notice">Recovered {{ local_time(item.restored_at) }}. The preview below shows the deletion snapshot; the recovered content may have changed since.</p><p><a href="{{ url_for('index',collection_id=collection.id,etimon=item.etimon_number) }}">Open recovered etymon ↗</a></p>
+{% elif item.parent_deleted %}<p class="notice">Restore the containing etymon first, then return to this separately deleted row.</p>{% if item.parent_id %}<p><a href="{{ url_for('admin.trash_item',collection_id=collection.id,trash_id=item.parent_id) }}">View parent etymon in Trash →</a></p>{% endif %}
+{% else %}<p><a href="{{ url_for('admin.restore',collection_id=collection.id,trash_id=item.id) }}">Review restoration →</a></p>{% endif %}
+<div class="table-scroll" role="region" aria-label="Retained content" tabindex="0"><table><caption>Retained cell text{% if item.truncated %} · showing the first 200 cells{% endif %}</caption><thead><tr><th scope="col">Row</th><th scope="col">Language</th><th scope="col">Text</th></tr></thead><tbody>
+{% for cell in item.cells %}<tr><td>{{ cell.label }} #{{ cell.label_number }}</td><td>{{ cell['column'] }}</td><td><pre>{{ cell.plaintext_content }}</pre></td></tr>{% else %}<tr><td colspan="3">No populated cell snapshot is available.</td></tr>{% endfor %}
+</tbody></table></div>
+<p><a href="{{ url_for('admin.trash',collection_id=collection.id) }}">Back to Trash</a></p>
+{% endblock %}

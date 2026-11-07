@@ -715,6 +715,12 @@
   });
 
   document.addEventListener("click", event => {
+    if (event.target.closest('[data-admin-link]') && (editing() || editorOpening || mutationBusy || workspaceBusy || active?.updating)) {
+      event.preventDefault();
+      showError('Close or cancel the cell editor and wait for the current operation before opening administration.');
+      window.XLDBCellEditor?.focus();
+      return;
+    }
     const authentication = event.target.closest('[data-sign-out], [data-change-editor]');
     if (authentication) {
       event.preventDefault();

@@ -1,13 +1,16 @@
 # Running Parallel Words on another machine
 
 Status (2026-11-07): the user reports remote editing and export work. The new
-collection catalog, schema-6 editing leases/history, and global edit authentication have been tested locally only; this
-milestone has not been deployed remotely. Read [HANDOFF.md](HANDOFF.md) for
+collection catalog, schema-7 live updates/leases/history, global edit authentication,
+and `/admin/` interface have been tested locally only; these changes have not
+been deployed remotely by the coding agent. Read [HANDOFF.md](HANDOFF.md) for
 current contracts and [README.md](README.md) for import and collection commands.
 Use one application process while editor-token signing remains process-specific.
 
-Schema-4/5 collections upgrade automatically to schema 6, adding/editing history fields without
-reimporting or changing existing content/IDs/Trash. Back up before updating.
+Schema-4/5/6 collections upgrade automatically to schema 7, adding history/lifecycle
+fields and content versioning without changing existing content/IDs/Trash. The
+access database upgrades from schema 1 to 2 for administrator password-change
+audit events. Back up before updating.
 Schema versions 1–3 still require a fresh collection import; export saved edits
 with the previous version first if needed. Never replace the old files during
 reimport. Earlier edits cannot gain retroactive author names.
@@ -73,7 +76,40 @@ cookies; Sign out revokes the server-side grant even for restored cookies.
 Keep `FLASK_SECRET_KEY` stable to retain open browser logins over server restart;
 open cell draft tokens still expire when the process restarts; Cancel can release
 their old locks, otherwise those locks expire after five minutes without contact. Per-collection passwords
-and a global administrator role are structured for later work, not enabled yet.
+remain future work. A separate global administrator role is enabled at `/admin/`.
+
+## Administrator setup
+
+After installing this version, initialize the separate administrator password
+locally, using the service account and the same access file as the application:
+
+```bash
+.venv/bin/python manage_access.py --database /var/lib/parallel-words/access.sqlite3 set-admin-password
+```
+
+Do not pass a password on the command line; this prompts with hidden input.
+No administrator password is installed automatically, and there is no public
+first-admin registration form. Use the command again for forgotten-password
+recovery. It revokes only administrator grants; edit grants remain independent.
+
+Restart the app to load the new code, then open `https://YOUR-HOST/admin/`, or
+use **Admin** in the header. An existing proxy forwarding `/` to this Flask app
+already covers the admin routes. Do not add a public static mapping to database
+files or the source directory. Use the existing HTTPS/secure-cookie/trusted-proxy
+configuration for the login and all admin pages. The same application port is used.
+
+Admin pages use ordinary HTML and do not need JavaScript. They cover global
+password management, collection-specific Trash/recovery, history, and active
+editors. All are protected by the separate admin grant; POSTs also require CSRF.
+Changing the edit password signs out editors; changing the admin password signs
+out administrators, including the current browser, while independent edit logins
+remain valid. Responses are no-store. Collection creation/import still use local
+commands, and there is no permanent purge or history-revert action.
+
+The access schema-1-to-2 upgrade is additive, retains credentials/grants, and
+records successful password-change metadata without secrets in `admin_events`.
+Admin recoveries use the existing collection history and live updates. Back up
+the access file together with the catalog and collection files as before.
 
 ## HTTPS and proxy headers
 
@@ -254,14 +290,15 @@ See [systemd's execution settings](https://www.freedesktop.org/software/systemd/
   writes. Exclusive cell leases block same-cell edits and row/etymon deletion,
   naming the owner; inline notices warn about other cells in the same row/etymon. Creation
   requires initial text in the collection's configured column (French by default).
-- Collection creation/import and Trash recovery are local CLI operations. Run
+- Collection creation/import remain local CLI operations. Trash recovery is
+  available in the protected admin interface and through the local CLI. Run
   `manage_collections.py --catalog PATH create NAME [--workbook FILE --sheet NAME]`
   with the service account's file permissions. Run `trash.py COLLECTION_DB list`
   or `restore ID` against the appropriate collection file. Never expose these
   scripts or databases through Nginx's document root.
-- Collection schema 6 records active editing and saved attribution together,
+- Collection schema 7 records active editing and saved attribution together,
   including start/contact/expiry/finish times, target IDs, and before/after snapshots.
-  Schema 4/5 upgrades
+  Schemas 4/5/6 upgrade
   automatically; versions 1–3 require a fresh workbook import. History stays in
   its collection DB, separate from credentials/sessions in the access DB.
   Inspect locally with `history.py COLLECTION_DB [--etymon N] [--sessions] [--json]`.
