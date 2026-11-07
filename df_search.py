@@ -88,8 +88,12 @@ def get_etimon(
     entries, since multiple values cannot occupy the same table cell.
     """
     rows = df.loc[df['etimon_number'].eq(etimon_number)]
+    column_order = tuple(item['name'] for item in df.attrs['column_definitions']) if 'column_definitions' in df.attrs else COLUMN_ORDER
+    row_types = df.attrs.get('row_types')
+    type_order = {item['id']: item['display_order'] for item in row_types} if row_types else {}
+    label_types = df.attrs.get('label_type_ids', {})
     if rows.empty:
-        return pd.DataFrame(columns=['label', 'label_number', *COLUMN_ORDER])
+        return pd.DataFrame(columns=['label', 'label_number', *column_order])
 
     keys = ['label', 'label_number', 'column']
     if rows.duplicated(keys).any():
@@ -97,19 +101,22 @@ def get_etimon(
             'Each label/label_number/column combination must be unique within an etymon.'
         )
 
-    extra_columns = sorted(set(rows['column']) - set(COLUMN_ORDER))
+    extra_columns = sorted(set(rows['column']) - set(column_order))
     content_column = 'plaintext_content' if plaintext else 'content'
     table = (
         rows.pivot(
             index=['label', 'label_number'], columns='column', values=content_column,
         )
-        .reindex(columns=[*COLUMN_ORDER, *extra_columns])
+        .reindex(columns=[*column_order, *extra_columns])
         .astype(object)
         .fillna('')
         .reset_index()
     )
     table.columns.name = None
     priorities = {label: index for index, label in enumerate(LABEL_ORDER)}
+    if row_types:
+        table['_type_order'] = table['label'].map(lambda label:type_order.get(label_types.get(label),len(type_order)))
+        return table.sort_values(['_type_order','label_number','label'],kind='stable').drop(columns='_type_order').reset_index(drop=True)
 
     def sort_key(values):
         if values.name == 'label':

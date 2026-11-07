@@ -134,30 +134,30 @@ def insert_workbook_rows(template, snapshot, part, *, deleting=False):
         if 'xl/sharedStrings.xml' in archive.namelist():
             for item in ElementTree.fromstring(archive.read('xl/sharedStrings.xml')):
                 shared.append(''.join(item.itertext()))
-        def label_text(row):
-            cell = next((item for item in row.childNodes if item.nodeType == item.ELEMENT_NODE
-                         and item.localName == 'c' and item.getAttribute('r') == f'A{row.getAttribute("r")}'), None)
-            if cell is None:
-                return ''
-            nodes = cell.getElementsByTagNameNS(namespace, 'v') or cell.getElementsByTagNameNS(namespace, 't') or cell.getElementsByTagNameNS(namespace, 'f')
-            value = ''.join(node.firstChild.data for node in nodes if node.firstChild)
-            return shared[int(value)] if cell.getAttribute('t') == 's' and value.isdigit() else value
 
         if deleting:
             # Label-only/blank rows are not DB records, but belong to the
             # etymon section too. Remove these along with a trashed etymon.
-            current, start = 0, None
+            current, start = None, None
             trashed_etymons = set(snapshot.get('trashed_etymons', ()))
+            insertion = RowInsertion([row['sheet_row'] for row in snapshot['rows'] if row['source_row'] is None], shift.title)
+            marker_types = {item['id'] for item in snapshot['row_types'] if item['is_etymon']}
+            markers = {}
+            for etymon in snapshot['etymons']:
+                position = insertion.number(etymon['source_row']) if etymon['source_row'] is not None else next(
+                    row['sheet_row'] for row in snapshot['rows']
+                    if row['etimon_number']==etymon['id'] and row['row_type_id'] in marker_types)
+                markers[position] = etymon['id']
             last = 1
             for row in data.childNodes:
                 if row.nodeType != row.ELEMENT_NODE or row.localName != 'row':
                     continue
                 number = int(row.getAttribute('r'))
                 last = max(last, number)
-                if re.match(r'^\s*ETIMON\s*/', label_text(row), re.IGNORECASE):
+                if number in markers:
                     if current in trashed_etymons:
                         removed.update(range(start, number))
-                    current += 1
+                    current = markers[number]
                     start = number
             if current in trashed_etymons:
                 removed.update(range(start, last + 1))

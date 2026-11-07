@@ -14,7 +14,7 @@
     configured = true;
   }
 
-  function open(cell, { html, lineHeight, onSave, onBeforeClose, onClose }) {
+  function open(cell, { html, lineHeight, onSave, onFinish, onBeforeClose, onClose, warnings = [] }) {
     if (current || typeof Quill === "undefined") return false;
     configure();
     const element = cell.getElement();
@@ -90,6 +90,14 @@
     spacing.value = String(currentLineHeight);
     spacingLabel.append(spacing);
     menu.append(sizeLabel, applySize, spacingLabel);
+    const notice = document.createElement('p');
+    notice.className = 'cell-editor-notice';
+    notice.setAttribute('role','status');
+    function setWarnings(items) {
+      notice.textContent = items.map(item => `${item.name} is editing ${item.same_row ? 'another cell in this row' : 'another row in this etymon'} (${item.label} #${item.label_number}, ${item.column_name}).`).join(' ');
+      notice.hidden = items.length === 0;
+    }
+    setWarnings(warnings);
     const host = document.createElement("div");
     const actions = document.createElement("div");
     actions.className = "cell-editor-actions";
@@ -103,7 +111,7 @@
     const status = document.createElement("span");
     status.setAttribute("role", "status");
     actions.append(close, cancel, status);
-    panel.append(toolbarRow, menu, host, actions);
+    panel.append(notice, toolbarRow, menu, host, actions);
     element.replaceChildren(panel);
     element.classList.add("is-editing");
     const quill = new Quill(host, {
@@ -195,11 +203,22 @@
       onClose();
     }
 
+    let lockLost = false;
+    let lockMessage = "";
+
     async function finish(save = true) {
       if (saving) return false;
       if (!save || (JSON.stringify(quill.getContents()) === initial && currentLineHeight === initialLineHeight)) {
-        restore();
+        saving = true;
+        close.disabled = cancel.disabled = true;
+        status.textContent = 'Closing…';
+        try { await onFinish?.(save ? 'unchanged' : 'cancelled'); }
+        finally { restore(); }
         return true;
+      }
+      if (lockLost) {
+        status.textContent = lockMessage;
+        return false;
       }
       saving = true;
       close.disabled = cancel.disabled = true;
@@ -215,13 +234,27 @@
         return false;
       } finally {
         saving = false;
-        close.disabled = cancel.disabled = false;
-        typography.disabled = sizeInput.disabled = applySize.disabled = spacing.disabled = false;
-        quill.enable(true);
+        close.disabled = lockLost;
+        cancel.disabled = false;
+        typography.disabled = sizeInput.disabled = applySize.disabled = spacing.disabled = lockLost;
+        quill.enable(!lockLost);
+        if (lockLost) status.textContent = lockMessage;
       }
     }
 
-    const activeEditor = { finish, focus: () => quill.focus({ preventScroll: true }) };
+    const activeEditor = { finish, focus: () => quill.focus({ preventScroll: true }),
+      warnings:setWarnings,
+      loseLock(message) {
+        lockLost = true;
+        lockMessage = message;
+        status.textContent = message;
+        close.disabled = true;
+        typography.disabled = sizeInput.disabled = applySize.disabled = spacing.disabled = true;
+        quill.enable(false);
+        // The draft remains visible/selectable so it can be copied.
+      },
+      connectionWarning(message) { if (!lockLost && !saving) status.textContent = message; },
+    };
     current = activeEditor;
     close.addEventListener("click", () => finish());
     cancel.addEventListener("click", () => finish(false));
@@ -246,11 +279,19 @@
       const selection = window.getSelection();
       if (document.activeElement !== quill.root || !quill.root.contains(selection?.anchorNode)) focusContents();
     });
-    return true;
+    return activeEditor;
   }
 
   window.XLDBCellEditor = {
     open, get active() { return Boolean(current); },
     close: save => current?.finish(save), focus: () => current?.focus(),
   };
+  document.addEventListener('keydown', event => {
+    // Disabling Quill after a lost lease can move focus to the document body.
+    // Escape must still cancel the retained draft from that focus position.
+    if (event.key==='Escape' && current) {
+      event.preventDefault();
+      current.finish(false);
+    }
+  });
 })();

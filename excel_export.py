@@ -136,7 +136,8 @@ def workbook_bytes(store):
     template = snapshot['dataset']['workbook']
     changed = [cell for cell in snapshot['cells'] if cell['revision']]
     deleted = any(row.get('trash_id') is not None for row in snapshot['rows'])
-    if not changed and not deleted:
+    renamed = any(column['name'] != column.get('source_name', column['name']) for column in snapshot['columns'])
+    if not changed and not deleted and not renamed:
         return template
     title = snapshot['dataset']['sheet_name']
     if any(row['source_row'] is None for row in snapshot['rows']):
@@ -202,7 +203,7 @@ def workbook_bytes(store):
             columns = {column['name']: column['sheet_column'] for column in snapshot['columns']}
             positions = {(row['etimon_number'], row['label'], row['label_number']): row['sheet_row'] for row in snapshot['rows']}
             for name, column in columns.items():
-                if sheet.cell(1, column).value is None:
+                if sheet.cell(1, column).value != name:
                     set_text(target_cell(1, column), name)
             for record in changed:
                 number = positions[(record['etimon_number'], record['label'], record['label_number'])]

@@ -26,6 +26,18 @@ a, button, input, select, summary { -webkit-tap-highlight-color: transparent; }
 .collection-count { flex-shrink: 0; margin-left: 12px; font-size: 11px; color: var(--muted); }
 .header-tools { display: flex; align-items: center; flex-shrink: 0; gap: 10px; }
 .header-tools .collection-count { margin-left: 0; }
+.editor-identity { font-size: 11px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.auth-button { font-size: 11px; color: var(--green); background: transparent; border: 0; padding: 3px; cursor: pointer; }
+#editor-login-dialog { width: min(420px, calc(100vw - 24px)); border: 1px solid var(--line); border-radius: 6px; padding: 22px; background: var(--surface); color: var(--ink); }
+#editor-login-dialog::backdrop { background: #253b3566; }
+#editor-login-title { margin: 0 0 8px; }
+#editor-login-form { display: flex; flex-direction: column; gap: 10px; }
+#editor-login-form input { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px; }
+#editor-login-form p { margin: 0; font-size: 13px; }
+.login-error { color: #9c2929; }
+.cell-editor-notice { margin: 0 0 8px; padding: 7px 9px; border-left: 3px solid #bb8752; background: #fff3da; color: #59431d; font-size: 12px; white-space: normal; }
+.live-update-status { flex-shrink: 0; margin: 0; padding: 5px 9px; border-left: 3px solid #bb8752; background: #fff3da; color: #59431d; font-size: 12px; }
+.live-update-status[hidden] { display: none; }
 .export-link { font-size: 11px; color: var(--green); white-space: nowrap; }
 main { flex: 1; min-height: 0; min-width: 0; padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
 .search-panel { flex-shrink: 0; }
@@ -196,6 +208,8 @@ h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 
 .mode-toggle, .add-entry { padding: 6px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font-size: 11px; cursor: pointer; }
 .mode-toggle[aria-pressed="true"] { background: var(--green); color: white; }
+.collection-chooser { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.collection-chooser select { max-width: 220px; padding: 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); }
 .mode-toggle:disabled, .add-entry:disabled { opacity: .6; cursor: wait; }
 .add-row-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11px; }
 .add-row-controls select { max-width: 230px; padding: 5px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); color: var(--ink); }

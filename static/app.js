@@ -13,8 +13,105 @@
   let pendingFocus = null;
   let creationButton = null;
   let deletionTarget = null;
+  let loginEntersEdit = true;
+  let editorOpening = false;
+  let viewPayload = null;
+  let viewGeneration = 0;
+  let liveTimer;
+  let liveChecking = false;
+  let livePending = false;
+  let liveSwapState = null;
 
   function editing() { return window.XLDBCellEditor?.active; }
+
+  function liveStatus(message = '') {
+    const status = document.getElementById('live-update-status');
+    if (!status) return;
+    if (status.textContent !== message) status.textContent = message;
+    status.hidden = !message;
+  }
+
+  function scheduleLiveCheck(delay = viewPayload?.refresh_ms || 5000) {
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(checkLiveChanges, delay);
+  }
+
+  function refreshBlocked() {
+    return editing() || editorOpening || workspaceBusy || mutationBusy || active?.updating
+      || document.querySelector('dialog[open]');
+  }
+
+  async function checkLiveChanges() {
+    if (liveChecking) return;
+    const payload = viewPayload;
+    if (!payload) return;
+    liveChecking = true;
+    const generation = viewGeneration;
+    const workspace = document.getElementById('workspace');
+    try {
+      if (document.visibilityState !== 'visible') return;
+      const response = await fetch(payload.urls.changes, {cache:'no-store', signal:AbortSignal.timeout(10000)});
+      if (!response.ok) throw new Error('Change check failed');
+      const result = await response.json();
+      if (generation !== viewGeneration) return;
+      if (result.version === payload.content_version) {
+        if (!livePending) liveStatus();
+        return;
+      }
+      livePending = true;
+      if (refreshBlocked()) {
+        liveStatus(editing() || editorOpening
+          ? 'This collection has been updated. Changes will appear when you close the cell editor.'
+          : 'This collection has been updated. Changes will appear when the current operation finishes.');
+        return;
+      }
+      // Describe this tab's applied search, not another tab's saved preferences
+      // or text/filter choices the user has not submitted yet.
+      const url = new URL(payload.urls.index, window.location.href);
+      url.search = new URLSearchParams({live:'1', search:'1', q:payload.criteria.query,
+        plaintext:payload.plaintext ? '1' : '0', editing:payload.edit_mode ? '1' : '0'});
+      if (payload.etimon !== null) url.searchParams.set('etimon',payload.etimon);
+      for (const name of ['label','column']) {
+        for (const value of payload.criteria[name]) url.searchParams.append(name,value);
+      }
+      const refreshed = await fetch(url, {headers:{'HX-Request':'true'},cache:'no-store',signal:AbortSignal.timeout(10000)});
+      if (!refreshed.ok) throw new Error('Refresh failed');
+      const html = await refreshed.text();
+      // A person may have navigated or opened an editor while the GET was in flight.
+      if (generation !== viewGeneration || !workspace.isConnected || refreshBlocked()) return;
+      const viewport = active?.element.querySelector('.tabulator-tableholder');
+      liveSwapState = {
+        etimon:payload.etimon,
+        scroll:viewport ? {left:viewport.scrollLeft,top:viewport.scrollTop} : null,
+        columns:active ? new Map(active.table.getColumns().map(column => [fieldKey(active,column.getField()),
+          {width:column.getWidth(),visible:column.isVisible()}])) : new Map(),
+        resultsTop:workspace.querySelector('#results-viewport')?.scrollTop || 0,
+        windowX:window.scrollX, windowY:window.scrollY,
+      };
+      workspaceBusy = true;
+      try {
+        htmx.swap(workspace,html,{swapStyle:'outerHTML',settleDelay:0});
+        initialize();
+        await updates;
+      } finally {
+        liveSwapState = null;
+        workspaceBusy = false;
+      }
+    } catch (_) {
+      if (generation === viewGeneration) liveStatus('Live updates are temporarily unavailable. Retrying automatically.');
+    } finally {
+      liveChecking = false;
+      scheduleLiveCheck();
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkLiveChanges();
+  });
+  window.addEventListener('online', () => checkLiveChanges());
+  document.addEventListener('close', () => {
+    if (livePending) scheduleLiveCheck(0);
+  }, true);
 
   function restoreScroll(instance, position) {
     const viewport = instance.element.querySelector('.tabulator-tableholder');
@@ -40,7 +137,7 @@
     scrollbars?.schedule();
   }
 
-  function editCell(instance, cell) {
+  async function editCell(instance, cell) {
     if (!instance.payload.edit_mode || editing() || workspaceBusy || mutationBusy || instance.updating) return;
     const editor = cell.getRow().getData().editors?.[cell.getField()];
     if (!editor) return;
@@ -48,42 +145,146 @@
       showError("The cell editor could not load. Reload the page to try again.");
       return;
     }
+    const payload = instance.payload;
+    const headers = {"Content-Type":"application/json", "X-CSRF-Token":payload.csrf};
+    let acquired;
     let saved = false;
     let scrollPosition;
-    window.XLDBCellEditor.open(cell, {
-      html: editor.html,
-      lineHeight: editor.line_height,
-      async onSave(ops, lineHeight) {
-        const response = await fetch("/cell", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-CSRF-Token": instance.payload.csrf },
-          body: JSON.stringify({ token: editor.token, ops, line_height: lineHeight }),
+    let stopped = false;
+    let heartbeatTimer;
+    let expiryTimer;
+    let leaseDeadline;
+    let quillEditor;
+    let heartbeatInFlight = false;
+    function stopContact() {
+      stopped = true;
+      clearTimeout(heartbeatTimer);
+      clearTimeout(expiryTimer);
+    }
+    function loseLock(message) {
+      stopContact();
+      message = message || 'Your editing lock expired.';
+      if (!message.includes('Copy your draft')) message += ' Copy your draft, then cancel and reload.';
+      quillEditor?.loseLock(message);
+    }
+    function setDeadline(duration, requestStarted) {
+      // A conservative monotonic deadline avoids client/server clock skew.
+      leaseDeadline = requestStarted + duration;
+      clearTimeout(expiryTimer);
+      expiryTimer = setTimeout(() => loseLock(), Math.max(0, leaseDeadline-performance.now()));
+    }
+    async function heartbeat() {
+      if (stopped || heartbeatInFlight) return;
+      clearTimeout(heartbeatTimer);
+      if (performance.now() >= leaseDeadline) { loseLock(); return; }
+      heartbeatInFlight = true;
+      const requestStarted = performance.now();
+      try {
+        const response = await fetch(payload.urls.edit_heartbeat, {
+          method:'POST', headers, signal:AbortSignal.timeout(10000),
+          body:JSON.stringify({lease:acquired.lease,token:editor.token}),
         });
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error || "Could not save. Please try again.");
-        saved = true;
-      },
-      onBeforeClose() {
-        const viewport = instance.element.querySelector('.tabulator-tableholder');
-        scrollPosition = { left: viewport.scrollLeft, top: viewport.scrollTop };
-      },
-      onClose() {
-        document.getElementById("request-status").classList.remove("is-error");
-        cell.getRow().normalizeHeight();
-        restoreRowHeight(instance, cell.getRow());
-        restoreScroll(instance, scrollPosition);
-        scrollbars?.schedule();
-        if (saved) {
-          instance.editScroll = { ...scrollPosition, etimon: instance.payload.etimon };
-          htmx.ajax("GET", `/?etimon=${instance.payload.etimon}`, {
-            target: "#workspace", swap: "outerHTML", source: document.body,
-          }).catch(() => {
-            instance.editScroll = null;
-          });
+        if (stopped) return;
+        if (!response.ok) {
+          if ([401,403,409].includes(response.status)) {
+            loseLock(result.error || 'Your edit login or lock ended. Copy your draft, then cancel and reload.');
+            return;
+          }
+          throw new Error('Could not renew the editing lock.');
         }
-      },
-    });
-    scrollbars?.schedule();
+        setDeadline(result.lease_ms,requestStarted);
+        quillEditor?.warnings(result.warnings || []);
+        quillEditor?.connectionWarning('');
+      } catch (_) {
+        quillEditor?.connectionWarning('Connection interrupted. Your draft is retained; reconnect before the editing lock expires.');
+      } finally {
+        heartbeatInFlight = false;
+        if (!stopped) heartbeatTimer = setTimeout(heartbeat, acquired.heartbeat_ms);
+      }
+    }
+    async function release(outcome) {
+      stopContact();
+      try {
+        await fetch(payload.urls.edit_finish, {method:'POST',headers,keepalive:true,
+          signal:AbortSignal.timeout(5000),body:JSON.stringify({lease:acquired.lease,outcome})});
+      } catch (_) { /* An unreachable server releases the lease on expiry. */ }
+    }
+    const resumeContact = () => {
+      if (document.visibilityState==='visible' && !stopped) heartbeat();
+    };
+    const leavePage = () => {
+      stopContact();
+      fetch(payload.urls.edit_finish, {method:'POST',headers,keepalive:true,
+        body:JSON.stringify({lease:acquired.lease,outcome:'cancelled'})}).catch(() => {});
+    };
+    editorOpening = mutationBusy = true;
+    try {
+      const requestStarted = performance.now();
+      const response = await fetch(payload.urls.edit_start,{method:'POST',headers,
+        signal:AbortSignal.timeout(10000),body:JSON.stringify({token:editor.token})});
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Could not open the cell editor.');
+      acquired = result;
+      if (active!==instance) { await release('cancelled'); return; }
+      const requestStatus = document.getElementById('request-status');
+      requestStatus.classList.remove('is-error');
+      requestStatus.textContent = '';
+      quillEditor = window.XLDBCellEditor.open(cell, {
+        html:acquired.html,
+        lineHeight:acquired.line_height,
+        warnings:acquired.warnings,
+        async onSave(ops,lineHeight) {
+          if (stopped || performance.now()>=leaseDeadline) {
+            loseLock();
+            throw new Error('Your editing lock expired. Copy your draft, then cancel and reload.');
+          }
+          const response = await fetch(payload.urls.cell, {
+            method:'POST',headers,
+            body:JSON.stringify({token:editor.token,lease:acquired.lease,ops,line_height:lineHeight}),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            if ([401,403,409].includes(response.status)) loseLock(result.error);
+            throw new Error(result.error || 'Could not save. Please try again.');
+          }
+          saved = true;
+          stopContact();
+        },
+        onFinish:release,
+        onBeforeClose() {
+          const viewport = instance.element.querySelector('.tabulator-tableholder');
+          scrollPosition = {left:viewport.scrollLeft,top:viewport.scrollTop};
+        },
+        onClose() {
+          stopContact();
+          document.removeEventListener('visibilitychange',resumeContact);
+          window.removeEventListener('pagehide',leavePage);
+          document.getElementById('request-status').classList.remove('is-error');
+          cell.getRow().normalizeHeight();
+          restoreRowHeight(instance,cell.getRow());
+          restoreScroll(instance,scrollPosition);
+          scrollbars?.schedule();
+          if (saved) {
+            instance.editScroll = {...scrollPosition,etimon:payload.etimon};
+            htmx.ajax('GET',`${payload.urls.index}?etimon=${payload.etimon}`, {
+              target:'#workspace',swap:'outerHTML',source:document.body,
+            }).catch(() => { instance.editScroll = null; });
+          } else if (livePending) scheduleLiveCheck(0);
+        },
+      });
+      if (!quillEditor) { await release('cancelled'); return; }
+      setDeadline(acquired.lease_ms,requestStarted);
+      heartbeatTimer = setTimeout(heartbeat,acquired.heartbeat_ms);
+      document.addEventListener('visibilitychange',resumeContact);
+      window.addEventListener('pagehide',leavePage);
+      scrollbars?.schedule();
+    } catch (error) {
+      if (acquired) await release('cancelled');
+      showError(error.message || 'Could not reach the server. Please try again.');
+    } finally {
+      editorOpening = mutationBusy = false;
+    }
   }
 
   function settingsFor(dataset) {
@@ -314,25 +515,79 @@
     }
   }
 
-  async function renderWorkspace(workspace, reset = false) {
+  async function renderWorkspace(workspace, reset = false, liveView = null) {
     if (!workspace?.isConnected) return;
     bindScrollbars(null, null);
     const payload = JSON.parse(workspace.querySelector(".workspace-data").textContent);
+    viewPayload = payload;
+    livePending = false;
+    liveStatus(liveView && liveView.etimon !== payload.etimon
+      ? 'The displayed etymon was removed or no longer matches your search. The results have been updated.' : '');
+    scheduleLiveCheck();
     document.querySelector('[data-toggle-edit]').setAttribute('aria-pressed', String(payload.edit_mode));
+    document.querySelector('[data-editor-name]').textContent = payload.auth.name || '';
+    document.querySelector('[data-editor-identity]').title = payload.auth.name || '';
+    document.querySelectorAll('[data-editor-identity], [data-sign-out], [data-change-editor]').forEach(element => {
+      element.hidden = !payload.auth.authenticated;
+    });
     document.querySelector('[data-add-etymon]').hidden = !payload.edit_mode;
     document.querySelector('.collection-count').textContent = `${payload.total} etimon${payload.total === 1 ? '' : 's'} in the collection`;
     document.title = payload.title;
+    const chooser = document.getElementById('collection-select');
+    if (chooser) {
+      chooser.replaceChildren(...payload.collection_options.map(item => {
+        const option = document.createElement('option');
+        option.value = item.url;
+        option.textContent = item.name;
+        option.selected = item.id === payload.dataset;
+        return option;
+      }));
+      chooser.dataset.current = chooser.value;
+    }
+    const brand = document.querySelector('.brand');
+    const source = brand.querySelector('span');
+    source.textContent = payload.collection_name ? `${payload.collection_name} · ${payload.source_label}` : payload.source_label;
+    source.title = source.textContent;
+    brand.href = `${payload.urls.index}?reset=1`;
+    brand.setAttribute('hx-get', brand.getAttribute('href'));
+    document.querySelector('[data-export-excel]').href = payload.urls.export;
+    document.querySelector('[data-initial-column-label]').textContent = `Text for ${payload.initial_column}`;
+    const clear = document.querySelector('.clear-link');
+    clear.href = `${payload.urls.index}?reset=1`;
+    clear.setAttribute('hx-get', clear.getAttribute('href'));
+    document.querySelector('.search-form').action = payload.urls.index;
+    document.querySelector('.search-form').setAttribute('hx-get', payload.urls.index);
     const form = document.querySelector(".search-form");
-    form.elements.q.value = payload.criteria.query;
+    if (!liveView) form.elements.q.value = payload.criteria.query;
     form.querySelectorAll("[data-search-filter]").forEach(filter => {
-      const selected = new Set(payload.criteria[filter.dataset.searchFilter]);
+      const existing = [...filter.querySelectorAll('input[type="checkbox"]')];
+      const options = payload.filters[filter.dataset.searchFilter];
+      // Leave focused controls, open menus and unsubmitted choices alone.
+      if (liveView && JSON.stringify(existing.map(input => input.value)) === JSON.stringify(options)) return;
+      const selected = new Set(liveView ? existing.filter(input => input.checked).map(input => input.value)
+        : payload.criteria[filter.dataset.searchFilter]);
+      const fieldset = filter.querySelector('fieldset');
+      fieldset.querySelectorAll('label').forEach(label => label.remove());
+      for (const value of payload.filters[filter.dataset.searchFilter]) {
+        const label = document.createElement('label');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.name = filter.dataset.searchFilter;
+        input.value = value;
+        label.append(input, document.createTextNode(` ${value}`));
+        fieldset.insertBefore(label, fieldset.querySelector('p'));
+      }
       filter.querySelectorAll('input[type="checkbox"]').forEach(input => {
         input.checked = selected.has(input.value);
       });
       updateFilterSummary(filter);
-      filter.open = false;
+      if (!liveView) filter.open = false;
     });
 
+    htmx.process(document.querySelector(".site-header"));
+    htmx.process(document.querySelector(".search-panel"));
+    const resultsViewport = workspace.querySelector('#results-viewport');
+    if (liveView && resultsViewport) resultsViewport.scrollTop = liveView.resultsTop;
     const element = document.getElementById("etimon-grid");
     if (!element) {
       destroyGrid();
@@ -343,7 +598,7 @@
       showError("Interactive table unavailable. The standard table is shown.");
       return;
     }
-    if (active && active.element !== element) destroyGrid();
+    if (active && (active.element !== element || active.payload.dataset !== payload.dataset)) destroyGrid();
     const previousEtimon = active?.payload.etimon;
     const isNew = !active;
     if (isNew) active = createGrid(element, payload);
@@ -362,6 +617,15 @@
       element.closest(".detail-panel").classList.add("grid-active");
       // The preserved element has just moved into the new workspace.
       instance.table.redraw(true);
+      if (liveView) {
+        instance.table.getColumns().forEach(column => {
+          const previous = liveView.columns.get(fieldKey(instance,column.getField()));
+          if (!previous) return;
+          column.setWidth(previous.width);
+          if (column.getDefinition().frozen || previous.visible) column.show();
+          else column.hide();
+        });
+      }
       instance.table.getRows().forEach(row => restoreRowHeight(instance, row));
       syncColumnChooser(instance);
       if (previousEtimon !== payload.etimon) {
@@ -371,14 +635,16 @@
       const position = instance.editScroll;
       instance.editScroll = null;
       if (position?.etimon === payload.etimon) restoreScroll(instance, position);
+      if (liveView?.etimon === payload.etimon) restoreScroll(instance,liveView.scroll);
+      if (liveView) window.scrollTo(liveView.windowX,liveView.windowY);
       if (pendingFocus?.etimon === payload.etimon) {
         const location = pendingFocus;
         pendingFocus = null;
         const identity = payload.rows.find(row => row.label === location.label && row.label_number === location.label_number)?.id;
         const row = identity ? instance.table.getRow(identity) : null;
-        const column = payload.columns.find(item => item.title === 'LIMBA FRANCEZĂ');
+        const column = payload.columns.find(item => item.title === payload.initial_column);
         if (row && column) {
-          // A hidden French column should not hide the entry just created.
+          // Reveal the configured initial-entry column for the new row.
           const targetColumn = instance.table.getColumn(column.field);
           targetColumn.show();
           await new Promise(requestAnimationFrame);
@@ -390,8 +656,8 @@
     }
   }
 
-  function scheduleWorkspace(workspace, reset = false) {
-    updates = updates.catch(() => {}).then(() => renderWorkspace(workspace, reset)).catch(error => {
+  function scheduleWorkspace(workspace, reset = false, liveView = null) {
+    updates = updates.catch(() => {}).then(() => renderWorkspace(workspace, reset, liveView)).catch(error => {
       console.error("Could not update the etimon grid", error);
       showError("The interactive table could not update. Please reload the page.");
     });
@@ -414,15 +680,28 @@
   function initialize() {
     const workspace = document.getElementById("workspace");
     if (workspace && !workspace.dataset.initialized) {
+      viewGeneration++;
       if (workspace.dataset.revealResults === "true") resultsHidden = false;
       syncResultsPanel(workspace);
       bindResultsScrollbars(workspace);
       workspace.dataset.initialized = "true";
-      scheduleWorkspace(workspace);
+      scheduleWorkspace(workspace, false, liveSwapState);
     }
   }
 
   document.addEventListener("change", event => {
+    if (event.target.id === 'collection-select') {
+      const chooser = event.target;
+      if (editing() || mutationBusy || workspaceBusy || active?.updating) {
+        chooser.value = chooser.dataset.current;
+        showError('Close or cancel the cell editor before switching collections.');
+        window.XLDBCellEditor?.focus();
+        return;
+      }
+      window.location.assign(chooser.value);
+      return;
+    }
+
     const filter = event.target.closest("[data-search-filter]");
     if (filter) updateFilterSummary(filter);
     if (!event.target.matches("[data-grid-field]") || !active || active.updating) return;
@@ -436,6 +715,22 @@
   });
 
   document.addEventListener("click", event => {
+    const authentication = event.target.closest('[data-sign-out], [data-change-editor]');
+    if (authentication) {
+      event.preventDefault();
+      if (editing()) {
+        showError('Close or cancel the cell editor before signing out or changing editor.');
+        window.XLDBCellEditor.focus();
+        return;
+      }
+      if (mutationBusy || workspaceBusy || active?.updating) return;
+      if (authentication.matches('[data-sign-out]')) signOut(authentication);
+      else {
+        const payload = JSON.parse(document.querySelector('.workspace-data').textContent);
+        openLogin(payload.edit_mode);
+      }
+      return;
+    }
     const deletion = event.target.closest('[data-delete-row], [data-delete-etymon]');
     if (deletion) {
       event.preventDefault();
@@ -448,7 +743,7 @@
       const payload = JSON.parse(document.querySelector('.workspace-data').textContent);
       if (!payload.edit_mode) return;
       deletionTarget = { token: deletion.dataset.deleteRow || payload.delete_etymon_token, csrf: payload.csrf,
-        etimon: payload.etimon, row: deletion.hasAttribute('data-delete-row') };
+        etimon: payload.etimon, urls:payload.urls, row: deletion.hasAttribute('data-delete-row') };
       const dialog = document.getElementById('delete-entry-dialog');
       dialog.querySelector('form').reset();
       dialog.querySelector('[type="submit"]').disabled = true;
@@ -469,7 +764,11 @@
         return;
       }
       if (!mutationBusy && !workspaceBusy && !active?.updating) {
-        if (operation.matches('[data-toggle-edit]')) changeEntries(operation);
+        if (operation.matches('[data-toggle-edit]')) {
+          const payload = JSON.parse(document.querySelector('.workspace-data').textContent);
+          if (!payload.edit_mode && !payload.auth.authenticated) openLogin(true);
+          else changeEntries(operation);
+        }
         else {
           creationButton = operation;
           operation.closest('.add-row-menu')?.removeAttribute('open');
@@ -519,11 +818,94 @@
     scheduleWorkspace(document.getElementById("workspace"), true);
   });
 
+  function openLogin(enterEdit) {
+    const payload = JSON.parse(document.querySelector('.workspace-data').textContent);
+    if (!payload.auth.configured) {
+      showError('Editing is not available yet. Ask the administrator to set the edit password.');
+      return;
+    }
+    loginEntersEdit = enterEdit;
+    const dialog = document.getElementById('editor-login-dialog');
+    dialog.querySelector('form').reset();
+    dialog.querySelector('.login-error').textContent = '';
+    dialog.showModal();
+    dialog.querySelector('#editor-name').focus();
+  }
+
+  async function refreshWorkspace(payload) {
+    await htmx.ajax('GET', payload.urls.index, {target:'#workspace', swap:'outerHTML', source:document.body});
+    await updates;
+  }
+
+  async function signOut(button) {
+    const payload = JSON.parse(document.querySelector('.workspace-data').textContent);
+    mutationBusy = true;
+    button.disabled = true;
+    try {
+      const response = await fetch(payload.auth.logout_url, {
+        method:'POST', headers:{'X-CSRF-Token':payload.csrf},
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not sign out.');
+      await refreshWorkspace(payload);
+    } catch (error) {
+      showError(error.message || 'Could not reach the server.');
+    } finally {
+      mutationBusy = false;
+      button.disabled = false;
+    }
+  }
+
+  document.addEventListener('submit', async event => {
+    if (event.target.id !== 'editor-login-form') return;
+    event.preventDefault();
+    if (mutationBusy) return;
+    const dialog = document.getElementById('editor-login-dialog');
+    const password = dialog.querySelector('#editor-password');
+    const payload = JSON.parse(document.querySelector('.workspace-data').textContent);
+    const submit = event.target.querySelector('[type="submit"]');
+    mutationBusy = true;
+    submit.disabled = true;
+    dialog.querySelector('.login-error').textContent = '';
+    try {
+      const response = await fetch(payload.auth.login_url, {
+        method:'POST', headers:{'Content-Type':'application/json', 'X-CSRF-Token':payload.csrf},
+        body:JSON.stringify({name:dialog.querySelector('#editor-name').value, password:password.value}),
+      });
+      const result = await response.json();
+      password.value = '';
+      if (!response.ok) throw new Error(result.error || 'Could not sign in.');
+      const modeResponse = await fetch(payload.urls.mode, {
+        method:'POST', headers:{'Content-Type':'application/json', 'X-CSRF-Token':payload.csrf},
+        body:JSON.stringify({edit_mode:loginEntersEdit}),
+      });
+      if (!modeResponse.ok) {
+        const failure = await modeResponse.json();
+        throw new Error(failure.error || 'Could not change mode.');
+      }
+      dialog.close();
+      await refreshWorkspace(payload);
+    } catch (error) {
+      password.value = '';
+      dialog.querySelector('.login-error').textContent = error.message || 'Could not reach the server.';
+      password.focus();
+    } finally {
+      mutationBusy = false;
+      submit.disabled = false;
+    }
+  });
+  document.addEventListener('click', event => {
+    if (event.target.closest('[data-cancel-login]') && !mutationBusy) document.getElementById('editor-login-dialog').close();
+  });
+  document.getElementById('editor-login-dialog')?.addEventListener('close', event => {
+    event.target.querySelector('form').reset();
+  });
+
   async function changeEntries(button) {
     const payload = JSON.parse(document.querySelector('.workspace-data').textContent);
     const mode = button.matches('[data-toggle-edit]');
     const addRow = button.matches('[data-add-row]');
-    const path = mode ? '/mode' : addRow ? '/rows' : '/etymons';
+    const path = mode ? payload.urls.mode : addRow ? payload.urls.rows : payload.urls.etymons;
     const body = mode ? { edit_mode: !payload.edit_mode } : addRow ? {
       etimon: payload.etimon, label: button.dataset.rowLabel,
     } : {};
@@ -532,16 +914,21 @@
     button.disabled = true;
     try {
       const response = await fetch(path, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': payload.csrf },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': payload.csrf,
+          'X-Editor-Session': payload.auth.identity || '' },
         body: JSON.stringify(body),
       });
       const result = await response.json().catch(() => ({}));
+      if (mode && result.authentication_required) {
+        openLogin(true);
+        return;
+      }
       if (!response.ok) throw new Error(result.error || 'Could not update the collection.');
       if (!mode) {
         pendingFocus = result;
         document.getElementById('create-entry-dialog').close();
       }
-      await htmx.ajax('GET', result.etimon ? `/?etimon=${result.etimon}` : '/', {
+      await htmx.ajax('GET', result.etimon ? `${payload.urls.index}?etimon=${result.etimon}` : payload.urls.index, {
         target: '#workspace', swap: 'outerHTML', source: document.body,
       });
       await updates;
@@ -561,7 +948,7 @@
     if (mutationBusy) return;
     const text = document.getElementById('create-entry-text');
     if (!text.value.trim()) {
-      document.querySelector('.creation-error').textContent = 'Enter French text before creating an entry.';
+      document.querySelector('.creation-error').textContent = 'Enter text before creating an entry.';
       text.focus();
       return;
     }
@@ -573,7 +960,7 @@
     if (event.target.closest('[data-cancel-entry]') && !mutationBusy) document.getElementById('create-entry-dialog').close();
   });
   document.addEventListener('cancel', event => {
-    if (['create-entry-dialog', 'delete-entry-dialog'].includes(event.target.id) && mutationBusy) event.preventDefault();
+    if (['create-entry-dialog', 'delete-entry-dialog', 'editor-login-dialog'].includes(event.target.id) && mutationBusy) event.preventDefault();
   }, true);
 
   document.addEventListener('input', event => {
@@ -594,7 +981,7 @@
     mutationBusy = true;
     submit.disabled = true;
     try {
-      const response = await fetch('/trash', {
+      const response = await fetch(target.urls.trash, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': target.csrf },
         body: JSON.stringify({ token: target.token, confirmation: 'DELETE' }),
       });
@@ -605,7 +992,7 @@
         const viewport = active.element.querySelector('.tabulator-tableholder');
         active.editScroll = { etimon: target.etimon, left: viewport.scrollLeft, top: viewport.scrollTop };
       }
-      await htmx.ajax('GET', target.row ? `/?etimon=${target.etimon}` : '/', {
+      await htmx.ajax('GET', target.row ? `${target.urls.index}?etimon=${target.etimon}` : target.urls.index, {
         target: '#workspace', swap: 'outerHTML', source: document.body,
       });
       await updates;
@@ -634,6 +1021,11 @@
     if (active && event.detail.elt === active.element) destroyGrid();
   });
   document.addEventListener("htmx:beforeRequest", event => {
+    if (editorOpening) {
+      event.preventDefault();
+      showError('Wait for the cell editor to open before navigating or searching.');
+      return;
+    }
     if (editing()) {
       event.preventDefault();
       showError("Close or cancel the cell editor before navigating or searching.");

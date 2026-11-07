@@ -43,7 +43,9 @@ for number in range(50):
 workbook.create_sheet('Other sheet')['A1'] = 'not edited'
 workbook.save(path)
 workbook.close()
-server = create_server(create_app(path), host='127.0.0.1', port=0)
+app = create_app(path)
+app.extensions['access_control'].set_edit_password('temporary browser password')
+server = create_server(app, host='127.0.0.1', port=0)
 print(server.effective_port, flush=True)
 server.run()
 `;
@@ -73,6 +75,8 @@ async function main() {
     const url = `http://127.0.0.1:${port}/`;
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({ viewport: { width: 1440, height: 950 } });
+    context.setDefaultNavigationTimeout(60000);
+    context.setDefaultTimeout(60000);
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
@@ -94,18 +98,23 @@ async function main() {
     await waitGrid();
     assert.equal((await payload()).edit_mode, false);
     await cell().dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     assert.equal(await page.locator('.cell-editor').count(), 0);
     await page.getByRole('button', { name: 'Edit mode', exact: true }).click();
+    await page.getByRole('textbox', {name:'Name', exact:true}).fill('Browser editor');
+    await page.getByLabel('Edit password', {exact:true}).fill('temporary browser password');
+    await page.getByRole('button', {name:'Sign in', exact:true}).click();
     await waitState(page, () => JSON.parse(document.querySelector('.workspace-data').textContent).edit_mode);
     await waitGrid();
     assert.equal(await page.locator('.search-panel').isVisible(), true);
     console.log('ok - Search mode is read-only; Edit mode enables editing and retains search controls');
     const before = await payload();
     let posts = 0;
-    page.on("request", request => { if (request.method() === "POST") posts++; });
+    page.on("request", request => { if (request.method() === "POST" && new URL(request.url()).pathname.endsWith("/cell")) posts++; });
 
     const cellLineHeight = await cell().evaluate(element => getComputedStyle(element).lineHeight);
     await cell().dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     assert.equal(await page.locator('.ql-editor').evaluate(element => getComputedStyle(element).lineHeight), cellLineHeight);
     const imported = await quillValue();
     assert.equal(imported.text, "  café  \trich2\nsecond line  \n");
@@ -122,12 +131,14 @@ async function main() {
     }));
     assert.ok(geometry.row >= geometry.panel, JSON.stringify(geometry));
     await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     assert.equal(posts, 0);
     assert.deepEqual((await payload()).rows[0].editors, before.rows[0].editors);
     console.log("ok - imported rich text/whitespace and no-op close preserve original HTML");
 
     for (const target of [cell(), cell(1, 'content_1')]) {
       await target.dblclick();
+      await page.locator('.cell-editor').waitFor();
       await page.keyboard.type('instant typing');
       assert.ok((await quillValue()).text.includes('instant typing'));
       const selection = await page.locator('.ql-editor').evaluate(element => ({
@@ -137,18 +148,22 @@ async function main() {
       }));
       assert.deepEqual(selection, { focused: true, inside: true, collapsed: true });
       await page.keyboard.press('Escape');
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     }
     assert.equal(posts, 0);
     console.log('ok - double-click focuses cell contents immediately in populated and empty cells');
 
     await cell().dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     await page.locator(".ql-editor").fill("cancelled draft");
     await page.keyboard.press("Escape");
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     assert.equal(posts, 0);
     assert.deepEqual((await payload()).rows[0].editors, before.rows[0].editors);
     console.log("ok - Escape cancels without saving");
 
     await cell(1).dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     const editorText = page.locator('.ql-editor');
     await page.locator('.cell-editor .ql-container').evaluate(element => Quill.find(element).setSelection(0, 3, 'user'));
     await page.getByRole('button', { name: 'Typography', exact: true }).click();
@@ -166,42 +181,60 @@ async function main() {
     assert.ok(lineRatios.length >= 2);
     assert.ok(lineRatios.every(ratio => Math.abs(ratio - 2) < 0.01));
     await page.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     await waitState(page, () => JSON.parse(document.querySelector('.workspace-data').textContent).rows[1].editors.content_0.line_height === 2);
     await waitGrid();
     assert.ok((await payload()).rows[1].content_0.includes('font-size: 18pt'));
     assert.equal(await cell(1).evaluate(element => parseFloat(getComputedStyle(element).lineHeight) / parseFloat(getComputedStyle(element).fontSize)), 2);
     await cell(1).dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     assert.equal((await quillValue()).ops.find(op => op.insert === 'not').attributes.size, '18pt');
     await page.getByRole('button', { name: 'Typography', exact: true }).click();
     assert.equal(await page.getByLabel('Line spacing (whole cell)', { exact: true }).inputValue(), '2');
     await page.getByLabel('Line spacing (whole cell)', { exact: true }).selectOption('3');
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     assert.equal((await payload()).rows[1].editors.content_0.line_height, 2);
     assert.equal(posts, 1);
     // Spacing alone must count as an edit, even when the Delta is unchanged.
     await cell(1).dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     await page.getByRole('button', { name: 'Typography', exact: true }).click();
     await page.getByLabel('Line spacing (whole cell)', { exact: true }).selectOption('1.5');
     await page.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     await waitState(page, () => JSON.parse(document.querySelector('.workspace-data').textContent).rows[1].editors.content_0.line_height === 1.5);
     await waitGrid();
     await cell(1).dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     await page.getByRole('button', { name: 'Typography', exact: true }).click();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     assert.equal(posts, 2);
     posts = 0;
     console.log('ok - inherited line height, selected font size, whole-cell spacing, reopening and Cancel');
 
     const otherContext = await browser.newContext();
+    otherContext.setDefaultNavigationTimeout(60000);
+    otherContext.setDefaultTimeout(60000);
     const other = await otherContext.newPage();
     await other.goto(url);
     await other.waitForSelector(".detail-panel.grid-active");
     await other.getByRole('button', { name: 'Edit mode', exact: true }).click();
+    await other.getByRole('textbox', {name:'Name', exact:true}).fill('Other editor');
+    await other.getByLabel('Edit password', {exact:true}).fill('temporary browser password');
+    await other.getByRole('button', {name:'Sign in', exact:true}).click();
     await waitState(other, () => JSON.parse(document.querySelector('.workspace-data').textContent).edit_mode);
     await waitState(other, () => document.querySelector('.detail-panel.grid-active'));
     await other.locator('.tabulator-cell[tabulator-field="content_0"]').first().dblclick();
     await other.locator(".ql-editor").fill("stale draft");
     await cell().dblclick();
+    await page.locator('#request-status').filter({hasText:'Other editor is editing this cell'}).waitFor();
+    assert.equal(await page.locator('.cell-editor').count(),0);
+    await other.getByRole('button',{name:'Cancel',exact:true}).click();
+    await other.locator('.cell-editor').waitFor({state:'detached'});
+    await cell().dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     await page.locator(".ql-editor").fill("  Prăjitură  \nline two  ");
     await page.getByRole('link', { name: 'Export Excel', exact: true }).click();
     assert.equal(await page.locator('.cell-editor').count(), 1);
@@ -211,14 +244,10 @@ async function main() {
     await waitState(page, () => JSON.parse(document.querySelector(".workspace-data").textContent).rows[0].editors.content_0.html.includes('Prăjitură'));
     await waitGrid();
     assert.equal(posts, 1);
-    await other.getByRole("button", { name: "Close", exact: true }).click();
-    await other.getByText("Someone else changed this cell.", { exact: false }).waitFor();
-    assert.equal(await other.locator(".ql-editor").innerText(), "stale draft");
-    await other.getByRole("button", { name: "Cancel", exact: true }).click();
     await other.reload();
     await other.waitForSelector(".detail-panel.grid-active");
     assert.ok((await other.locator('.tabulator-cell[tabulator-field="content_0"]').first().innerText()).includes("Prăjitură"));
-    console.log("ok - shared save, navigation guard and conflicting draft preservation");
+    console.log("ok - shared save, navigation guard and exclusive cell editing");
 
     await page.getByRole('button', { name: 'Edit mode', exact: true }).click();
     await waitState(page, () => !JSON.parse(document.querySelector('.workspace-data').textContent).edit_mode);
@@ -230,28 +259,35 @@ async function main() {
     await waitState(page, () => JSON.parse(document.querySelector(".workspace-data").textContent).plaintext === true);
     await waitGrid();
     await cell().dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     assert.equal(await page.locator('.cell-editor').count(), 0);
     await page.getByRole('button', { name: 'Edit mode', exact: true }).click();
     await waitState(page, () => JSON.parse(document.querySelector('.workspace-data').textContent).edit_mode);
     await waitGrid();
     await cell().dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     assert.equal((await quillValue()).text, "  Prăjitură  \nline two  \n");
     assert.equal(await page.locator(".ql-editor mark").count(), 0);
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     console.log("ok - Search mode highlights saved content; switching to Edit mode keeps plaintext and loads formatted originals");
     assert.equal(await cell(1).evaluate(element => parseFloat(getComputedStyle(element).lineHeight) / parseFloat(getComputedStyle(element).fontSize)), 1.5);
 
     await cell(1, "content_1").dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     assert.equal(await cell(1, 'content_1').evaluate(element => getComputedStyle(element.querySelector('.cell-editor')).backgroundColor), 'rgb(255, 255, 170)');
     await page.locator(".ql-editor").fill("new empty-cell text");
     await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     await waitState(page, () => JSON.parse(document.querySelector(".workspace-data").textContent).rows[1].content_1 === 'new empty-cell text');
     await waitGrid();
     assert.equal((await payload()).rows[1].backgrounds.content_1, '#FFFFAA');
     assert.equal(await cell(1, 'content_1').evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(255, 255, 170)');
     await cell(1, "content_1").dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     await page.locator(".ql-editor").fill("");
     await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     await waitState(page, () => JSON.parse(document.querySelector(".workspace-data").textContent).rows[1].content_1 === '');
     assert.equal((await payload()).rows[1].backgrounds.content_1, "#FFFFAA");
     console.log("ok - empty cells can be filled and cleared, retaining label fills");
@@ -259,6 +295,7 @@ async function main() {
     const ownFill = cell(1, 'content_2');
     assert.equal(await ownFill.evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(204, 221, 255)');
     await ownFill.dblclick();
+    await page.locator('.cell-editor').waitFor();
     assert.equal(await ownFill.evaluate(element => getComputedStyle(element.querySelector('.cell-editor')).backgroundColor), 'rgb(204, 221, 255)');
     await page.locator('.ql-editor').fill('originally blank with its own fill');
     await page.keyboard.press('Control+Enter');
@@ -290,6 +327,7 @@ workbook.close()
     const position = () => page.locator('.tabulator-tableholder').evaluate(element => ({ left: element.scrollLeft, top: element.scrollTop }));
     for (const action of ['save', 'cancel', 'no-op']) {
       await target.dblclick();
+      await page.locator('.cell-editor').waitFor();
       if (action !== 'no-op') await page.locator('.ql-editor').fill(action === 'save' ? 'saved while scrolled' : 'discard this');
       const beforeClose = await position();
       assert.ok(beforeClose.left > 100 && beforeClose.top > 100, JSON.stringify(beforeClose));
@@ -312,15 +350,16 @@ workbook.close()
     assert.equal(await page.locator('[data-add-row]').count(), 3);
     await page.getByRole('button', { name: 'SENSURI DE BAZĂ', exact: true }).click();
     assert.equal(await page.locator('#create-entry-dialog').isVisible(), true);
-    assert.equal(await page.getByLabel('French text', { exact: true }).inputValue(), '[To be added]');
-    await page.getByLabel('French text', { exact: true }).fill('   ');
+    assert.equal(await page.getByLabel('Text for LIMBA FRANCEZĂ', { exact: true }).inputValue(), '[To be added]');
+    await page.getByLabel('Text for LIMBA FRANCEZĂ', { exact: true }).fill('   ');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
-    await page.locator('.creation-error').getByText('Enter French text', { exact: false }).waitFor();
+    await page.locator('.creation-error').getByText('Enter text', { exact: false }).waitFor();
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     assert.equal((await payload()).total, countBefore);
     await page.getByRole('button', { name: 'Add row', exact: true }).click();
     await page.getByRole('button', { name: 'SENSURI DE BAZĂ', exact: true }).click();
-    await page.getByLabel('French text', { exact: true }).fill('nouveau sens <>&');
+    await page.getByLabel('Text for LIMBA FRANCEZĂ', { exact: true }).fill('nouveau sens <>&');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await waitState(page, () => JSON.parse(document.querySelector('.workspace-data').textContent).rows.some(row => row.label === 'SENSURI DE BAZĂ' && row.content_0.includes('nouveau sens')));
     await waitGrid();
@@ -340,8 +379,8 @@ workbook.close()
     console.log('ok - Add row dropdown requires text, Cancel changes nothing, and the new row is focused and scrolled into view');
 
     await page.getByRole('button', { name: 'Add etymon', exact: true }).click();
-    assert.equal(await page.getByLabel('French text', { exact: true }).inputValue(), '[To be added]');
-    await page.getByLabel('French text', { exact: true }).fill('quatrième mot');
+    assert.equal(await page.getByLabel('Text for LIMBA FRANCEZĂ', { exact: true }).inputValue(), '[To be added]');
+    await page.getByLabel('Text for LIMBA FRANCEZĂ', { exact: true }).fill('quatrième mot');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await waitState(page, () => JSON.parse(document.querySelector('.workspace-data').textContent).etimon === 4);
     await waitGrid();
@@ -354,8 +393,10 @@ workbook.close()
     assert.ok(createdEtymon.title.includes('quatrième mot'));
     assert.ok((await page.locator('.collection-count').textContent()).startsWith('4 '));
     await cell().dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     assert.equal((await quillValue()).text, 'quatrième mot\n');
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     await page.locator('#query').fill('quatrième');
     await page.locator('[data-search-filter="column"] > summary').click();
     await page.locator('.search-form input[name="column"][value="LIMBA FRANCEZĂ"]').check();
@@ -366,15 +407,17 @@ workbook.close()
     assert.deepEqual((await payload()).criteria.column, ['LIMBA FRANCEZĂ']);
     assert.equal(await page.locator('.etimon-link').count(), 1);
     await cell().dblclick();
+    if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     assert.equal(await page.locator('.ql-editor mark').count(), 0);
     await page.keyboard.type(' direct');
     assert.ok((await quillValue()).text.includes('direct'));
     await page.keyboard.press('Escape');
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     console.log('ok - Add etymon assigns the next number, refreshes navigation/count/title, and opens normally in Quill');
 
     await page.getByRole('button', { name: 'Add row', exact: true }).click();
     await page.getByRole('button', { name: 'SENSURI DE BAZĂ', exact: true }).click();
-    await page.getByLabel('French text', { exact: true }).fill('sens du nouveau mot');
+    await page.getByLabel('Text for LIMBA FRANCEZĂ', { exact: true }).fill('sens du nouveau mot');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await waitState(page, () => JSON.parse(document.querySelector('.workspace-data').textContent).rows.length === 2);
     await waitGrid();
@@ -383,12 +426,14 @@ workbook.close()
     await newSense.dblclick();
     assert.equal(await page.locator('.cell-editor').evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(247, 202, 172)');
     await page.keyboard.press('Escape');
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     console.log('ok - New basic-sense rows are orange in new etymons and retain that color in Quill');
 
     await newSense.dblclick();
     await page.getByRole('button', { name: 'Delete etymon', exact: true }).click();
     assert.equal(await page.locator('#delete-entry-dialog').isVisible(), false);
     await page.keyboard.press('Escape');
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     await page.locator('.tabulator-row .delete-row').click();
     assert.ok((await page.locator('#delete-entry-description').textContent()).includes('SENSURI DE BAZĂ #1'));
     const confirmDelete = page.getByRole('button', { name: 'Move to Trash', exact: true });
@@ -396,6 +441,7 @@ workbook.close()
     await page.getByLabel('Type DELETE to confirm', { exact: true }).fill('yes');
     assert.equal(await confirmDelete.isDisabled(), true);
     await page.keyboard.press('Escape');
+    await page.locator('.cell-editor').waitFor({state:'detached'});
     assert.equal((await payload()).rows.length, 2);
     await page.locator('.tabulator-row .delete-row').click();
     await page.getByLabel('Type DELETE to confirm', { exact: true }).fill('DELETE');

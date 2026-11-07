@@ -16,6 +16,7 @@ from df_search import LABEL_ORDER
 from excel_export import workbook_bytes
 from lexicon_db import LexiconDB
 from main import create_app
+from tests.auth_helpers import authenticate
 from tests.test_flask_app import Page
 
 
@@ -252,11 +253,12 @@ class CreationTests(unittest.TestCase):
                 self.assertEqual(cell.fill.fgColor.rgb, 'FF' + color[1:])
 
     def test_configured_colors_reach_browser_and_persist_after_edit_and_restart(self):
-        colors = dict(ROW_BACKGROUND_COLORS, **{LABEL_ORDER[1]: '#abc'})
-        app = self.open_app(ROW_BACKGROUND_COLORS=colors)
+        self.store.connection.execute('UPDATE row_types SET default_background=? WHERE name=?', ('#AABBCC',LABEL_ORDER[1]))
+        app = self.open_app()
         store = app.extensions['lexicon_store']
         client = app.test_client()
         headers = {'X-CSRF-Token': Page(client.get('/')).payload['csrf']}
+        authenticate(client)
         client.post('/mode', json={'edit_mode': True}, headers=headers)
         client.post('/etymons', json={'text': 'new headword'}, headers=headers)
         response = client.post('/rows', json={'etimon': 3, 'label': LABEL_ORDER[1], 'text': 'new sense'}, headers=headers)
@@ -275,11 +277,11 @@ class CreationTests(unittest.TestCase):
         self.addCleanup(exported.close)
         for column in range(1, 5):
             self.assertEqual(exported['Lexicon'].cell(10, column).fill.fgColor.rgb, 'FFAABBCC')
-        # A later configuration change affects future rows, never saved colors.
+        # Reopening uses the persisted type definition for future rows too.
         reopened.add_row(3, LABEL_ORDER[1], 'future row')
         frame = reopened.to_dataframe(3)
         self.assertEqual(frame.attrs['label_backgrounds'][key[:3]], '#AABBCC')
-        self.assertEqual(frame.attrs['label_backgrounds'][(3, LABEL_ORDER[1], 2)], '#F7CAAC')
+        self.assertEqual(frame.attrs['label_backgrounds'][(3, LABEL_ORDER[1], 2)], '#AABBCC')
 
     def test_invalid_row_colors_fail_before_creating_database(self):
         for invalid in (None, {}, {**ROW_BACKGROUND_COLORS, LABEL_ORDER[1]: 'orange'},
@@ -305,24 +307,20 @@ class CreationTests(unittest.TestCase):
         self.assertEqual(reopened.cell((1, LABEL_ORDER[1], 4, 'LIMBA FRANCEZĂ'))['plaintext_content'], 'concurrent')
         self.assertTrue(workbook_bytes(reopened))
 
-    def test_old_database_migrates_without_reimporting_or_losing_edits(self):
-        self.store.save_cell((1, LABEL_ORDER[0], 1, 'LIMBA FRANCEZĂ'), 0, [{'insert': 'saved\n'}])
-        self.store.connection.execute('ALTER TABLE row_metadata DROP COLUMN source_row')
-        self.store.connection.execute('ALTER TABLE row_metadata DROP COLUMN style_row')
-        self.store.connection.execute('ALTER TABLE row_metadata DROP COLUMN trash_id')
-        self.store.connection.execute('ALTER TABLE row_metadata DROP COLUMN generation')
-        self.store.connection.execute('DROP TABLE trash')
-        self.store.connection.execute('UPDATE dataset SET schema_version=1')
+    def test_older_database_schema_is_rejected_without_modification(self):
         self.source.unlink()
-        reopened = LexiconDB(self.database)
-        self.addCleanup(reopened.close)
-        self.assertEqual(reopened.metadata['schema_version'], 3)
-        self.assertEqual(reopened.entries()[1]['form'], 'saved')
-        self.assertEqual(reopened.add_etymon('created after migration')['etimon'], 3)
+        for version in (1,2,3):
+            with self.subTest(version=version):
+                self.store.connection.execute('UPDATE dataset SET schema_version=?',(version,))
+                before = self.database.read_bytes()
+                with self.assertRaisesRegex(ValueError,'Reimport'):
+                    LexiconDB(self.database)
+                self.assertEqual(self.database.read_bytes(),before)
 
     def test_search_mode_blocks_all_content_mutations_and_modes_are_browser_local(self):
         app = self.open_app()
         client, other = app.test_client(), app.test_client()
+        authenticate(client)
         page = Page(client.get('/?search=1&q=first'))
         self.assertFalse(page.payload['edit_mode'])
         headers = {'X-CSRF-Token': page.payload['csrf']}
@@ -347,6 +345,7 @@ class CreationTests(unittest.TestCase):
         client = self.open_app().test_client()
         payload = Page(client.get('/')).payload
         headers = {'X-CSRF-Token': payload['csrf']}
+        authenticate(client)
         client.post('/mode', json={'edit_mode': True}, headers=headers)
         for body in ({'etimon': 1, 'label': LABEL_ORDER[0], 'text': 'x'},
                      {'etimon': True, 'label': LABEL_ORDER[1], 'text': 'x'},

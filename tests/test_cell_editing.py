@@ -11,6 +11,7 @@ from openpyxl.styles import PatternFill
 
 from cell_editing import render_delta
 from main import create_app
+from tests.auth_helpers import authenticate, save_edit
 from tests.test_flask_app import Page
 
 
@@ -34,7 +35,8 @@ class CellEditingTests(unittest.TestCase):
         self.client = self.app.test_client()
 
     def payload(self, client=None, url='/'):
-        return Page((client or self.client).get(url)).payload
+        target = client or self.client
+        return authenticate(target,Page(target.get(url)).payload,url)
 
     def editor(self, payload, row=0, field='content_0'):
         return payload['rows'][row]['editors'][field]
@@ -42,9 +44,7 @@ class CellEditingTests(unittest.TestCase):
     def save(self, payload, ops, client=None, row=0, field='content_0', token=None, **formatting):
         target = client or self.client
         target.post('/mode', json={'edit_mode': True}, headers={'X-CSRF-Token': payload['csrf']})
-        return target.post('/cell', json={
-            'token': token or self.editor(payload, row, field)['token'], 'ops': ops, **formatting,
-        }, headers={'X-CSRF-Token': payload['csrf']})
+        return save_edit(target,payload,ops,token=token,row=row,field=field,**formatting)
 
     def test_save_updates_shared_data_search_titles_and_preserves_workbook(self):
         payload = self.payload()

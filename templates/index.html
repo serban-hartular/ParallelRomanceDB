@@ -17,9 +17,19 @@
   </head>
   <body id="app-shell" hx-target="#workspace" hx-swap="outerHTML" hx-sync="#app-shell:replace" hx-indicator="#request-status">
     <header class="site-header">
-      <a class="brand" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}" aria-label="Parallel Words, {{ source_label }}, show all etimons">Parallel Words<span title="{{ source_label }}">{{ source_label }}</span></a>
+      <a class="brand" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}" aria-label="Parallel Words, {{ source_label }}, show all etimons">Parallel Words<span title="{{ source_label }}">{% if collection_name %}{{ collection_name }} · {% endif %}{{ source_label }}</span></a>
       <div class="header-tools">
+        {% if collection_options %}
+          <label class="collection-chooser">Collection
+            <select id="collection-select">
+              {% for item in collection_options %}<option value="{{ item.url }}"{% if item.id == grid_payload.dataset %} selected{% endif %}>{{ item.name }}</option>{% endfor %}
+            </select>
+          </label>
+        {% endif %}
         <button type="button" class="mode-toggle" data-toggle-edit aria-pressed="{{ 'true' if edit_mode else 'false' }}">Edit mode</button>
+        <span class="editor-identity" data-editor-identity title="{{ editor_name or '' }}"{% if not editor_name %} hidden{% endif %}>Signed in as <strong data-editor-name>{{ editor_name or '' }}</strong></span>
+        <button type="button" class="auth-button" data-change-editor{% if not editor_name %} hidden{% endif %}>Change editor</button>
+        <button type="button" class="auth-button" data-sign-out{% if not editor_name %} hidden{% endif %}>Sign out</button>
         <button type="button" class="add-entry" data-add-etymon{% if not edit_mode %} hidden{% endif %}>Add etymon</button>
         <a class="export-link" href="{{ url_for('export_excel') }}" data-export-excel>Export Excel</a>
         <span class="collection-count">{{ total }} etimon{% if total != 1 %}s{% endif %} in the collection</span>
@@ -60,12 +70,28 @@
       </section>
 
       <p id="request-status" class="request-status" role="status" aria-live="polite">Updating…</p>
+      <p id="live-update-status" class="live-update-status" role="status" aria-live="polite" hidden></p>
       {% include '_workspace.html' %}
     </main>
+    <dialog id="editor-login-dialog" aria-labelledby="editor-login-title">
+      <form id="editor-login-form" autocomplete="off">
+        <h2 id="editor-login-title">Who is editing?</h2>
+        <label for="editor-name">Name</label>
+        <input id="editor-name" name="name" type="text" required maxlength="120" autocomplete="off" spellcheck="false">
+        <label for="editor-password">Edit password</label>
+        <input id="editor-password" name="password" type="password" required maxlength="1024" autocomplete="off">
+        <p>Your name will be recorded with your changes.</p>
+        <p class="login-error" role="alert"></p>
+        <div class="creation-actions">
+          <button type="button" data-cancel-login>Cancel</button>
+          <button type="submit">Sign in</button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="create-entry-dialog" aria-labelledby="create-entry-title">
       <form id="create-entry-form">
         <h2 id="create-entry-title">Add entry</h2>
-        <label for="create-entry-text">French text</label>
+        <label for="create-entry-text" data-initial-column-label>Text for {{ initial_column_name }}</label>
         <textarea id="create-entry-text" rows="5" required maxlength="16000" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" writingsuggestions="false"></textarea>
         <p class="creation-error" role="status"></p>
         <div class="creation-actions">

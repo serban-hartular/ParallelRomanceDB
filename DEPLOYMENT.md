@@ -1,11 +1,16 @@
 # Running Parallel Words on another machine
 
-Status (2026-11-05): the user reports a successful remote deployment of the
-previous browsing version. The latest local-only stage stores edits in SQLite
-and exports full updated workbooks. Saved edits survive restarts. Keep one
-application process while editor-token signing remains process-specific. Remote
-deployment of these persistence changes has not been verified here. Read [HANDOFF.md](HANDOFF.md) for the development state and
-continuation prompt, and [README.md](README.md) for workbook usage.
+Status (2026-11-07): the user reports remote editing and export work. The new
+collection catalog, schema-6 editing leases/history, and global edit authentication have been tested locally only; this
+milestone has not been deployed remotely. Read [HANDOFF.md](HANDOFF.md) for
+current contracts and [README.md](README.md) for import and collection commands.
+Use one application process while editor-token signing remains process-specific.
+
+Schema-4/5 collections upgrade automatically to schema 6, adding/editing history fields without
+reimporting or changing existing content/IDs/Trash. Back up before updating.
+Schema versions 1–3 still require a fresh collection import; export saved edits
+with the previous version first if needed. Never replace the old files during
+reimport. Earlier edits cannot gain retroactive author names.
 
 Install `requirements.txt` into a virtual environment on the destination machine.
 The `main.py` command uses **Waitress**, a production WSGI server, for both local
@@ -19,11 +24,18 @@ remote deployment. See [Flask's deployment guidance](https://flask.palletsprojec
 .venv/bin/python main.py
 .venv/bin/python main.py --local --port 5000
 
-# Direct access from other machines, using a selected workbook/sheet.
-.venv/bin/python main.py /srv/lexicon.xlsx --sheet Sheet1 --public --port 8080
+# Import collections locally before serving; use actual paths and sheet names.
+.venv/bin/python manage_collections.py --catalog /var/lib/parallel-words/catalog.sqlite3 create "Gastronomy" --workbook /srv/lexicon.xlsx --sheet Sheet1
+.venv/bin/python manage_collections.py --catalog /var/lib/parallel-words/catalog.sqlite3 create "Fashion"
+
+# Set the shared edit password locally (hidden prompts), using the service account.
+.venv/bin/python manage_access.py --database /var/lib/parallel-words/access.sqlite3 set-edit-password
+
+# Direct access from other machines, serving the registered collections.
+.venv/bin/python main.py --catalog /var/lib/parallel-words/catalog.sqlite3 --public --port 8080
 
 # Restrict binding to one network interface instead of all interfaces.
-.venv/bin/python main.py /srv/lexicon.xlsx --host 192.0.2.10 --port 8080
+.venv/bin/python main.py --catalog /var/lib/parallel-words/catalog.sqlite3 --host 192.0.2.10 --port 8080
 ```
 
 `--local` binds `127.0.0.1`; `--public` binds `0.0.0.0` (all IPv4 interfaces).
@@ -40,12 +52,28 @@ IP addresses. Do not include a scheme, path, or port. This validates the HTTP
 `config.py` provides the same setting; the CLI list overrides it. By default,
 hostnames are unrestricted so local/IP access works without configuration.
 
-**There is no login or authorization. Every reachable user can browse/search
-the entire loaded worksheet.** Hiding columns, search filters, and `HX-Request`
-headers do not restrict access. For private data, use a VPN or authenticate all
-requests at a reverse proxy. **Every reachable visitor can also edit the shared
-database content and export full workbooks; there are no separate editing permissions.** Direct HTTP leaves traffic and cookies
-unencrypted; use HTTPS for Internet access.
+Browsing, search, and full Excel download remain public for every registered
+collection. Editing requires the global edit password and a self-declared name;
+the server checks the authenticated grant on every save, creation, and deletion.
+Search filters and hidden columns do not restrict reading. For private workbook
+content, use a VPN or require authentication for all routes at the proxy.
+Use HTTPS for Internet access, including the login form and downloads.
+
+The access database defaults to `access.sqlite3` beside the catalog; configure
+another location with `--auth-database PATH` (or `AUTH_DATABASE_PATH` in config.py).
+Point `manage_access.py --database PATH set-edit-password` at that same file.
+Password changes revoke all edit logins immediately, without a restart. An
+unconfigured password disables editing. The command prompts twice with hidden
+input; do not pass passwords as shell arguments, environment values, or source.
+
+The header provides **Who is editing?**, the signed-in name, **Change editor**,
+and **Sign out**. Authentication uses a browser-session cookie with no persistent
+expiry/remember-me setting. Session restoration in some browsers can restore
+cookies; Sign out revokes the server-side grant even for restored cookies.
+Keep `FLASK_SECRET_KEY` stable to retain open browser logins over server restart;
+open cell draft tokens still expire when the process restarts; Cancel can release
+their old locks, otherwise those locks expire after five minutes without contact. Per-collection passwords
+and a global administrator role are structured for later work, not enabled yet.
 
 ## HTTPS and proxy headers
 
@@ -54,8 +82,7 @@ front of it, keeping the app bound to localhost. This command assumes exactly
 one proxy connecting from `127.0.0.1`:
 
 ```bash
-.venv/bin/python main.py /srv/lexicon.xlsx --local --port 8080 \
-  --database /var/lib/parallel-words/research.sqlite3 \
+.venv/bin/python main.py --catalog /var/lib/parallel-words/catalog.sqlite3 --local --port 8080 \
   --export-dir /var/lib/parallel-words/exports \
   --trusted-host words.example.org --trusted-proxy 127.0.0.1 --secure-cookies
 ```
@@ -132,9 +159,11 @@ and traversal permission on their parent directories. The web app does not
 need to write the source workbook or project directory. It now needs a separate
 writable directory for SQLite (including its journal) and timestamped exports,
 for example `/var/lib/parallel-words`. When launching outside systemd, create
-that directory with ownership for the service account first. Set `--database`
-and `--export-dir` explicitly rather than using a sidecar beside a read-only
-source workbook. Keep code/configuration and source workbooks owned by an administrator;
+that directory with ownership for the service account first. Set `--catalog` and `--export-dir` explicitly. Collection files live in
+`collections/` beside the catalog; exports use a per-collection subdirectory.
+The account needs write access to the catalog, its directory, collection files
+and directory, and export directories, including SQLite journal files. The access database and
+its directory must also be writable; newly created access files are owner-only. Keep code/configuration and source workbooks owned by an administrator;
 do not use `chmod 777`. A typical arrangement is `/opt/parallel-words` for code
 and `/srv/parallel-words` for workbooks, with group-readable files and directories
 traversable by the service account. Avoid serving the project directory as a
@@ -144,8 +173,10 @@ Set a stable, random `FLASK_SECRET_KEY` in the service environment. Generate a
 value with `python3 -c 'import secrets; print(secrets.token_hex(32))'` and store
 it outside Git in a protected service environment file. Without it, a fresh
 random key is generated each startup and existing browser preferences reset.
-Signed cookies contain preferences/search terms, not workbook contents; they
-are signed, not encrypted. Search terms also appear in GET URLs and may be
+In catalog mode, signed cookies contain opaque browser/login identifiers and a CSRF token;
+search/mode/selection preferences live in the catalog, separately per browser
+and collection. Single-file mode still stores preferences in the signed cookie.
+Cookies are signed, not encrypted. Search terms also appear in GET URLs and may be
 recorded by proxy access logs/browser history. Restrict log access and retention
 if queries are sensitive.
 
@@ -166,7 +197,7 @@ EnvironmentFile=/etc/parallel-words.env
 Environment=PYTHONDONTWRITEBYTECODE=1
 StateDirectory=parallel-words
 ReadWritePaths=/var/lib/parallel-words
-ExecStart=/opt/parallel-words/.venv/bin/python /opt/parallel-words/main.py /srv/parallel-words/lexicon.xlsx --database /var/lib/parallel-words/research.sqlite3 --export-dir /var/lib/parallel-words/exports --local --port 8080 --trusted-host words.example.org --trusted-proxy 127.0.0.1 --secure-cookies
+ExecStart=/opt/parallel-words/.venv/bin/python /opt/parallel-words/main.py --catalog /var/lib/parallel-words/catalog.sqlite3 --export-dir /var/lib/parallel-words/exports --local --port 8080 --trusted-host words.example.org --trusted-proxy 127.0.0.1 --secure-cookies
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
@@ -179,7 +210,8 @@ UMask=0077
 WantedBy=multi-user.target
 ```
 
-Adapt paths and the sheet option, and create the venv on the destination rather
+Create/register the collections before starting the service. Adapt paths and
+create the venv on the destination rather
 than copying the development venv. `ProtectHome=true` intentionally prevents
 loading files from `/home`; place the deployment outside it. The read-only
 filesystem protection permits temporary buffers in the service's private `/tmp`
@@ -203,27 +235,76 @@ See [systemd's execution settings](https://www.freedesktop.org/software/systemd/
 - Excel is imported only when initializing a database. Restarts reopen SQLite,
   preserving edits even if the original workbook is absent. Source changes
   are not automatically reimported. Normal export uses the saved workbook
-  template and creates a new timestamped full workbook. Back up the database
-  using SQLite backup tools, or stop the app before copying it. Large workbooks
+  template and creates a new timestamped full workbook. Back up the catalog,
+  access database, and every collection database using SQLite backup tools,
+  or stop the app before copying them. The catalog contains absolute collection
+  paths; after restoring to a different directory, update these paths or register
+  the restored files in a new catalog. Large workbooks
   and exports still need memory/CPU; there is no pagination or job queue.
-- The app exposes browsing/static routes, GET `/export`, POST `/mode`, POST `/cell`,
-  POST `/rows`, and POST `/etymons`. It starts in Search mode; Edit mode enables
-  cell saves and entry creation. Modes are session preferences, not authorization.
-  Edits require a session-bound CSRF token and a signed cell/revision token.
-  Creation and mode changes require the CSRF token; new entries require French text.
-  The server accepts validated text/format operations rather than HTML,
-  rejects stale saves, and uses transactions to keep SQLite consistent.
-  These checks do not authenticate visitors. Keep one application process
-  for the current editor-token implementation. Source workbooks and the
-  project directory still need no write permissions; the state directory does.
-- Existing SQLite databases upgrade to schema version 2 on startup without
-  reimporting the workbook. Back up the database before updating the service.
+- Catalog routes use `/collections/<UUID>/` and the same prefix for GET
+  `/export` and POST `/mode`, `/cell`, `/rows`, `/etymons`, `/trash`. Collection
+  identity is explicit on every request and edit/delete token; unscoped writes
+  are rejected. Modes/preferences are separate per collection, but these are
+  isolation checks. Every reachable visitor can read/export every registered
+  collection; a global edit login grants writes to all collections.
+- Edit mode enables saves, creation, and recoverable deletion. Changes require
+  browser-session CSRF and signed revision/identity tokens where applicable.
+  The server validates Quill operations instead of accepting supplied HTML;
+  stale saves/deletes are rejected. A global edit login is required for content
+  writes. Exclusive cell leases block same-cell edits and row/etymon deletion,
+  naming the owner; inline notices warn about other cells in the same row/etymon. Creation
+  requires initial text in the collection's configured column (French by default).
+- Collection creation/import and Trash recovery are local CLI operations. Run
+  `manage_collections.py --catalog PATH create NAME [--workbook FILE --sheet NAME]`
+  with the service account's file permissions. Run `trash.py COLLECTION_DB list`
+  or `restore ID` against the appropriate collection file. Never expose these
+  scripts or databases through Nginx's document root.
+- Collection schema 6 records active editing and saved attribution together,
+  including start/contact/expiry/finish times, target IDs, and before/after snapshots.
+  Schema 4/5 upgrades
+  automatically; versions 1–3 require a fresh workbook import. History stays in
+  its collection DB, separate from credentials/sessions in the access DB.
+  Inspect locally with `history.py COLLECTION_DB [--etymon N] [--sessions] [--json]`.
+  Default history lists actual changes; --sessions includes other editing outcomes.
+- Login failures are limited to ten per client IP in five minutes per process.
+  This is an in-process limit; keep the documented single-process deployment.
+  Credential changes and Sign out revoke server-side grants, and editor tokens
+  are bound to the login identity that opened them. Stale tabs may show controls
+  until refreshed, but unauthenticated or misattributed saves are rejected.
 
-Before opening access, verify from a second machine that HTTPS, any required
-authentication, searches, selection, highlighting, and scrolling work. Check
-that port 8080 cannot bypass the proxy, unapproved `Host` headers are rejected,
-and `/db/lexicon.xlsx`, `/.git/config`, and `/config.py` are not served. Review
-service/proxy logs for errors without exposing secrets. The automated suite
-tests the request boundaries, and a loopback HTTP smoke check exercises Waitress;
-the user reports the previous remote deployment works. The editing changes
-have been tested with local Waitress and Chromium, not against that deployment.
+## Existing HTTPS site on the same machine
+
+The user's reported host, `capibara.hopto.org`, already serves another site on
+443 via Nginx, with a valid certificate. Its previous port 8080 listener was
+plain Waitress HTTP. Changing the URL to `https://capibara.hopto.org:8080/` does
+not enable TLS and cannot work with that listener. Chrome's insecure-download
+warning is addressed by serving both the app and exports over HTTPS.
+
+Keep the existing site intact. Either use another HTTPS hostname with its own
+Nginx server block, or configure a separate Nginx TLS listener on a selected
+external port, proxying to a different loopback-only Waitress port. For example,
+if using external 8080 for HTTPS, first move Waitress to `127.0.0.1:8081`; the
+Nginx server then listens on `8080 ssl`, uses the existing certificate paths,
+and proxies to `http://127.0.0.1:8081`. Use the proxy headers from the example
+above and the corresponding trusted-host/proxy/secure-cookie CLI options.
+Check the actual complete Nginx configuration and port availability before
+changing listeners; test the configuration before reload. These are deployment
+instructions, not changes applied to the remote machine by this milestone.
+
+## Active cell leases
+
+Open editors contact the server every 30 seconds, independent of typing. A lease
+expires after five minutes without contact; this also handles closed tabs,
+sleep, crashes, or interrupted connections. Close/Cancel attempt release at once.
+Keep /collections/<UUID>/cell/start, /cell/heartbeat, and /cell/finish reachable
+through the same HTTPS proxy with cookies/CSRF headers intact. Do not cache these
+responses or introduce proxy timeouts that interrupt short heartbeat requests.
+
+Lease ownership and saved history share one collection-local database record.
+SQLite write transactions plus an active-cell unique index enforce exclusion;
+no separate locking service/daemon is required. Collections remain independent.
+Schema upgrades retain existing content and saved history. Back up the collection
+databases as before. Password resets/sign-out revoke active ownership on the next
+lock/history operation. Server restarts preserve records, while old signed editor
+tokens fail; users copy their draft and cancel/reload. Lost locks never overwrite
+another person's work, and the browser retains a selectable draft with Save disabled.

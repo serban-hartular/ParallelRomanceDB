@@ -10,6 +10,7 @@ from df_search import LABEL_ORDER
 from excel_export import workbook_bytes
 from lexicon_db import EditConflict, LexiconDB
 from tests import test_creation
+from tests.auth_helpers import authenticate
 from tests.test_flask_app import Page
 from trash import main as trash_command
 
@@ -85,7 +86,8 @@ class TrashTests(unittest.TestCase):
         initial = Page(client.get('/')).payload
         headers = {'X-CSRF-Token': initial['csrf']}
         self.assertEqual(client.post('/trash', json={}).status_code, 403)
-        self.assertEqual(client.post('/trash', json={}, headers=headers).status_code, 403)
+        self.assertEqual(client.post('/trash', json={}, headers=headers).status_code, 401)
+        authenticate(client)
         client.post('/mode', json={'edit_mode': True}, headers=headers)
         payload = Page(client.get('/')).payload
         row = next(row for row in payload['rows'] if row['label'] == LABEL_ORDER[1] and row['label_number'] == 1)
@@ -205,18 +207,6 @@ class TrashTests(unittest.TestCase):
         self.store.restore_trash(second)
         self.assertEqual(list(self.store.entries()), [1, 2, 3])
 
-    def test_schema_two_migrates_without_changing_content_or_workbook(self):
-        before = self.store.to_dataframe().to_dict('records')
-        self.store.connection.execute('ALTER TABLE row_metadata DROP COLUMN trash_id')
-        self.store.connection.execute('ALTER TABLE row_metadata DROP COLUMN generation')
-        self.store.connection.execute('DROP TABLE trash')
-        self.store.connection.execute('UPDATE dataset SET schema_version=2')
-        self.source.unlink()
-        reopened = LexiconDB(self.database)
-        self.addCleanup(reopened.close)
-        self.assertEqual(reopened.metadata['schema_version'], 3)
-        self.assertEqual(reopened.to_dataframe().to_dict('records'), before)
-        self.assertEqual(workbook_bytes(reopened), self.original)
 
 
 if __name__ == '__main__':

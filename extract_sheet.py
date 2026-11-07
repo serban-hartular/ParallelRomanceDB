@@ -338,14 +338,19 @@ def excel_to_dataframe(
         label_background = ''
         label_backgrounds = {}
         row_positions = {}
+        etymon_positions = {}
+        row_labels = []
         counts = Counter()
         for row in sheet.iter_rows(min_row=2):
             row_label = row[0].value
             if row_label is not None and str(row_label).strip():
                 label = str(row_label)
+                if label not in row_labels:
+                    row_labels.append(label)
                 label_background = _cell_background(row[0], color_to_css)
                 if re.match(r'^\s*ETIMON\s*/', label, flags=re.IGNORECASE):
                     etimon_number += 1
+                    etymon_positions[etimon_number] = row[0].row
                     counts.clear()
 
             populated = [cell for cell in row[1:] if cell.value is not None and str(cell.value).strip()]
@@ -378,6 +383,8 @@ def excel_to_dataframe(
         frame.attrs['sheet_name'] = sheet.title
         frame.attrs['label_backgrounds'] = label_backgrounds
         frame.attrs['row_positions'] = row_positions
+        frame.attrs['etymon_positions'] = etymon_positions
+        frame.attrs['row_labels'] = row_labels
         frame.attrs['column_positions'] = {name: number for number, name in headers.items()}
         return frame
     finally:

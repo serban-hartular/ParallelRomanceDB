@@ -18,6 +18,7 @@ from excel_export import export_timestamped, overwrite_sheet, workbook_bytes
 from extract_sheet import excel_to_dataframe
 from lexicon_db import EditConflict, FRAME_COLUMNS, LexiconDB
 from main import create_app
+from tests.auth_helpers import authenticate, save_edit
 from tests.test_flask_app import Page
 
 
@@ -72,7 +73,8 @@ class DatabaseTests(unittest.TestCase):
 
     def test_schema_and_import_retain_dataframe_fields_and_positions(self):
         fields = [row[1] for row in self.store.connection.execute('PRAGMA table_info(cells)')]
-        self.assertTrue(set(FRAME_COLUMNS).issubset(fields))
+        self.assertTrue({'row_id','column_id','content','revision','line_height'}.issubset(fields))
+        self.assertEqual(len(self.store.connection.execute('PRAGMA foreign_key_list(cells)').fetchall()),2)
         imported = excel_to_dataframe(self.source)
         stored = self.store.to_dataframe()
         self.assertEqual(list(stored.columns), list(FRAME_COLUMNS))
@@ -219,12 +221,10 @@ class DatabaseTests(unittest.TestCase):
         app = create_app(self.source, database_path=self.database, test_config=options)
         self.addCleanup(app.extensions['lexicon_store'].close)
         client = app.test_client()
-        payload = Page(client.get('/')).payload
+        payload = authenticate(client)
         editor = payload['rows'][0]['editors']['content_0']
         client.post('/mode', json={'edit_mode': True}, headers={'X-CSRF-Token': payload['csrf']})
-        result = client.post('/cell', json={
-            'token': editor['token'], 'ops': [{'insert': 'Saved headword\n'}], 'line_height': 1.5,
-        }, headers={'X-CSRF-Token': payload['csrf']})
+        result = save_edit(client,payload,[{'insert':'Saved headword\n'}],line_height=1.5)
         self.assertEqual(result.status_code, 200)
         self.source.unlink()
         reopened = create_app(self.source, database_path=self.database, test_config=options)

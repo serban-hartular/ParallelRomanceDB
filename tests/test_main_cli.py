@@ -23,7 +23,7 @@ class ServerCommandTests(unittest.TestCase):
         # Each CLI case gets a fresh database unless it explicitly tests reuse.
         with TemporaryDirectory() as directory:
             options = list(map(str, args))
-            if '--database' not in options:
+            if '--database' not in options and '--catalog' not in options:
                 options += ['--database', str(Path(directory) / 'test.sqlite3')]
             with patch.object(sys, 'argv', ['main.py', *options]):
                 runpy.run_path(str(ROOT / 'main.py'), run_name='__main__')
@@ -54,12 +54,43 @@ class ServerCommandTests(unittest.TestCase):
                     self.assertEqual(run.call_args.kwargs['host'], '127.0.0.1')
                     self.assertEqual(run.call_args.kwargs['port'], 5000)
 
-    def test_no_arguments_keep_the_default_workbook(self):
+    def test_explicit_database_without_workbook_uses_default_workbook(self):
         with patch('extract_sheet.excel_to_dataframe', wraps=excel_to_dataframe) as loader:
             with patch('waitress.serve', autospec=True) as run:
                 self.launch()
         loader.assert_called_once_with(str(ROOT / 'db' / 'example.xlsx'), None)
         run.assert_called_once()
+
+    def test_catalog_mode_does_not_import_a_workbook(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory)/'catalog.sqlite3'
+            with patch('extract_sheet.excel_to_dataframe') as loader, patch('waitress.serve') as run:
+                self.launch('--catalog',path,'--local','--port','8081')
+            loader.assert_not_called()
+            app = run.call_args.args[0]
+            self.addCleanup(app.extensions['collection_catalog'].close)
+            self.assertEqual(run.call_args.kwargs['port'],8081)
+            self.assertIn('No collections',app.test_client().get('/').text)
+
+    def test_default_startup_opens_a_catalog(self):
+        import main
+        with TemporaryDirectory() as directory:
+            with patch.object(main,'DEFAULT_CATALOG_PATH',Path(directory)/'catalog.sqlite3'):
+                with patch.object(main,'serve') as run,patch('extract_sheet.excel_to_dataframe') as loader:
+                    main.main([])
+            loader.assert_not_called()
+            app = run.call_args.args[0]
+            self.addCleanup(app.extensions['collection_catalog'].close)
+            self.assertIn('collection_catalog',app.extensions)
+
+    def test_catalog_cannot_be_combined_with_single_collection_options(self):
+        with TemporaryDirectory() as directory:
+            catalog = Path(directory)/'catalog.sqlite3'
+            for extra in (('--database','file.sqlite3'),('--sheet','Terms'),('--export',),
+                          (ROOT/'db'/'example.xlsx',)):
+                with self.subTest(extra=extra),redirect_stderr(StringIO()),self.assertRaises(SystemExit):
+                    self.launch('--catalog',catalog,*extra)
+            self.assertFalse(catalog.exists())
 
     def test_database_reuse_and_export_without_a_source_file_or_server(self):
         with TemporaryDirectory() as directory:
@@ -181,7 +212,7 @@ class ServerCommandTests(unittest.TestCase):
                         with redirect_stderr(errors), self.assertRaises(SystemExit) as stopped:
                             self.launch(*arguments)
                     self.assertEqual(stopped.exception.code, 2)
-                    self.assertIn('Could not load', errors.getvalue())
+                    self.assertIn('Could not open', errors.getvalue())
                     self.assertIn(expected, errors.getvalue())
                     self.assertNotIn('Traceback', errors.getvalue())
                     run.assert_not_called()
