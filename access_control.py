@@ -4,6 +4,8 @@ Global editor and administrator credentials issue separate revocable grants.
 Collection-scoped grants remain reserved and fail closed.
 """
 
+from i18n import gettext as _
+
 from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -49,12 +51,12 @@ class AccessControl:
             with self.transaction():
                 tables = {row[0] for row in self.connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 if tables and 'access_metadata' not in tables:
-                    raise ValueError('This file is not a Parallel Words access database.')
+                    raise ValueError(_('This file is not a Parallel Words access database.'))
                 self.connection.execute('CREATE TABLE IF NOT EXISTS access_metadata (version INTEGER NOT NULL)')
                 if not self.connection.execute('SELECT 1 FROM access_metadata').fetchone():
                     self.connection.execute('INSERT INTO access_metadata VALUES (1)')
                 if self.connection.execute('SELECT version FROM access_metadata').fetchone()[0] not in (1,2):
-                    raise ValueError('Unsupported access database schema.')
+                    raise ValueError(_('Unsupported access database schema.'))
                 self.connection.execute('''CREATE TABLE IF NOT EXISTS credentials (
                     id INTEGER PRIMARY KEY, role TEXT NOT NULL CHECK(role IN ('editor','admin')),
                     scope_type TEXT NOT NULL CHECK(scope_type IN ('global','collection')),
@@ -92,7 +94,7 @@ class AccessControl:
     @staticmethod
     def _role(role):
         if role not in ('editor','admin'):
-            raise ValueError('Unsupported access role.')
+            raise ValueError(_('Unsupported access role.'))
         return role
 
     def _credential(self, role='editor'):
@@ -112,11 +114,11 @@ class AccessControl:
     @staticmethod
     def _password(password):
         if not isinstance(password, str) or not password or len(password) > 1024:
-            raise ValueError('Enter a password of 1–1024 characters.')
+            raise ValueError(_('Enter a password of 1–1024 characters.'))
         try:
             password.encode('utf-8')
         except UnicodeEncodeError:
-            raise ValueError('Enter a valid Unicode password.') from None
+            raise ValueError(_('Enter a valid Unicode password.')) from None
         return password
 
     def _write_password(self, role, password_hash, actor=None):
@@ -159,31 +161,31 @@ class AccessControl:
         if now-started >= 300:
             failures, started = 0, now
         if failures >= 10:
-            raise LoginThrottled('Too many unsuccessful attempts. Please wait five minutes and try again.')
+            raise LoginThrottled(_('Too many unsuccessful attempts. Please wait five minutes and try again.'))
         credential = self._credential(role)
         if credential is None:
             if role=='admin':
-                raise LoginDenied('Administration is not enabled yet. Set the administrator password locally.')
-            raise LoginDenied('Editing is not available yet. Ask the administrator to set the edit password.')
+                raise LoginDenied(_('Administration is not enabled yet. Set the administrator password locally.'))
+            raise LoginDenied(_('Editing is not available yet. Ask the administrator to set the edit password.'))
         if not check_password_hash(credential['password_hash'],password):
             self._failures[key] = (failures+1,started)
             self._failures.move_to_end(key)
             while len(self._failures)>1000:
                 self._failures.popitem(last=False)
-            raise LoginDenied('Incorrect administrator password.' if role=='admin' else 'Incorrect edit password.')
+            raise LoginDenied(_('Incorrect administrator password.') if role=='admin' else _('Incorrect edit password.'))
         self._failures.pop(key,None)
         return credential
 
     def login(self, name, password, peer, *, role='editor'):
         if not isinstance(name,str) or not 1<=len(name.strip())<=120 or any(unicodedata.category(char).startswith('C') for char in name):
-            raise LoginDenied('Enter your name (1–120 characters).')
+            raise LoginDenied(_('Enter your name (1–120 characters).'))
         with self._lock:
             credential = self._verify_password(password,peer,role)
             token = token_urlsafe(32)
             with self.transaction():
                 current = self._credential(role)
                 if current is None or current['revision']!=credential['revision']:
-                    raise LoginDenied('The password changed. Please try again.')
+                    raise LoginDenied(_('The password changed. Please try again.'))
                 self.connection.execute('INSERT INTO editor_sessions VALUES (?,?,?,?,?)',
                     (sha256(token.encode()).hexdigest(),credential['id'],credential['revision'],
                      name.strip(),datetime.now(timezone.utc).isoformat()))
@@ -221,7 +223,7 @@ class AccessControl:
                 current = self._credential('admin')
                 administrator = self._session_identity(actor.get('session_id'),'admin')
                 if current is None or current['revision']!=verified['revision'] or administrator is None:
-                    raise LoginDenied('The administrator login or password changed. Sign in again.')
+                    raise LoginDenied(_('The administrator login or password changed. Sign in again.'))
                 self._write_password(role,password_hash,administrator)
 
     @staticmethod

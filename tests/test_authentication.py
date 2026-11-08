@@ -36,7 +36,7 @@ class AuthenticationTests(unittest.TestCase):
         self.addCleanup(self.catalog.close)
         self.a = self.catalog.create('Gastronomy')
         self.b = self.catalog.create('Fashion')
-        self.app = create_app(catalog_path=self.root/'catalog.sqlite3',test_config={
+        self.app = create_app(catalog_path=self.root/'catalog.sqlite3',test_config={'DEFAULT_UI_LANGUAGE':'en',
             'TESTING':True,'SECRET_KEY':'auth tests','AUTH_DATABASE_PATH':str(self.root/'access.sqlite3'),
         })
         self.access = self.app.extensions['access_control']
@@ -174,7 +174,7 @@ class AuthenticationTests(unittest.TestCase):
 
     def test_restart_with_stable_secret_retains_browser_login_but_expires_open_drafts(self):
         old = self.edit()
-        restarted = create_app(catalog_path=self.root/'catalog.sqlite3',test_config={
+        restarted = create_app(catalog_path=self.root/'catalog.sqlite3',test_config={'DEFAULT_UI_LANGUAGE':'en',
             'TESTING':True,'SECRET_KEY':'auth tests','AUTH_DATABASE_PATH':str(self.root/'access.sqlite3'),
         })
         self.addCleanup(restarted.extensions['access_control'].close)

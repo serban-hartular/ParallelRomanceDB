@@ -1,19 +1,21 @@
 # XLDB development handoff
 
-Updated 2026-11-07 for handoff after administration implementation; user acceptance testing is pending.
+Updated 2026-11-08 after Romanian/English localization; user acceptance testing is incomplete.
 Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 Read `README.md` first, and `DEPLOYMENT.md` before deployment work.
 
 **Current acceptance status**
 
-The user says the app looks good but has **not gone through the manual testing
-checklist**. All 72 tasks in MANUAL_TESTING.md remain unchecked and pending,
-including the 13 administrator tasks T60–T72. There are no recorded user pass/
-fail results for this checklist. Agent-run automated tests and screenshot
-reviews must not be described as completed user acceptance testing.
+MANUAL_TESTING.md currently marks **T81 and T82 complete**; these existing
+checkboxes were preserved during localization. Details (browser/date/environment)
+have not been entered in its result table. The other **88 of 90 tasks remain
+unchecked and pending**, including all administrator tasks T60–T80 and new
+language tasks T85–T90. Agent-run automated tests and screenshot reviews do not
+complete user acceptance tasks.
 
-The implementation milestone passed 210 Python tests, 48 browser groups across
-six suites, six Node scrollbar tests, and JavaScript syntax checks. Real Excel
+The current Python verification passed 243 tests, including ten localization tests and nine export tests.
+Scrollbar and JavaScript syntax checks also passed. Browser verification details
+are recorded in the milestones below. Real Excel
 desktop checks, the full manual two-user workflows, and the latest remote
 HTTPS/proxy/cookie/admin checks remain for the user's acceptance pass. Earlier
 informal confirmations of editing/export apply to earlier checks, not this full
@@ -30,10 +32,10 @@ first pass, plus a place to record actual outcomes.
 > Continue XLDB in `/home/hartular/Lingv/XLDB`. Read README.md and HANDOFF.md
 > first; read DEPLOYMENT.md before deployment work. The app is branded Parallel
 > Words and uses Flask + htmx + Tabulator + Quill, served by Waitress.
-> The user has NOT started the manual acceptance checklist. All 72 tasks in
-> MANUAL_TESTING.md, including admin tasks T60–T72, remain pending. Automated
-> checks passed (210 Python tests, 48 browser groups, six scrollbar tests and JS
-> syntax), but these are not user manual acceptance results. Do not check off
+> MANUAL_TESTING.md currently marks T81–T82 complete; preserve those user marks.
+> The other 88 of 90 tasks, including admin T60–T80 and language T85–T90, remain
+> pending. Automated Python checks passed (243 tests), along with browser/scrollbar/JS checks recorded
+> below; these are not user manual acceptance results. Do not check off
 > tasks or assume the latest build is verified in the user's Excel/remote setup.
 > A catalog lists collections; each has a separate SQLite file, workbook
 > template, column/row definitions, content, and recoverable Trash. Collection
@@ -54,8 +56,10 @@ first pass, plus a place to record actual outcomes.
 > default), prefilled with selected [To be added]. New rows scroll into view.
 > Delete row/Delete etymon require typing DELETE and move items to Trash.
 > Local admins recover with trash.py DATABASE list/restore ID. Full-workbook
-> timestamped Excel export updates only the collection's selected sheet, keeping
-> other sheets and unrelated workbook parts. The source workbook is untouched.
+> single-collection Excel export updates only the selected sheet, keeping
+> other sheets and unrelated workbook parts. Export Excel now opens a picker
+> defaulting to the current collection; multiple selections create a new .xlsx
+> with one worksheet per collection, named after the collections. The source workbook is untouched.
 > Browsing and export are public. Edit mode requires a self-declared name and
 > shared global edit password in a Who is editing? dialog. manage_access.py
 > set-edit-password configures it with hidden prompts; no password means no edits.
@@ -82,18 +86,205 @@ first pass, plus a place to record actual outcomes.
 > Schema 7 adds dataset.content_revision and transactional content-table triggers.
 > LIVE_REFRESH_SECONDS controls polling. The agent has not deployed this work
 > remotely; the user's latest deployment status is unconfirmed.
-> MANUAL_TESTING.md provides 72 user acceptance tasks plus an isolated-test setup.
+> MANUAL_TESTING.md provides 90 user acceptance tasks plus an isolated-test setup.
 > /admin/ implements the approved plain-HTML design: local set-admin-password
 > bootstrap/reset, independent administrator browser-session login, global password
 > management, collection-scoped Trash preview/recovery, filtered history/activity,
 > and active editors. It works without JavaScript; POSTs require admin CSRF, and
 > restoration confirmations bind the collection/item and current form context.
+> Admin → Collections creates empty collections and imports an uploaded .xlsx/.xlsm
+> worksheet into a uniquely named collection. The complete workbook is retained.
+> Collections Trash hides/restores whole collections without deleting files or IDs;
+> names remain reserved, active cell editors block removal, and confirmation tokens
+> bind the target/action/revision/login (plus content version for removal).
+> Catalog schema 2 adds deletion state and create/delete/restore audit events.
+> Uploads default to 25 MiB compressed/100 MiB expanded, with archive/cell/grid
+> bounds; pending uploads are private, login-bound, expire after 30 minutes,
+> and are cleaned on subsequent import requests. See config.py and DEPLOYMENT.md.
+> Nginx needs client_max_body_size 26m for the default; no remote changes were made.
 > Access schema 2 adds secret-free password-change audit metadata, preserving
 > credentials/grants. Collection schema stays 7. Password changes revoke only
 > their own role. The first admin password must be set locally; none was chosen
 > or installed by the coding agent. See ADMIN_DESIGN.md and README.md.
+> Pages now default to Romanian. Română / English in every page header saves
+> a separate one-year browser preference and works without JS. translations.json
+> contains editable ro/en display values under stable English message keys;
+> preserve keys/placeholders, restart the server, and reload pages after editing.
+> i18n.py handles server messages and cookie selection; static/i18n.js handles
+> browser labels/validation and request headers. Open pages keep their language
+> across another tab's preference change. Language navigation retains the current
+> applied search/filters/etymon and blocks while a cell draft is open. Actual
+> workbook/collection text and attribution are never translated. New-entry
+> placeholder is [De completat] in Romanian, [To be added] in English; DELETE
+> remains literal. CLI tools stay English. No schema change or deployment.
 > Inspect Git status and preserve
 > existing changes; no implementation request is pending until I provide one.
+
+**Romanian / English interface (2026-11-08)**
+
+Romanian is the default regardless of Accept-Language. All main, export, empty,
+error, and administrator pages offer an ordinary Română / English link pair.
+The choice persists for one year in the HttpOnly/SameSite=Lax ui_language cookie,
+with Secure following SESSION_COOKIE_SECURE. DEFAULT_UI_LANGUAGE is ro in
+config.py. The validated /language/<code>?next=... endpoint permits local return
+paths only; rejected hosts also receive a localized error without building URLs
+through their unavailable routing adapter.
+
+translations.json stores both display values for each stable English msgid.
+Named placeholders must be retained; plain text only, escaped by templates or
+assigned through textContent. Restart/reload to apply catalog edits. i18n.py
+translates explicit UI messages at their source, with English outside requests
+for command-line tools. Imported content, labels/headings, names, snapshot data,
+and stored attribution are never run through a general replacement pass.
+An entries(empty_form=...) argument localizes only the generated missing-form
+caption; DB/history callers retain the English fallback. The suggested text for
+a new entry follows the interface language. DELETE remains the required token.
+
+static/i18n.js provides browser translation lookup and localized native validity
+messages, clearing custom validity on input/form reset. A marked InterfaceError
+keeps application messages while native network/JSON failures use a translated
+fallback. app.js/cell_editor.js translate dynamic counts, notices, confirmations,
+login/create/delete dialogs, Tabulator identifying headers, and Quill toolbar,
+typography and generated color picker controls. Shared JSON translations are
+escaped with tojson, and the executable helper stays external under the CSP.
+Admin forms retain their JavaScript-independent operation. Language navigation
+blocks active/opening cell editors and mutations. Main-page language links track
+the current applied query/filters/display/etymon. X-Interface-Language on htmx
+and fetch requests pins responses to the open page's language if another tab
+changes the cookie. Cache variation includes Cookie and that header.
+
+Romanian administrator timestamps use dd.mm.yyyy with Europe/Bucharest UTC
+offsets. Actions and outcomes are translated only for display; machine values
+remain unchanged in forms/queries/history. Friendly localized import errors
+retain application validation messages but omit raw third-party diagnostics.
+Longer controls wrap on narrow screens. Existing English regression fixtures
+explicitly select en; new tests prove the real Romanian default with TESTING on.
+
+Verification: full Python suite passed 243 tests in the disposable snapshot
+/tmp/xldb-localization-check-n8jz81kq using the legacy fixture copied there only.
+The ten focused localization tests also passed directly in the workspace.
+Four dependency-free translation helper tests, six scrollbar tests, and
+JavaScript syntax checks passed. The localization
+browser suite passed all three groups: JS-disabled export/admin and remembered
+choice; Romanian login/validation/network failure/grid/Quill/draft safety/mobile; htmx and
+cross-tab language consistency with retained searches. One intermediate browser
+run hit a navigation timeout; an earlier run exposed header overflow, which was
+fixed before the passing run. A mobile screenshot is /tmp/xldb-language-ro-mobile.png.
+The broader historical browser suites were not rerun for localization.
+Real credentials/databases/workbooks were untouched. No remote deployment.
+T85–T90 were added unchecked; T81/T82 user checkbox marks were preserved.
+
+**Multi-collection Excel export (2026-11-08)**
+
+The user requested multiple selected collections as worksheets in one Excel file,
+with only the current collection selected by default. Export Excel now opens a
+native dialog, repopulated from the current workspace each time; Download Excel
+submits a normal public GET, closes the dialog, and preserves the current view.
+Cancel/Escape does nothing to content. Opening/active editors and pending writes
+block export; the open dialog defers automatic refreshes. Without JavaScript,
+the link opens the same collection-selection form as a plain HTML page.
+
+The existing scoped /export URL still downloads the current full workbook by
+default. `?choose=1` opens options; `selection=1&collection=ID&collection=ID`
+downloads explicit selections. Empty selection fails with a form error; unknown
+or removed selections fail without silently omitting a collection. Catalog order
+controls sheet order, and duplicate IDs cannot duplicate worksheets. One selected
+collection (including another collection selected on its own) retains the
+existing full-workbook/no-op byte-for-byte export, filename, and directory.
+
+Multiple collections produce a fresh .xlsx in exports/combined/ beneath the
+catalog or --export-dir, with a unique Parallel_Words_<local timestamp>.xlsx name.
+Only each selected collection's own sheet is included. Tabs use collection names,
+made valid/unique within Excel's 31-character limit, without renaming collections
+or touching cell text/labels. excel_merge.py combines source worksheet packages
+and relationship closures, merges/remaps styles and custom formats, inlines shared
+strings with exact whitespace, and resolves source theme/indexed colors. Related
+comments, drawings, charts, tables, row/column dimensions, and formatting survive.
+Date serials using the 1904 system are normalized to the output's 1900 system.
+
+Static formulas, chart references, hyperlinks, and sheet-local defined names
+follow the new tab names. References between selected sheets from the same
+original template follow their target's new name. Omitted sheet references become
+#REF!, described in the picker. Table names are made workbook-unique. The output
+does not merge VBA macros. External workbook links, workbook-global cell metadata,
+or formulas that cannot be safely renamed require separate single exports and
+produce a form error. Sources/databases are never modified by export.
+
+Verification: 233 Python tests passed in the disposable source snapshot
+`/tmp/xldb-multi-export-check-wvfh2dts`; the nine focused export tests passed
+again after final style/date/reference refinements. Six scrollbar tests and
+JavaScript syntax checks passed. The focused export browser suite passed both
+JavaScript-disabled download and JavaScript dialog/mobile/default/reset/cancel
+checks. Desktop/HTML and mobile screenshots were reviewed. The broader
+collection navigation browser suite encountered browser navigation/evaluation
+timeouts. The editor suite passed its first seven groups (including the new
+export-dialog guard), then hit an expired/noneditable draft during later
+empty-cell checks. These incomplete broader runs are not counted as passes.
+
+Focused tests cover source fidelity, rich text/blank lines, comments, styles and
+custom number formats, conditional formatting, themes, charts/tables, date systems,
+shared strings/prefixed XML, formula remapping, saved edits/additions/Trash,
+selection/defaults/public routes, and non-overwriting filenames. Identical styles
+and number formats are reused across collections. Manual T81–T84 were added and
+remain pending. Existing user files/credentials and all previous uncommitted work
+were preserved; no remote deployment, commit, or push occurred.
+
+**Collection management milestone (2026-11-07)**
+
+The user requested empty creation, worksheet upload/import, and collection removal
+in administration, and explicitly chose recoverable Collections Trash. The new
+Collections navigation item covers all three. Ordinary HTML forms work with
+JavaScript disabled and retain the existing admin login/CSRF protections.
+
+Catalog schema 1 upgrades additively to 2: collections gain deleted_at/deleted_by
+and a lifecycle revision; collection_events records create/delete/restore with
+admin name and UTC time, atomically with the catalog change. Names/UUIDs/paths
+remain reserved while removed. Collection/access schema versions remain 7/2.
+No files are moved/deleted for collection removal. Original workbook bytes,
+content/formatting, row Trash, edit history, IDs, and browser preferences survive
+restoration. All public/content-admin routes reject removed collections. Removing
+the last one leaves the public empty state and administration functional.
+
+Removal confirmation requires DELETE and a signed collection/action/lifecycle/
+admin-context/content-version token; restoration binds the same fields except
+content version. Active (nonexpired/nonrevoked) leases block removal. Catalog
+lifecycle guards cover selected collection requests through response construction
+and preference writes, so removal waits for in-flight requests. Use the documented
+single process. CLI create/import/register still work, with attributed catalog
+events; CLI listing excludes removed collections.
+
+admin_imports.py stages files privately in imports/<random-token>/ beside the
+catalog. Uploads are bound to the current admin form context, and a shared lock
+prevents concurrent consumption/cleanup. Success/Cancel remove the upload; stale
+uploads expire after 30 minutes and are cleaned on a later upload/import request.
+There are at most ten pending globally. The worksheet chooser uses exact titles;
+failed validation/name collisions leave the wizard retryable without partial
+collection databases. Uploaded names become source labels; no source file is
+rewritten. The complete original archive is retained, including other sheets.
+
+Upload-specific body limit: 25 MiB plus 64 KiB multipart overhead; ordinary
+requests remain 64 KiB. Waitress allows the larger body; Nginx documentation now
+uses 26m. Defaults also bound expanded ZIP data to 100 MiB, members to 2,000,
+populated cells to 500,000, and selected sheet grids to 2,000,000 cells. Browser
+imports support at most 100,000 rows and 256 columns. Streaming Expat rejects
+DTD/entity declarations before openpyxl, including UTF-16/nonstandard XML part
+extensions. Actual worksheet bounds are checked even when dimension metadata is
+missing or incorrect. Encrypted/duplicate ZIP entries and invalid coordinates
+are rejected.
+Single-database mode explains that management needs --catalog.
+
+Verification: 224 Python tests passed in a disposable source snapshot, followed
+by a 14-test focused pass after the final sparse-sheet bounds check. All 52
+browser groups across six suites passed, including eleven administration groups
+with JavaScript disabled, plus six scrollbar tests and JavaScript syntax checks.
+Desktop/mobile screenshots of Collections and restoration were reviewed.
+An initial parallel browser run closed Chromium during the editor suite and
+expired a six-second test lease during the departure check. The editor, lease,
+and live-update suites subsequently passed when run sequentially.
+
+README/DEPLOYMENT/ADMIN_DESIGN describe these flows and limits. MANUAL_TESTING
+adds T73–T80, all pending. Existing user credentials, databases, and workbooks
+were untouched. No remote deployment, commit, or push was performed.
 
 **Working administration milestone (2026-11-07)**
 
@@ -333,9 +524,11 @@ of this step.
 
 **Storage and identity**
 
-`collection_catalog.py` owns a schema-1 catalog:
+`collection_catalog.py` owns a schema-2 catalog (additive upgrade from schema 1):
 
-- `collections`: collection UUID, display name, absolute DB path, UTC creation time.
+- `collections`: collection UUID, display name, absolute DB path, UTC creation time,
+  deletion time/name, and lifecycle revision.
+- `collection_events`: create/delete/restore actions, collection UUID, actor, UTC time.
 - `browser_preferences`: browser ID + collection ID -> JSON search, selected
   etymon, plaintext, and edit-mode preferences.
 - `catalog_metadata`: catalog schema version.
@@ -527,21 +720,26 @@ may be affected by that helper's openpyxl conversion.
 
 **Verification and environment**
 
-User manual acceptance: **not started; 0 of 72 checklist tasks completed**.
-This includes all administrator tasks. The results below are previous agent-run
-automated checks and visual reviews, not a completed manual acceptance pass.
-This handoff update changed documentation only; it did not rerun runtime tests.
+User manual acceptance: **T81–T82 checked; 88 of 90 tasks pending**, including
+all administrator and localization tasks. The checks below are agent-run and do
+not change user acceptance status.
 
-Latest Python verification: 210 tests passed in a temporary checkout containing the
-committed `db/example.xlsx` fixture. The user removed/renamed that fixture in
-the live workspace; leave it and `db/research.sqlite3` untouched. The temporary
-checkout used for this milestone is `/tmp/xldb-creation-tests-u62wko89`, with a
-symlink to the project's `.venv`. Copy current source/tests there before checks.
-Self-contained `tests/test_collections.py` runs directly in the workspace.
-Six Node scrollbar tests, JavaScript syntax checks, sixteen Chromium editor
-groups, five Chromium collection groups, six Chromium authentication groups,
-six Chromium lease groups, eight Chromium live-update groups, and seven
-JavaScript-disabled administration groups passed.
+Latest Python verification: 243 tests passed in the disposable source snapshot
+`/tmp/xldb-localization-check-n8jz81kq`, with a separate ten-test localization pass,
+using the project's Python at
+`/home/hartular/Lingv/XLDB/.venv/bin/python`. The legacy `db/example.xlsx` fixture
+was copied there from the preceding test checkout
+`/tmp/xldb-creation-tests-u62wko89`. It is no longer in current HEAD or the live
+workspace; do not restore it over the user's workbook or touch db/research.sqlite3.
+Copy current source/tests into the disposable snapshot before further checks.
+Self-contained collection/admin suites run directly in the workspace.
+Six Node scrollbar tests, JavaScript syntax checks, and three focused localization
+browser groups passed for localization. The previous export change passed its
+two focused export browser groups. The preceding
+collection-management milestone passed sixteen editor, five collection, six
+authentication, six lease, eight live-update, and eleven JavaScript-disabled
+admin browser groups. These broader suites were not all rerun for multi-export;
+see the multi-export milestone above for current browser results/limitations.
 Browser checks include
 simultaneous edits from two tabs in different collections, scoped search/forms/
 export/Trash, renamed headings and row types, initial-column metadata, empty
@@ -549,7 +747,9 @@ collection creation, editor navigation guards, and browser Back. Optional suites
 are `tests/test_cell_editor_browser.js`, `tests/test_collections_browser.js`,
 `tests/test_authentication_browser.js`, `tests/test_edit_sessions_browser.js`,
 `tests/test_live_updates_browser.js` (eight automatic-refresh groups), and
-`tests/test_admin_browser.js` (seven administration groups).
+`tests/test_admin_browser.js` (eleven administration groups including collection management).
+`tests/test_exports_browser.js` adds focused HTML/dialog multi-export checks.
+`tests/test_localization_browser.js` covers Romanian/English with and without JS.
 Playwright is outside the project at `/tmp/xldb-browser/node_modules`; its
 browser installation is `/tmp/xldb-browser/browsers`. Use NODE_PATH and
 PLAYWRIGHT_BROWSERS_PATH accordingly. Browser servers/databases are temporary.
@@ -568,13 +768,14 @@ access DB/password setup as documented, with its directory writable by the servi
 **Next work, when requested**
 
 The immediate user-facing follow-up is the still-pending MANUAL_TESTING.md
-acceptance pass, including T60–T72 for administration. Help with setup or fix
+acceptance pass, including T60–T80 for administration, T83–T84 for export, and T85–T90 for language. Help with setup or fix
 specific reported failures when asked; do not infer that the checklist has
 already been completed or begin unrelated features during handoff.
 
 Authentication, attribution, live cell coordination, automatic content refresh,
 and HTML administration (global passwords, Trash/recovery, history, active editors)
-are implemented. Collection-specific passwords, collection creation/import UI,
-permanent purge, personal accounts, and history revert remain future work.
+are implemented, including collection creation/import and recoverable Collections
+Trash. Collection-specific passwords, permanent purge, personal accounts, and
+history revert remain future work.
 Do not add these without a new request.
 The team prefers shared passwords and self-declared names over personal accounts.

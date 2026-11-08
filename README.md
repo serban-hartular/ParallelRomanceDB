@@ -8,12 +8,43 @@ A small catalog database lists the collections and stores browser preferences.
 Read [HANDOFF.md](HANDOFF.md) for development continuity and
 [DEPLOYMENT.md](DEPLOYMENT.md) before deployment work.
 Use [MANUAL_TESTING.md](MANUAL_TESTING.md) for the user acceptance checklist.
-As of 2026-11-07, the user has not started that checklist: all 72 tasks,
-including administrator checks T60–T72, remain pending. Automated test results
-are recorded separately in HANDOFF.md.
+The checklist currently marks T81–T82 complete; the remaining 88 tasks,
+including new language checks T85–T90, are pending. Automated test results are
+recorded separately in HANDOFF.md and do not change user acceptance status.
 Administration is available at `/admin/` (also linked from the page header).
 See [ADMIN_DESIGN.md](ADMIN_DESIGN.md) for its interface and access rules; the
 [original static preview](design/admin/index.html) remains available as a design reference.
+
+**Interface language and editing translations**
+
+Romanian is the default. Use **Română / English** in any page header to switch
+between the two languages. The choice is saved in a separate browser cookie for
+one year and also applies to administration and export pages. The switch works
+without JavaScript. A cell editor must be closed or cancelled before switching;
+the current applied search/filters and selected etymon are retained.
+
+All interface messages are in [translations.json](translations.json), encoded in
+UTF-8. Each stable English message key has editable `ro` and `en` display values:
+
+```json
+"Search": {
+  "en": "Search",
+  "ro": "Caută"
+}
+```
+
+Edit the values, keeping the keys and named placeholders such as `{count}`,
+`{name}`, or `{value1}` intact. Values are plain text, not HTML. Restart the server
+and reload open pages after editing the file. No translation service or network
+request is used. `DEFAULT_UI_LANGUAGE` in `config.py` controls the default for
+browsers without a saved choice; its normal value is `ro`.
+
+Collection names, worksheet names, imported column/row labels, saved content,
+formatting, snapshots, and editor names retain their original text in either
+interface language. A new entry's suggested initial text is localized as
+`[De completat]` / `[To be added]`. DELETE remains the exact confirmation token.
+Command-line tools continue to use English. Romanian administrator timestamps
+use `dd.mm.yyyy`, with the existing Europe/Bucharest UTC offset.
 
 **Create collections and start the server**
 
@@ -42,9 +73,10 @@ the same collection still share these preferences. Table layouts are stored
 locally in the browser, keyed by collection identity.
 
 No collections are imported automatically. An empty catalog shows an empty
-landing page until an administrator creates a collection. Creation/import and
-registration remain local commands; the browser administration interface covers
-passwords, Trash/recovery, history, and active editors.
+landing page until an administrator creates a collection. **Admin → Collections**
+creates empty collections, imports Excel worksheets, and manages recoverable
+Collections Trash. Local create/import/register commands remain available;
+registering an existing database still requires the local command.
 
 To put the catalog elsewhere, pass the same path to both commands:
 
@@ -126,6 +158,20 @@ The interface uses plain HTML forms and works with JavaScript disabled.
 
 The overview and collection selector lead to:
 
+- **Collections:** create a uniquely named empty collection, or upload an `.xlsx`
+  or `.xlsm` workbook and choose the exact worksheet and new collection name.
+  Standard columns/row types seed empty collections. Imports use the existing
+  workbook layout validation and retain the complete original workbook for export.
+  A failed import leaves no partial collection. Cancel removes the staged upload.
+  Pending uploads belong to the current admin login, expire after 30 minutes,
+  and are cleaned up on the next upload/import request.
+- **Collections Trash:** review removal, type `DELETE`, and confirm. Active cell
+  editors block removal. Removed collections disappear from public routes and
+  both collection selectors; existing bookmarks return 404 until restoration.
+  Reload an already-open page to update its collection chooser. Restore from
+  Collections Trash with the original IDs, database, workbook, content, history,
+  preferences, and row/etymon Trash. Names remain reserved; there is no permanent
+  deletion. Collections Trash is separate from the selected collection's row Trash.
 - **Passwords:** change either global password after re-entering the current
   administrator password. Changing the edit password revokes editor logins while
   retaining admin access. Changing the admin password signs out all administrators,
@@ -145,7 +191,7 @@ The overview and collection selector lead to:
 Times display Europe/Bucharest with UTC offsets; storage remains UTC. Every
 admin POST checks the admin grant and CSRF. Recovery confirmations also bind the
 collection, item, and login's form context. Admin pages are uncached. There is no
-permanent purge, revision revert, workbook upload, or browser collection creation.
+permanent purge, revision revert, or browser definition editing.
 Local tools remain available. Use HTTPS for remote admin access, as for editing.
 
 The access database upgrades additively from schema 1 to 2, retaining existing
@@ -153,6 +199,17 @@ credentials and grants and adding `admin_events`. Password changes and their
 audit metadata commit together, without passwords/hashes in audit records.
 Recoveries use the collection's existing transactional history. Collection schema
 7 and workbook data are unchanged by the access upgrade. No reimport is needed.
+The catalog upgrades additively from schema 1 to 2, retaining collection entries
+and browser preferences and adding removal state and attributed collection events.
+Collection management requires catalog mode (`--catalog`), not single-file mode.
+
+Workbook uploads default to 25 MiB, with a 100 MiB expanded archive limit,
+2,000 archive members, 500,000 populated cells across the workbook, and a
+2,000,000-cell selected-sheet grid. Browser imports support up to 100,000 rows
+and 256 columns. DTD/entity XML, encrypted archives, and duplicate ZIP members
+are rejected. `COLLECTION_UPLOAD_*` settings in `config.py` control the configurable
+bounds. Only workbook uploads get the larger body allowance; other requests
+retain the 64 KiB limit. See DEPLOYMENT.md for the proxy upload setting.
 
 **Edit access and attribution**
 
@@ -320,10 +377,36 @@ Use `.venv/bin/python main.py --help` for all options without opening a database
 Python callers can use `create_app(catalog_path='data/catalog.sqlite3')` or
 `create_app(workbook, sheet_name='Sheet1', database_path='db/new-research.sqlite3')`.
 
-**Export Excel** in the page header saves a new workbook and downloads it.
-Exports contain **the entire original workbook, with the selected sheet
-updated**, regardless of the current search. Close or cancel an open editor
-first. In catalog mode, files go to `exports/<collection-id>/` beside the catalog;
+**Export Excel** in the page header opens a collection picker. Only the current
+collection is checked by default, each time it opens. Select collections and
+choose **Download Excel**; Cancel/Escape leaves the page unchanged. Close or
+cancel an open editor first. Browsing and downloads remain public, and a plain
+HTML selection page works without JavaScript.
+
+With **one collection**, exports contain **the entire original workbook, with
+that collection's sheet updated**, regardless of the current search. An unedited
+single-collection export retains the exact original workbook bytes.
+
+With **multiple collections**, export creates one `.xlsx` containing exactly one
+worksheet per selected collection, in catalog order. Worksheet tabs use collection
+names, replacing Excel's forbidden characters and shortening/deduplicating names
+where needed; cell text and labels stay exact. Each sheet includes all saved
+content, formatting, additions, and recoverable deletions as reflected by normal
+export. Row/column dimensions, rich text/whitespace, fills, comments, charts,
+tables, and worksheet relationships are retained. Source theme/indexed colors
+are resolved so separate collections keep their colors. Source workbooks are
+never modified.
+
+Self-references follow the new tab names. References to another selected sheet
+from the same original workbook follow its new name too; references to omitted
+sheets become `#REF!`. Defined names are scoped to their collection sheet.
+Combined export does not merge workbook macros. Workbooks with external-workbook
+links or workbook-level cell metadata require separate single-collection exports;
+the picker shows an error rather than producing a broken combined workbook.
+
+Combined files go to `exports/combined/` beside the catalog (or under
+`--export-dir`), named `Parallel_Words_YYYY-MM-DD_HH-MM-SS_microseconds+offset.xlsx`.
+Single-collection files keep the paths and names below. In catalog mode, files go to `exports/<collection-id>/` beside the catalog;
 `--export-dir` changes that root while retaining the collection subdirectory.
 Single-database mode uses `exports/` beside the database (or `--export-dir`). Files are named
 `<workbook>_YYYY-MM-DD_HH-MM-SS_microseconds+offset.xlsx` (or `.xlsm`). The time
@@ -604,17 +687,18 @@ Run the checks with:
 
 ```bash
 .venv/bin/python -m unittest -v
+node --check static/i18n.js
 node --check static/app.js
 node --check static/cell_editor.js
 node --check static/scrollbars.js
 node tests/test_scrollbars.js
+node tests/test_i18n.js
 ```
 
 Node is optional for JavaScript checks; serving the application needs no Node
-or npm. Latest verification (2026-11-07): 168 Python tests and six Node
-scrollbar tests, JavaScript syntax checks, sixteen Chromium editor groups,
-five Chromium collection groups, six Chromium authentication groups, and six
-Chromium lock-lifecycle groups. Tests cover independent collections, explicit
+or npm. Latest verification results are recorded in HANDOFF.md. The checks include
+Python tests, six Node scrollbar tests, JavaScript syntax checks, and Chromium
+editor, collection, authentication, lock, live-update, and admin browser suites. Tests cover independent collections, explicit
 request/token scope, per-collection browser preferences, definition-driven
 behavior, imports, editing conflicts, rich text, Trash, and full Excel export.
 An export regression exercises a 1,200-row worksheet.
@@ -631,6 +715,7 @@ node tests/test_cell_editor_browser.js
 node tests/test_collections_browser.js
 node tests/test_authentication_browser.js
 node tests/test_edit_sessions_browser.js
+node tests/test_localization_browser.js
 ```
 
 Set `NODE_PATH` and `PLAYWRIGHT_BROWSERS_PATH` if installed outside the project.
@@ -648,15 +733,20 @@ deployed remotely by this work.
 | `manage_access.py` | Local hidden-prompt setup/reset of global editor/admin passwords |
 | `admin.py` | Protected HTML administration routes and independent administrator login |
 | `admin_data.py` | Collection-scoped Trash/history previews, SQL filters/pagination, active editors |
+| `admin_imports.py` | Private expiring uploads, bounded archive/XML validation, worksheet selection |
 | `templates/admin/`, `static/admin.css` | Plain HTML administration pages and styling |
-| `MANUAL_TESTING.md` | 72 user acceptance tasks and isolated test setup |
+| `MANUAL_TESTING.md` | 84 user acceptance tasks and isolated test setup |
 | `ADMIN_DESIGN.md` | Administration access rules, pages, routes, and implementation notes |
 | `history.py` | Local attribution/history inspection, including before/after JSON |
 | `lexicon_db.py` | SQLite schema, first import, SQL searches, atomic edits, export snapshots |
-| `excel_export.py` | Full timestamped workbook export and explicit existing-sheet overwrite |
+| `excel_export.py` | Single/combined timestamped workbook exports and explicit existing-sheet overwrite |
+| `excel_merge.py` | Combines selected worksheet packages, styles, related parts, and references |
 | `excel_rows.py` | Excel row insertion/removal, inherited labels, and reference adjustments |
 | `cell_editing.py` | Validates Quill text operations and renders safe formatted HTML |
-| `config.py` | Highlight color, allowed hosts, secure cookies, and request limits |
+| `config.py` | Highlight color, language default, allowed hosts, secure cookies, and request limits |
+| `translations.json` | Editable Romanian and English interface text; preserve message keys/placeholders |
+| `i18n.py` | Server translation lookup, browser language preference, localized HTTP errors |
+| `static/i18n.js` | Browser translation lookup, localized validation, request language headers |
 | `HANDOFF.md` | Continuation prompt, current state, contracts, verification, and future work |
 | `DEPLOYMENT.md` | Local/public startup, HTTPS proxy, permissions, and deployment limits |
 | `search_highlighting.py` | Normalized match ranges and formatting-preserving highlights |

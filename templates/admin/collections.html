@@ -1,0 +1,21 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ _("Collections") }}{% endblock %}
+{% block content %}
+<p class="eyebrow">{{ _("Administration") }}</p><h1>{{ _('Collections Trash') if state == 'deleted' else _('Collections') }}</h1>
+{% if not catalog_mode %}
+<p class="notice">{{ _("Collection management requires catalog mode. Start the server with") }} <code>--catalog PATH</code>{{ _(". This server currently serves a single database.") }}</p>
+{% else %}
+<p><a href="{{ url_for('admin.manage_collections') }}">{{ _("Active collections") }}</a> · <a href="{{ url_for('admin.manage_collections',state='deleted') }}">{{ _("Collections Trash") }}</a></p>
+{% if state == 'active' %}
+<p><a href="{{ url_for('admin.create_collection') }}">{{ _("Create collection →") }}</a> · <a href="{{ url_for('admin.import_upload') }}">{{ _("Import Excel workbook →") }}</a></p>
+<p>{{ _("New collections are immediately available for public browsing and export. The global edit password applies to all collections.") }}</p>
+{% else %}<p>{{ _("Removed collections retain their workbook, contents, formatting, history, and row/etymon Trash. Restore them here. Collection names remain reserved. There is no permanent deletion.") }}</p>{% endif %}
+{% if entries %}<div class="table-scroll"><table>
+<thead><tr><th scope="col">{{ _("Collection") }}</th><th scope="col">{{ _('Removed') if state == 'deleted' else _('Created') }}</th><th scope="col">{{ _("Actions") }}</th></tr></thead>
+<tbody>{% for entry in entries %}<tr><td><strong>{{ entry.name }}</strong></td>
+<td>{{ local_time(entry.deleted_at if state == 'deleted' else entry.created_at) }}{% if state == 'deleted' %}<br>{{ entry.deleted_by }}{% endif %}</td>
+<td>{% if state == 'deleted' %}<a href="{{ url_for('admin.restore_collection',collection_id=entry.id) }}">{{ _("Review restoration →") }}</a>
+{% else %}<a href="{{ url_for('index',collection_id=entry.id) }}">{{ _("Open collection ↗") }}</a> · <a href="{{ url_for('admin.overview',collection_id=entry.id) }}">{{ _("Overview") }}</a> · <a href="{{ url_for('admin.delete_collection',collection_id=entry.id) }}">{{ _("Move to Collections Trash →") }}</a>{% endif %}</td></tr>{% endfor %}</tbody>
+</table></div>{% else %}<p class="empty">{{ _('Collections Trash is empty.') if state == 'deleted' else _('No active collections. Create one, import a workbook, or restore one from Collections Trash.') }}</p>{% endif %}
+{% endif %}
+{% endblock %}

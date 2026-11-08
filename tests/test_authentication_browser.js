@@ -29,6 +29,7 @@ catalog.store(b['id']).add_etymon('beta')
 catalog.close()
 app=create_app(catalog_path=root/'catalog.sqlite3')
 app.extensions['access_control'].set_edit_password('temporary browser password')
+app.config['DEFAULT_UI_LANGUAGE']='en'
 server=create_server(app,host='127.0.0.1',port=0)
 print(json.dumps({'port':server.effective_port,'a':a,'b':b}),flush=True)
 server.run()
@@ -88,6 +89,7 @@ connection.close()
     assert.equal(await first.locator('.cell-editor').count(),0);
     const downloadEvent = first.waitForEvent('download');
     await first.getByRole('link',{name:'Export Excel',exact:true}).click();
+    await first.getByRole('button',{name:'Download Excel',exact:true}).click();
     await downloadEvent;
     console.log('ok - Anonymous visitors can browse and download while cells remain read-only');
 

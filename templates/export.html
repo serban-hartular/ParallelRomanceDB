@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="{{ ui_language }}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ _("Export Excel · Parallel Words") }}</title><link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}">{% include '_interface.html' %}
+</head>
+<body><header class="site-header"><a class="brand" href="{{ back_url }}">Parallel Words</a>{% include '_language_switch.html' %}</header>
+<main class="export-page"><h1>{{ _("Export Excel") }}</h1>{% include '_export_form.html' %}
+<p><a href="{{ back_url }}">{{ _("Back to collection") }}</a></p></main></body></html>

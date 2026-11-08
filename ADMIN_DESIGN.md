@@ -26,7 +26,7 @@ Navigation:
 
 ```text
 Parallel Words · Administration                 Signed in as Elena · Sign out
-Overview | Passwords | Trash | History | Active editors | Back to collections
+Overview | Collections | Passwords | Trash | History | Active editors | Back to collections
 
 Collection: [Gastronomy v]   [Open]
 ```
@@ -271,12 +271,45 @@ changes or restores content. POST failures keep content unchanged.
    recovery, timezone filters/pagination, and JavaScript-disabled navigation.
    Run the existing editor/auth/lock/live-update/export regressions too.
 
-The first version covers passwords, Trash/recovery, history, and active editors.
-A later iteration can move collection creation/import into administration, using
-a separate upload flow and appropriate workbook-size limits; the current public
-request body limit is only 64 KiB. Collection-specific passwords, row/column
-schema editors, permanent deletion, history revert, personal accounts, and
-browser backup/restore are separate future tasks.
+Collection management is now implemented in catalog mode, alongside passwords,
+row/etymon Trash, history, and active editors. Collection-specific passwords,
+row/column schema editors, permanent deletion, history revert, personal accounts,
+and browser backup/restore remain separate future tasks.
+
+## Collection management
+
+`GET /admin/collections` lists active collections; `?state=deleted` lists
+Collections Trash. Names remain unique across both lists. Creation uses ordinary
+GET/POST `/admin/collections/new` forms and the existing empty-collection defaults.
+GET/POST `/admin/collections/import` stages an uploaded `.xlsx`/`.xlsm` privately;
+GET/POST `/admin/imports/<token>` selects the exact worksheet and unique name.
+POST `/admin/imports/<token>/cancel` removes a pending upload. The import preserves
+the complete original workbook, exact worksheet/label spelling, and formatting.
+Failed imports create no catalog entry or orphan collection database.
+
+Uploads are bound to the current admin form context, limited to 25 MiB compressed
+and 100 MiB expanded by default, and expire after 30 minutes. Cleanup occurs at
+the next upload/import request. Success and cancellation remove them immediately.
+Archive member/cell/grid bounds and streaming rejection of XML DTD/entity
+constructs run before openpyxl. Ordinary requests retain the 64 KiB limit.
+See README.md/config.py for bounds and DEPLOYMENT.md for Nginx configuration.
+
+GET/POST `/admin/collections/<id>/delete` reviews removal, requires `DELETE`, and
+blocks active cell editors. GET/POST `/admin/collections/<id>/restore` reviews and
+restores the original identity and files. Confirmation tokens bind action,
+collection, lifecycle revision, and admin form context; removal also binds the
+committed content version. Requests using a collection hold the catalog lifecycle
+lock through response/preference writes, preventing removal from racing an
+in-flight browser mutation. Keep the documented single application process.
+
+Catalog schema 2 adds `deleted_at`, `deleted_by`, `lifecycle_revision`, and
+`collection_events` (create/delete/restore, actor, UTC time). Schema-1 upgrade
+retains all entries and preferences. Lifecycle state and its audit event commit
+together. No collection database is moved or erased; its UUID/path, workbook,
+content, row Trash, history, and preferences survive restoration. Removed
+collections return 404 on public/admin content routes. Removing the last active
+collection leaves the empty landing page and administration usable. The
+Collections page explains the catalog requirement in single-database mode.
 
 ## Acceptance examples
 

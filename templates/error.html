@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="{{ ui_language }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ _('Request could not complete') }} · Parallel Words</title>
+{% if navigation %}<link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}">{% endif %}</head>
+<body>{% if navigation %}<header class="site-header"><a class="brand" href="{{ url_for('index') }}">Parallel Words</a>{% include '_language_switch.html' %}</header>{% endif %}
+<main class="empty-state"><h1>{{ _('Request could not complete') }} ({{ status }})</h1><p>{{ description }}</p>
+{% if navigation %}<p><a href="{{ url_for('index') }}">{{ _('Back to collections') }}</a></p>{% endif %}</main></body></html>

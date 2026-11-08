@@ -1,5 +1,7 @@
 """Extract worksheets, replace text, and flatten etymon tables."""
 
+from i18n import gettext as _
+
 from collections import Counter
 from colorsys import hls_to_rgb, rgb_to_hls
 from html import escape
@@ -38,12 +40,12 @@ def extract_sheet(
     if source.resolve() == destination.resolve() or (
         source.exists() and destination.exists() and source.samefile(destination)
     ):
-        raise ValueError("The output path must differ from the original file.")
+        raise ValueError(_("The output path must differ from the original file."))
 
     workbook = load_workbook(source)
     try:
         if sheet_name not in {sheet.title for sheet in workbook.worksheets}:
-            raise ValueError(f"Worksheet {sheet_name!r} does not exist.")
+            raise ValueError(_('Worksheet {value1} does not exist.', value1=repr(sheet_name)))
 
         for name in list(workbook.sheetnames):
             if name != sheet_name:
@@ -82,14 +84,14 @@ def find_replace_excel(
     the saved path. Macro-enabled .xlsm workbooks retain their VBA archive.
     """
     if not isinstance(replace_dict, dict):
-        raise TypeError("replace_dict must be a dictionary of string pairs.")
+        raise TypeError(_("replace_dict must be a dictionary of string pairs."))
     for search, replacement in replace_dict.items():
         if not isinstance(search, str) or not isinstance(replacement, str):
-            raise TypeError("Search and replacement must be strings.")
+            raise TypeError(_("Search and replacement must be strings."))
         if not search:
-            raise ValueError("Search strings must not be empty.")
+            raise ValueError(_("Search strings must not be empty."))
     if output_file is True:
-        raise TypeError("output_file must be a path, None, or False.")
+        raise TypeError(_("output_file must be a path, None, or False."))
 
     source = Path(excel_path)
     if output_file is False:
@@ -103,7 +105,7 @@ def find_replace_excel(
         source.resolve() == destination.resolve()
         or (source.exists() and destination.exists() and source.samefile(destination))
     ):
-        raise ValueError("Pass output_file=False to overwrite the original file.")
+        raise ValueError(_("Pass output_file=False to overwrite the original file."))
 
     bounds = None
     if cell_range is not None:
@@ -114,7 +116,7 @@ def find_replace_excel(
             or not (1 <= min_col <= max_col <= 16384)
             or not (1 <= min_row <= max_row <= 1048576)
         ):
-            raise ValueError("cell_range must be a cell or rectangle such as A1:D20.")
+            raise ValueError(_("cell_range must be a cell or rectangle such as A1:D20."))
 
     workbook = load_workbook(source, keep_vba=source.suffix.lower() == ".xlsm")
     try:
@@ -122,7 +124,7 @@ def find_replace_excel(
             sheet = workbook.worksheets[0]
         else:
             if sheet_name not in {sheet.title for sheet in workbook.worksheets}:
-                raise ValueError(f"Worksheet {sheet_name!r} does not exist.")
+                raise ValueError(_('Worksheet {value1} does not exist.', value1=repr(sheet_name)))
             sheet = workbook[sheet_name]
 
         if bounds is None:
@@ -315,7 +317,7 @@ def excel_to_dataframe(
             sheet = workbook.worksheets[0]
         else:
             if sheet_name not in {sheet.title for sheet in workbook.worksheets}:
-                raise ValueError(f'Worksheet {sheet_name!r} does not exist.')
+                raise ValueError(_('Worksheet {value1} does not exist.', value1=repr(sheet_name)))
             sheet = workbook[sheet_name]
 
         headers = {}
@@ -326,8 +328,7 @@ def excel_to_dataframe(
             heading = str(cell.value)
             if heading in header_cells:
                 raise ValueError(
-                    f'Duplicate column heading {heading!r} in '
-                    f'{header_cells[heading]} and {cell.coordinate}.'
+                    _('Duplicate column heading {value1} in {value2} and {value3}.', value1=repr(heading), value2=header_cells[heading], value3=cell.coordinate)
                 )
             headers[cell.column] = heading
             header_cells[heading] = cell.coordinate
@@ -357,7 +358,7 @@ def excel_to_dataframe(
             if not populated:
                 continue
             if not etimon_number:
-                raise ValueError(f'Row {row[0].row} has content before the first ETIMON/ label.')
+                raise ValueError(_('Row {value1} has content before the first ETIMON/ label.', value1=row[0].row))
             counts[label] += 1
             row_positions[(etimon_number, label, counts[label])] = row[0].row
             row_background = _cell_background(row[0], color_to_css) or label_background
@@ -365,7 +366,7 @@ def excel_to_dataframe(
                 label_backgrounds[(etimon_number, label, counts[label])] = row_background
             for cell in populated:
                 if cell.column not in headers:
-                    raise ValueError(f'Cell {cell.coordinate} has content but no column heading.')
+                    raise ValueError(_('Cell {value1} has content but no column heading.', value1=cell.coordinate))
                 plaintext = str(cell.value).strip()
                 background_color = _cell_background(cell, color_to_css)
                 records.append({

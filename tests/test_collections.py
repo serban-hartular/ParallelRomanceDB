@@ -44,7 +44,7 @@ class CollectionTests(unittest.TestCase):
         self.b = self.catalog.create('Fashion',self.source,'Terms')
         self.store_a = self.catalog.store(self.a['id'])
         self.store_b = self.catalog.store(self.b['id'])
-        self.app = create_app(catalog_path=self.catalog_path,test_config={
+        self.app = create_app(catalog_path=self.catalog_path,test_config={'DEFAULT_UI_LANGUAGE':'en',
             'TESTING':True,'SECRET_KEY':'collections','EXPORT_DIRECTORY':str(self.root/'exports'),
         })
         self.addCleanup(self.app.extensions['collection_catalog'].close)
@@ -119,7 +119,7 @@ class CollectionTests(unittest.TestCase):
             self.assertIn('browser_id',cookie)
             self.assertNotIn('search',cookie)
         # A fresh app with the same secret retains the server-side preferences.
-        second = create_app(catalog_path=self.catalog_path,test_config={'TESTING':True,'SECRET_KEY':'collections'})
+        second = create_app(catalog_path=self.catalog_path,test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING':True,'SECRET_KEY':'collections'})
         self.addCleanup(second.extensions['collection_catalog'].close)
         client = second.test_client()
         client.set_cookie('session',self.client.get_cookie('session').value)
@@ -251,7 +251,7 @@ class CollectionTests(unittest.TestCase):
         self.assertEqual(self.source.read_bytes(),self.original)
 
     def test_empty_catalog_and_unknown_collection_do_not_open_a_fallback_store(self):
-        app = create_app(catalog_path=self.root/'empty/catalog.sqlite3',test_config={'TESTING':True})
+        app = create_app(catalog_path=self.root/'empty/catalog.sqlite3',test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING':True})
         self.addCleanup(app.extensions['collection_catalog'].close)
         client = app.test_client()
         self.assertIn('No collections are available',client.get('/').text)

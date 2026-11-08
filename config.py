@@ -33,8 +33,19 @@ EDIT_LEASE_SECONDS = 300
 # Browsing tabs check for committed content changes, including local recovery.
 LIVE_REFRESH_SECONDS = 5
 
-# Edits are stored in SQLite; there are no upload endpoints. Waitress limits
-# incoming bodies to 64 KiB and headers to 16 KiB in main.py.
+# Ordinary requests remain small; only the admin workbook upload gets a larger
+# per-request limit. Waitress allows the upload plus multipart form overhead.
 MAX_CONTENT_LENGTH = 64 * 1024
+COLLECTION_UPLOAD_MAX_BYTES = 25 * 1024 * 1024
+COLLECTION_UPLOAD_MAX_EXPANDED_BYTES = 100 * 1024 * 1024
+COLLECTION_UPLOAD_MAX_MEMBERS = 2000
+COLLECTION_UPLOAD_MAX_CELLS = 500000
+COLLECTION_UPLOAD_MAX_GRID_CELLS = 2000000
+# Pending uploads expire after 30 minutes; at most ten may be staged globally.
+COLLECTION_UPLOAD_TTL_SECONDS = 30 * 60
+COLLECTION_UPLOAD_MAX_PENDING = 10
 MAX_QUERY_STRING_LENGTH = 8 * 1024
 MAX_SEARCH_LENGTH = 500
+
+# Browser interface default; a saved language choice takes precedence.
+DEFAULT_UI_LANGUAGE = 'ro'

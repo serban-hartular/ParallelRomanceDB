@@ -217,7 +217,7 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(target.read_bytes(), before)
 
     def test_app_restart_search_and_download_use_saved_database(self):
-        options = {'TESTING': True, 'SECRET_KEY': 'persistent', 'EXPORT_DIRECTORY': str(self.root / 'downloads')}
+        options = {'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'SECRET_KEY': 'persistent', 'EXPORT_DIRECTORY': str(self.root / 'downloads')}
         app = create_app(self.source, database_path=self.database, test_config=options)
         self.addCleanup(app.extensions['lexicon_store'].close)
         client = app.test_client()

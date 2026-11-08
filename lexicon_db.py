@@ -1,5 +1,7 @@
 """SQLite source of truth for one imported worksheet and its export template."""
 
+from i18n import gettext as _
+
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
@@ -81,9 +83,9 @@ class LexiconDB:
             exists = self.connection.execute("SELECT 1 FROM sqlite_master WHERE name='dataset'").fetchone()
             if not exists:
                 if self.connection.execute("SELECT 1 FROM sqlite_master WHERE type='table'").fetchone():
-                    raise ValueError('The selected database is not a Parallel Words collection.')
+                    raise ValueError(_('The selected database is not a Parallel Words collection.'))
                 if excel_path is None and not create_empty:
-                    raise ValueError('A workbook or create_empty=True is required to initialize a collection.')
+                    raise ValueError(_('A workbook or create_empty=True is required to initialize a collection.'))
                 if excel_path is None:
                     workbook = Workbook()
                     workbook.active.title = sheet_name or 'Lexicon'
@@ -106,12 +108,12 @@ class LexiconDB:
                 'SELECT id, source_path, source_name, sheet_name, schema_version FROM dataset'
             ).fetchone()
             if metadata is None or metadata['schema_version'] not in (4, 5, 6, 7):
-                raise ValueError('This collection requires the new schema (version 7). Reimport the workbook into a new database; the old file is unchanged.')
+                raise ValueError(_('This collection requires the new schema (version 7). Reimport the workbook into a new database; the old file is unchanged.'))
             self.metadata = dict(metadata)
             if collection_id is not None and collection_id != self.metadata['id']:
-                raise ValueError('The database identity does not match its catalog entry.')
+                raise ValueError(_('The database identity does not match its catalog entry.'))
             if sheet_name is not None and sheet_name != self.metadata['sheet_name']:
-                raise ValueError('The selected database contains a different worksheet. Choose another database.')
+                raise ValueError(_('The selected database contains a different worksheet. Choose another database.'))
             if self.metadata['schema_version'] == 4:
                 with self.transaction(write=True):
                     self.connection.execute(HISTORY_SCHEMA.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ', 1))
@@ -161,11 +163,11 @@ class LexiconDB:
 
     def _initialize(self, frame, template, source_name, source_path, row_colors, collection_id):
         if not isinstance(row_colors, dict) or set(row_colors) != set(LABEL_ORDER):
-            raise ValueError('ROW_BACKGROUND_COLORS must define all four canonical row labels.')
+            raise ValueError(_('ROW_BACKGROUND_COLORS must define all four canonical row labels.'))
         colors = {}
         for label, color in row_colors.items():
             if not isinstance(color, str) or not re.fullmatch(r'#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?', color):
-                raise ValueError('ROW_BACKGROUND_COLORS values must be #RGB or #RRGGBB hex colors.')
+                raise ValueError(_('ROW_BACKGROUND_COLORS values must be #RGB or #RRGGBB hex colors.'))
             if len(color) == 4:
                 color = '#' + ''.join(value * 2 for value in color[1:])
             colors[self._label_kind(label)] = color.upper()
@@ -291,7 +293,7 @@ class LexiconDB:
         row = self.connection.execute('''SELECT c.* FROM column_definitions c
             JOIN dataset d ON c.id=d.initial_column_id''').fetchone()
         if row is None:
-            raise ValueError('The collection has no initial-entry column.')
+            raise ValueError(_('The collection has no initial-entry column.'))
         return dict(row)
 
     def row_type(self, etimon, label, number):
@@ -395,10 +397,10 @@ class LexiconDB:
             rows = [dict(row) for row in self.connection.execute(
                 'SELECT * FROM row_metadata WHERE etimon_number=? ORDER BY sheet_row', (etimon,))]
             if not any(row['trash_id'] is None for row in rows):
-                raise ValueError('This etymon does not exist.')
+                raise ValueError(_('This etymon does not exist.'))
             row_type = next((item for item in self.row_types() if item['name']==label and item['allow_add'] and not item['is_etymon']), None)
             if row_type is None:
-                raise ValueError('Choose an addable non-etymon row type.')
+                raise ValueError(_('Choose an addable non-etymon row type.'))
             same = [row for row in rows if row['row_type_id']==row_type['id']]
             number = max((row['label_number'] for row in same), default=0)+1
             if same:
@@ -425,7 +427,7 @@ class LexiconDB:
                 position = max(position, RowInsertion(added,self.metadata['sheet_name']).number(source_marker)+1)
             row_type = next((item for item in self.row_types() if item['is_etymon']), None)
             if row_type is None:
-                raise ValueError('The collection has no etymon row type.')
+                raise ValueError(_('The collection has no etymon row type.'))
             self.connection.execute('INSERT INTO etymons(id) VALUES (?)', (etimon,))
             result = self._insert_row(etimon,row_type,1,position,text)
             row = self._row_snapshot(etimon,row_type['name'],1)
@@ -437,7 +439,7 @@ class LexiconDB:
     def _map_column(self, column_id):
         definition = self.connection.execute('SELECT * FROM column_definitions WHERE id=?', (column_id,)).fetchone()
         if definition is None:
-            raise ValueError('Unknown collection column.')
+            raise ValueError(_('Unknown collection column.'))
         if definition['sheet_column'] is None:
             position = self.connection.execute('SELECT coalesce(max(sheet_column),1)+1 FROM column_definitions').fetchone()[0]
             self.connection.execute('UPDATE column_definitions SET sheet_column=? WHERE id=?', (position,column_id))
@@ -445,14 +447,14 @@ class LexiconDB:
 
     def _insert_row(self, etimon, row_type, number, position, text):
         if not isinstance(text,str) or not text.strip():
-            raise ValueError('Enter text before creating an entry.')
+            raise ValueError(_('Enter text before creating an entry.'))
         html, plaintext = render_delta([{'insert':text+'\n'}])
         donor = self.connection.execute('''SELECT * FROM row_metadata WHERE row_type_id=?
             ORDER BY etimon_number=? DESC,sheet_row DESC LIMIT 1''', (row_type['id'],etimon)).fetchone()
         style_row = (donor['source_row'] or donor['style_row']) if donor else None
         color = row_type['default_background']
         if color and not re.fullmatch(r'#[0-9a-fA-F]{6}',color):
-            raise ValueError('The row type default background must be a #RRGGBB color.')
+            raise ValueError(_('The row type default background must be a #RRGGBB color.'))
         for row in self.connection.execute('SELECT id,sheet_row FROM row_metadata WHERE sheet_row>=? ORDER BY sheet_row DESC',(position,)).fetchall():
             self.connection.execute('UPDATE row_metadata SET sheet_row=? WHERE id=?',(row['sheet_row']+1,row['id']))
         cursor = self.connection.execute('''INSERT INTO row_metadata
@@ -473,15 +475,15 @@ class LexiconDB:
             labels = [item['name'] for item in self.row_types()]
             labels.extend(row[0] for row in self.connection.execute('SELECT DISTINCT label FROM row_metadata WHERE trash_id IS NULL') if row[0] not in labels)
             return labels
-        raise ValueError('Unknown filter field.')
+        raise ValueError(_('Unknown filter field.'))
 
-    def entries(self):
+    def entries(self, *, empty_form='No language form'):
         result = {}
         for (number,) in self.connection.execute('SELECT DISTINCT etimon_number FROM row_metadata WHERE trash_id IS NULL ORDER BY etimon_number'):
             rows = self.connection.execute('''SELECT "column", plaintext_content, label, is_etymon FROM cell_records
                 WHERE etimon_number=? AND ''' + ACTIVE_CELL_SQL + ' ORDER BY label_number, id', (number,)).fetchall()
             markers = [row for row in rows if row['is_etymon']]
-            form, language = 'No language form', ''
+            form, language = empty_form, ''
             for definition in sorted((item for item in self.column_definitions() if item['title_priority'] is not None), key=lambda item:(item['title_priority'],item['id'])):
                 candidate = definition['name']
                 text = next((row['plaintext_content'].strip() for row in markers
@@ -519,7 +521,7 @@ class LexiconDB:
             row = self.connection.execute('''SELECT r.etimon_number,r.label,r.label_number,c.name
                 FROM row_metadata r CROSS JOIN column_definitions c WHERE r.id=? AND c.id=?''',(row_id,column_id)).fetchone()
             if row is None:
-                raise EditConflict('This cell no longer exists. Cancel and reload.')
+                raise EditConflict(_('This cell no longer exists. Cancel and reload.'))
             return tuple(row)
 
     def save_cell(self, key, revision, ops, *, line_height_provided=False, line_height=None, generation=None, actor=None, lease=None):
@@ -527,21 +529,21 @@ class LexiconDB:
         with self.transaction(write=True):
             current = self.cell(key)
             if current['generation'] is None or (generation is not None and current['generation']!=generation):
-                raise EditConflict('This row was deleted or restored. Cancel and reload before editing.')
+                raise EditConflict(_('This row was deleted or restored. Cancel and reload before editing.'))
             if current['column_id'] is None:
-                raise ValueError('Unknown collection column.')
+                raise ValueError(_('Unknown collection column.'))
             if current['revision']!=revision:
-                raise EditConflict('Someone else changed this cell. Copy your draft, then cancel and reload.')
+                raise EditConflict(_('Someone else changed this cell. Copy your draft, then cancel and reload.'))
             editing = None
             if lease is not None:
                 editing = self._owned_edit(lease,actor)
                 if (editing['row_id'],editing['column_id']) != (current['row_id'],current['column_id']):
-                    raise EditConflict('This editing record belongs to another cell. Cancel and reload.')
+                    raise EditConflict(_('This editing record belongs to another cell. Cancel and reload.'))
                 initial = json.loads(editing['before_json'])
                 if initial['revision'] != revision or initial['generation'] != current['generation']:
-                    raise EditConflict('This cell changed. Copy your draft, then cancel and reload.')
+                    raise EditConflict(_('This cell changed. Copy your draft, then cancel and reload.'))
             elif actor and actor.get('session_id'):
-                raise EditConflict('Open the cell editor before saving.')
+                raise EditConflict(_('Open the cell editor before saving.'))
             else:
                 self._assert_not_editing(current['row_id'],current['column_id'])
             height = validate_line_height(line_height if line_height_provided else current['line_height'])
@@ -586,7 +588,7 @@ class LexiconDB:
             WHERE status='active' AND row_id=? AND column_id=? AND expires_at>?""",
             (row_id,column_id,edit_now().isoformat())).fetchone()
         if row:
-            raise EditBusy(f"{row['editor_name']} is editing this cell. Please try again after they finish.")
+            raise EditBusy(_('{value1} is editing this cell. Please try again after they finish.', value1=row['editor_name']))
 
     def _edit_warnings(self, editing):
         return [dict(row) for row in self.connection.execute("""SELECT editor_name AS name,label,label_number,
@@ -596,16 +598,16 @@ class LexiconDB:
 
     def begin_cell_edit(self, key, revision, generation, actor, *, lease_seconds=300):
         if not actor or not actor.get('session_id'):
-            raise EditConflict('Sign in before opening a cell editor.')
+            raise EditConflict(_('Sign in before opening a cell editor.'))
         self.expire_edits()
         with self.transaction(write=True):
             self._expire_edits()
             current = self.cell(key)
             if current['row_id'] is None or current['column_id'] is None or current['generation'] != generation:
-                raise EditConflict('This row was deleted or restored. Reload before editing.')
+                raise EditConflict(_('This row was deleted or restored. Reload before editing.'))
             self._assert_not_editing(current['row_id'],current['column_id'])
             if current['revision'] != revision:
-                raise EditConflict('Someone else changed this cell. Reload before editing.')
+                raise EditConflict(_('Someone else changed this cell. Reload before editing.'))
             now = edit_now()
             lease = token_urlsafe(32)
             identifier = self._record_edit('save_cell',actor,key[0],
@@ -622,13 +624,13 @@ class LexiconDB:
 
     def _owned_edit(self, lease, actor, *, require_active=True):
         if not isinstance(lease,str) or not re.fullmatch(r'[A-Za-z0-9_-]{43}',lease) or not actor:
-            raise EditConflict('This editing session expired. Copy your draft, then cancel and reload.')
+            raise EditConflict(_('This editing session expired. Copy your draft, then cancel and reload.'))
         editing = self.connection.execute('SELECT * FROM edit_history WHERE lease_hash=?',
                                          (sha256(lease.encode()).hexdigest(),)).fetchone()
         if editing is None or editing['editor_session_id'] != actor.get('session_id'):
-            raise EditConflict('This editing session expired. Copy your draft, then cancel and reload.')
+            raise EditConflict(_('This editing session expired. Copy your draft, then cancel and reload.'))
         if require_active and (editing['status']!='active' or editing['expires_at']<=edit_now().isoformat()):
-            raise EditConflict('Your editing lock expired or ended. Copy your draft, then cancel and reload.')
+            raise EditConflict(_('Your editing lock expired or ended. Copy your draft, then cancel and reload.'))
         return editing
 
     def heartbeat_cell_edit(self, lease, actor, *, lease_seconds=300):
@@ -643,7 +645,7 @@ class LexiconDB:
 
     def finish_cell_edit(self, lease, actor, outcome):
         if outcome not in ('cancelled','unchanged'):
-            raise ValueError('Choose Cancel or unchanged Close.')
+            raise ValueError(_('Choose Cancel or unchanged Close.'))
         self.expire_edits()
         with self.transaction(write=True):
             editing = self._owned_edit(lease,actor,require_active=False)
@@ -664,7 +666,7 @@ class LexiconDB:
         rows = self.connection.execute('SELECT id, generation FROM row_metadata WHERE '
                                        + scope + ' AND trash_id IS NULL ORDER BY id', values).fetchall()
         if not rows:
-            raise ValueError('This item no longer exists in the collection.')
+            raise ValueError(_('This item no longer exists in the collection.'))
         cells = [tuple(cell) for cell in self.connection.execute('SELECT id, revision FROM cell_records WHERE '
                   + scope + ' AND ' + ACTIVE_CELL_SQL + ' ORDER BY id', values)]
         identity = [tuple(row) for row in rows]
@@ -673,7 +675,7 @@ class LexiconDB:
     def delete_row(self, etimon, label, label_number, *, expected=None, actor=None):
         row_type = self.row_type(etimon,label,label_number)
         if row_type and row_type['is_etymon']:
-            raise ValueError('Use Delete etymon to remove an etymon and its rows.')
+            raise ValueError(_('Use Delete etymon to remove an etymon and its rows.'))
         return self._trash(etimon, label, label_number, expected, actor)
 
     def delete_etymon(self, etimon, *, expected=None, actor=None):
@@ -684,16 +686,18 @@ class LexiconDB:
         with self.transaction(write=True):
             version = self.deletion_version(etimon, label, label_number)
             if expected is not None and expected != version:
-                raise EditConflict('This item changed since the page loaded. Reload and review it before deleting.')
+                raise EditConflict(_('This item changed since the page loaded. Reload and review it before deleting.'))
             sql, values = "SELECT editor_name FROM edit_history WHERE status='active' AND expires_at>? AND etimon_number=?", [edit_now().isoformat(),etimon]
             if label is not None:
                 sql += ' AND row_id=(SELECT id FROM row_metadata WHERE etimon_number=? AND label=? AND label_number=?)'
                 values.extend((etimon,label,label_number))
             names = sorted({row[0] for row in self.connection.execute(sql,values)})
             if names:
-                target = 'etymon' if label is None else 'row'
-                verb = 'is' if len(names)==1 else 'are'
-                raise EditBusy(f"{', '.join(names)} {verb} editing a cell in this {target}. You cannot delete it until they finish.")
+                message = ('{names} are editing a cell in this etymon. You cannot delete it until they finish.'
+                           if label is None else '{names} are editing a cell in this row. You cannot delete it until they finish.')
+                if len(names) == 1:
+                    message = message.replace(' are editing', ' is editing')
+                raise EditBusy(_(message, names=', '.join(names)))
             before = self._row_snapshot(etimon,label,label_number)
             title = self.entries()[etimon]['form']
             cursor = self.connection.execute('''INSERT INTO trash
@@ -724,10 +728,10 @@ class LexiconDB:
         with self.transaction(write=True):
             entry = self.connection.execute('SELECT * FROM trash WHERE id=? AND restored_at IS NULL', (trash_id,)).fetchone()
             if entry is None:
-                raise ValueError('No unrestored Trash entry has that ID.')
+                raise ValueError(_('No unrestored Trash entry has that ID.'))
             if entry['kind'] == 'row' and not self.connection.execute('''SELECT 1 FROM row_metadata
                 WHERE etimon_number=? AND trash_id IS NULL''', (entry['etimon_number'],)).fetchone():
-                raise ValueError('Restore the containing etymon first, then restore this row.')
+                raise ValueError(_('Restore the containing etymon first, then restore this row.'))
             self.connection.execute('UPDATE row_metadata SET trash_id=NULL, generation=generation+1 WHERE trash_id=?', (trash_id,))
             self.connection.execute('UPDATE trash SET restored_at=? WHERE id=?',
                                     (datetime.now(timezone.utc).isoformat(), trash_id))
@@ -764,7 +768,7 @@ class LexiconDB:
 
     def edit_history(self, etimon=None, limit=100, *, include_sessions=False):
         if type(limit) is not int or not 1 <= limit <= 10000:
-            raise ValueError('History limit must be 1–10000.')
+            raise ValueError(_('History limit must be 1–10000.'))
         self.expire_edits()
         with self.transaction():
             scope = ' WHERE 1=1' if include_sessions else " WHERE status='saved'"

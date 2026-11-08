@@ -22,6 +22,7 @@ from waitress import serve
 from werkzeug.local import LocalProxy
 
 from access_control import AccessControl, LoginDenied, LoginThrottled
+from i18n import gettext as _, init_app as init_i18n
 from collection_catalog import CollectionCatalog
 
 from df_search import get_etimon
@@ -54,15 +55,16 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
     app.config.from_pyfile('config.py')
     if test_config:
         app.config.update(test_config)
+    init_i18n(app)
     if not re.fullmatch(r'#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?', app.config['SEARCH_HIGHLIGHT_COLOR']):
-        raise ValueError('SEARCH_HIGHLIGHT_COLOR must be a #RGB or #RRGGBB hex color.')
+        raise ValueError(_('SEARCH_HIGHLIGHT_COLOR must be a #RGB or #RRGGBB hex color.'))
 
     if not (type(app.config['EDIT_HEARTBEAT_SECONDS']) is int and type(app.config['EDIT_LEASE_SECONDS']) is int
             and 0 < app.config['EDIT_HEARTBEAT_SECONDS'] < app.config['EDIT_LEASE_SECONDS']):
-        raise ValueError('EDIT_HEARTBEAT_SECONDS must be positive and less than EDIT_LEASE_SECONDS.')
+        raise ValueError(_('EDIT_HEARTBEAT_SECONDS must be positive and less than EDIT_LEASE_SECONDS.'))
 
     if type(app.config['LIVE_REFRESH_SECONDS']) is not int or app.config['LIVE_REFRESH_SECONDS'] <= 0:
-        raise ValueError('LIVE_REFRESH_SECONDS must be a positive integer.')
+        raise ValueError(_('LIVE_REFRESH_SECONDS must be a positive integer.'))
 
     catalog_path = catalog_path or app.config.get('CATALOG_PATH')
     catalog = CollectionCatalog(catalog_path) if catalog_path is not None else None
@@ -110,6 +112,20 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
             values.setdefault('collection_id',g.collection_id)
 
     @app.before_request
+    def guard_collection_lifecycle():
+        # Hold the catalog lock through response construction and preference
+        # writes, so removal cannot race a request using a selected store.
+        if catalog is not None and ((request.view_args or {}).get('collection_id') or
+                request.endpoint in {'admin.overview','admin.choose','admin.passwords','admin.change_password'}):
+            catalog._lock.acquire()
+            g.catalog_guard = True
+
+    @app.teardown_request
+    def release_collection_lifecycle(error):
+        if g.pop('catalog_guard',False):
+            catalog._lock.release()
+
+    @app.before_request
     def select_collection():
         collection_id = (request.view_args or {}).get('collection_id')
         g.lexicon_store = single_store
@@ -129,7 +145,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
             entry = catalog.get(collection_id)
             g.lexicon_store = catalog.store(collection_id)
         except KeyError:
-            abort(404,description='Unknown collection.')
+            abort(404,description=_('Unknown collection.'))
         except ValueError as error:
             abort(503,description=str(error))
         g.lexicon_store.session_validator = access.session_active
@@ -158,11 +174,13 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
 
     @app.before_request
     def limit_request():
+        if request.endpoint == 'admin.import_upload':
+            request.max_content_length = app.config['COLLECTION_UPLOAD_MAX_BYTES'] + 64 * 1024
         # Check before parsing arguments or updating the signed preference cookie.
         if len(request.query_string) > app.config['MAX_QUERY_STRING_LENGTH']:
-            abort(414, description='Query string is too long.')
+            abort(414, description=_('Query string is too long.'))
         if len(request.args.get('q', '')) > app.config['MAX_SEARCH_LENGTH']:
-            abort(400, description='Search text is too long.')
+            abort(400, description=_('Search text is too long.'))
 
     @app.after_request
     def security_headers(response):
@@ -197,7 +215,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
         source_label = f"{store.metadata['source_name']} · {store.metadata['sheet_name']}"
         dataset_key = store.metadata['id']
         edit_mode = bool(view_preferences.get('edit_mode', False) and authorized())
-        entries = store.entries()
+        entries = store.entries(empty_form=_('No language form'))
         labels = store.choices('label')
         columns = store.choices('column')
         if 'edit_csrf' not in session:
@@ -214,7 +232,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
                 selections['label'] = [value for value in selections['label'] if value in labels]
                 selections['column'] = [value for value in selections['column'] if value in columns]
             if set(selections['label']) - set(labels) or set(selections['column']) - set(columns):
-                abort(400, description='Unknown search filter.')
+                abort(400, description=_('Unknown search filter.'))
             view_preferences['search'] = {
                 'query': request.args.get('q', ''),
                 **selections,
@@ -419,13 +437,13 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
         def wrapper(*args, **kwargs):
             csrf = request.headers.get('X-CSRF-Token', '')
             if not csrf or not compare_digest(csrf.encode(), session.get('edit_csrf', '').encode()):
-                return {'error': 'Your editing session expired. Reload the page before editing.'}, 403
+                return {'error': _('Your editing session expired. Reload the page before editing.')}, 403
             if request.endpoint!='set_mode' and not authorized():
-                return {'error':'Sign in to edit. Your edit login may have expired.', 'authentication_required':True}, 401
+                return {'error':_('Sign in to edit. Your edit login may have expired.'), 'authentication_required':True}, 401
             if request.endpoint not in {'set_mode','heartbeat_cell_edit','finish_cell_edit'} and not preferences.get('edit_mode', False):
-                return {'error': 'Switch to Edit mode before making changes.'}, 403
+                return {'error': _('Switch to Edit mode before making changes.')}, 403
             if request.endpoint in {'add_row','add_etymon'} and request.headers.get('X-Editor-Session') != g.editor['session_id']:
-                return {'error':'The editor changed. Close this dialog and reload before adding entries.'}, 409
+                return {'error':_('The editor changed. Close this dialog and reload before adding entries.')}, 409
             response = app.make_response(function(*args, **kwargs))
             response.headers['Cache-Control'] = 'no-store'
             return response
@@ -436,7 +454,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
         def wrapper(*args, **kwargs):
             csrf = request.headers.get('X-CSRF-Token', '')
             if not csrf or not compare_digest(csrf.encode(),session.get('edit_csrf','').encode()):
-                return {'error':'Your session expired. Reload the page before signing in.'}, 403
+                return {'error':_('Your session expired. Reload the page before signing in.')}, 403
             response = app.make_response(function(*args, **kwargs))
             response.headers['Cache-Control'] = 'no-store'
             return response
@@ -447,7 +465,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
     def login_editor():
         body = request.get_json(silent=True)
         if not isinstance(body,dict):
-            return {'error':'Enter your name and the edit password.'}, 400
+            return {'error':_('Enter your name and the edit password.')}, 400
         try:
             token = access.login(body.get('name'),body.get('password'),request.remote_addr or 'unknown')
         except LoginThrottled as error:
@@ -459,7 +477,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
             return {'error':str(error)}, 401
         editor = access.editor(token)
         if editor is None:
-            return {'error':'The edit password changed. Please try again.'}, 401
+            return {'error':_('The edit password changed. Please try again.')}, 401
         access.logout(session.get('editor_session'))
         session['editor_session'] = token
         session.permanent = False
@@ -477,9 +495,9 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
     def set_mode(collection_id=None):
         body = request.get_json(silent=True)
         if not isinstance(body, dict) or not isinstance(body.get('edit_mode'), bool):
-            return {'error': 'Choose Search or Edit mode.'}, 400
+            return {'error': _('Choose Search or Edit mode.')}, 400
         if body['edit_mode'] and not authorized():
-            return {'error':'Enter your name and the edit password.', 'authentication_required':True}, 401
+            return {'error':_('Enter your name and the edit password.'), 'authentication_required':True}, 401
         preferences['edit_mode'] = body['edit_mode']
         return {'edit_mode': body['edit_mode']}
 
@@ -489,7 +507,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
     def add_row(collection_id=None):
         body = request.get_json(silent=True)
         if not isinstance(body, dict) or type(body.get('etimon')) is not int or not isinstance(body.get('label'), str):
-            return {'error': 'Choose an etymon and row type.'}, 400
+            return {'error': _('Choose an etymon and row type.')}, 400
         try:
             result = store.add_row(body['etimon'], body['label'], body.get('text'),actor=g.editor)
         except ValueError as error:
@@ -503,7 +521,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
     def add_etymon(collection_id=None):
         body = request.get_json(silent=True)
         if not isinstance(body, dict):
-            return {'error': 'Enter text before creating an entry.'}, 400
+            return {'error': _('Enter text before creating an entry.')}, 400
         try:
             result = store.add_etymon(body.get('text'),actor=g.editor)
         except ValueError as error:
@@ -514,7 +532,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
 
     def editing_target(body):
         if not isinstance(body,dict) or not isinstance(body.get('token'),str):
-            raise EditConflict('Invalid cell editor request.')
+            raise EditConflict(_('Invalid cell editor request.'))
         try:
             if not re.fullmatch(r'[A-Za-z0-9_.-]+',body['token']):
                 raise BadSignature('Invalid token encoding.')
@@ -522,7 +540,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
             if not isinstance(signed,list) or len(signed)!=6 or signed[0]!=store.metadata['id'] or signed[5]!=g.editor['session_id']:
                 raise BadSignature('Wrong token type.')
         except BadSignature:
-            raise EditConflict('This cell has expired. Cancel and reload before editing.') from None
+            raise EditConflict(_('This cell has expired. Cancel and reload before editing.')) from None
         return store.cell_key(signed[1],signed[2]),signed[3],signed[4]
 
     @app.post('/cell/start')
@@ -558,7 +576,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
     def finish_cell_edit(collection_id=None):
         body = request.get_json(silent=True)
         if not isinstance(body,dict):
-            return {'error':'Invalid editor close request.'},400
+            return {'error':_('Invalid editor close request.')},400
         try:
             return store.finish_cell_edit(body.get('lease'),g.editor,body.get('outcome'))
         except EditConflict as error:
@@ -572,7 +590,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
     def save_cell(collection_id=None):
         body = request.get_json(silent=True)
         if not isinstance(body, dict) or not isinstance(body.get('token'), str):
-            return {'error': 'Invalid cell edit.'}, 400
+            return {'error': _('Invalid cell edit.')}, 400
         try:
             if not re.fullmatch(r'[A-Za-z0-9_.-]+',body['token']):
                 raise BadSignature('Invalid token encoding.')
@@ -580,7 +598,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
             if not isinstance(signed, list) or len(signed)!=6 or signed[0]!=store.metadata['id'] or signed[5]!=g.editor['session_id']:
                 raise BadSignature('Wrong token type.')
         except BadSignature:
-            return {'error': 'This cell has expired. Cancel and reload before editing.'}, 409
+            return {'error': _('This cell has expired. Cancel and reload before editing.')}, 409
         revision,generation = signed[3],signed[4]
         try:
             key = store.cell_key(signed[1],signed[2])
@@ -600,7 +618,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
     def delete_entry(collection_id=None):
         body = request.get_json(silent=True)
         if not isinstance(body, dict) or body.get('confirmation') != 'DELETE' or not isinstance(body.get('token'), str):
-            return {'error': 'Type DELETE to confirm moving this item to Trash.'}, 400
+            return {'error': _('Type DELETE to confirm moving this item to Trash.')}, 400
         try:
             if not re.fullmatch(r'[A-Za-z0-9_.-]+',body['token']):
                 raise BadSignature('Invalid token encoding.')
@@ -608,7 +626,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
             if not isinstance(target, dict) or target.get('kind') not in ('row','etymon') or target.get('dataset')!=store.metadata['id'] or target.get('editor_session')!=g.editor['session_id']:
                 raise BadSignature('Wrong token type.')
         except BadSignature:
-            return {'error': 'This deletion request expired. Reload and review the item again.'}, 409
+            return {'error': _('This deletion request expired. Reload and review the item again.')}, 409
         try:
             if target['kind'] == 'row':
                 trash_id = store.delete_row(target['etimon'], target['label'], target['label_number'], expected=target['version'],actor=g.editor)
@@ -623,11 +641,34 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
     @app.get('/export')
     @app.get('/collections/<collection_id>/export')
     def export_excel(collection_id=None):
-        from excel_export import export_timestamped
+        from excel_export import export_timestamped, export_collections_timestamped
+        choices = catalog.collections() if catalog else [{'id':store.metadata['id'],'name':store.metadata['source_name']}]
+        selected = request.args.getlist('collection') if 'selection' in request.args else [store.metadata['id']]
+        selected = list(dict.fromkeys(selected))
+        error = _('Choose at least one collection.') if not selected else None
+        if any(identifier not in {item['id'] for item in choices} for identifier in selected):
+            abort(404,description=_('A selected collection is unavailable. Reload the export options.'))
+        if request.args.get('choose')=='1' or error:
+            response = app.make_response((render_template('export.html',collections=choices,
+                selected=selected,error=error,back_url=url_for('index')),400 if error else 200))
+            response.headers['Cache-Control'] = 'no-store'
+            return response
         directory = app.config.get('EXPORT_DIRECTORY')
-        if catalog:
-            directory = (Path(directory) if directory else catalog.path.parent/'exports')/store.metadata['id']
-        path = export_timestamped(store,directory).resolve()
+        if len(selected)>1:
+            entries = [entry for entry in choices if entry['id'] in selected]
+            directory = (Path(directory) if directory else catalog.path.parent/'exports')/'combined'
+            try:
+                path = export_collections_timestamped([(entry['name'],catalog.store(entry['id'])) for entry in entries],directory).resolve()
+            except ValueError as exception:
+                response = app.make_response((render_template('export.html',collections=choices,selected=selected,
+                    error=str(exception),back_url=url_for('index')),400))
+                response.headers['Cache-Control'] = 'no-store'
+                return response
+        else:
+            target = catalog.store(selected[0]) if catalog else store
+            if catalog:
+                directory = (Path(directory) if directory else catalog.path.parent/'exports')/target.metadata['id']
+            path = export_timestamped(target,directory).resolve()
         response = send_file(path, as_attachment=True, download_name=path.name)
         response.headers['Cache-Control'] = 'no-store'
         return response
@@ -644,14 +685,14 @@ def _port(value):
             return port
     except ValueError:
         pass
-    raise argparse.ArgumentTypeError('Port must be an integer from 1 to 65535.')
+    raise argparse.ArgumentTypeError(_('Port must be an integer from 1 to 65535.'))
 
 
 def _ip(value):
     try:
         return str(ip_address(value))
     except ValueError:
-        raise argparse.ArgumentTypeError('Expected a single IPv4 or IPv6 address.') from None
+        raise argparse.ArgumentTypeError(_('Expected a single IPv4 or IPv6 address.')) from None
 
 
 def main(argv=None):
@@ -720,7 +761,8 @@ def main(argv=None):
         serve(
             server, host=args.host, port=args.port,
             clear_untrusted_proxy_headers=True, expose_tracebacks=False,
-            max_request_header_size=16 * 1024, max_request_body_size=64 * 1024,
+            max_request_header_size=16 * 1024,
+            max_request_body_size=server.config['COLLECTION_UPLOAD_MAX_BYTES'] + 64 * 1024,
             channel_timeout=30, connection_limit=100, threads=4,
             **proxy_settings,
         )

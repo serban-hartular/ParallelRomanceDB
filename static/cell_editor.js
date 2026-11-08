@@ -1,6 +1,7 @@
 /* One inline Quill editor at a time; persistence is supplied by the grid. */
 (() => {
   "use strict";
+  const {t, message:errorMessage} = window.XLDBI18n;
   let current = null;
   let configured = false;
 
@@ -28,13 +29,13 @@
     panel.className = "cell-editor";
     panel.style.backgroundColor = cellStyle.backgroundColor;
     panel.setAttribute("role", "group");
-    panel.setAttribute("aria-label", "Edit cell");
+    panel.setAttribute("aria-label", t("Edit cell"));
     const toolbar = document.createElement("div");
     toolbar.className = "cell-editor-toolbar";
     for (const [name, value, title] of [
-      ["bold", "", "Bold"], ["italic", "", "Italic"],
-      ["underline", "", "Underline"], ["strike", "", "Strikethrough"],
-      ["script", "sub", "Subscript"], ["script", "super", "Superscript"],
+      ["bold", "", t("Bold")], ["italic", "", t("Italic")],
+      ["underline", "", t("Underline")], ["strike", "", t("Strikethrough")],
+      ["script", "sub", t("Subscript")], ["script", "super", t("Superscript")],
     ]) {
       const button = document.createElement("button");
       button.type = "button";
@@ -47,7 +48,7 @@
     for (const name of ["color", "background"]) {
       const select = document.createElement("select");
       select.className = `ql-${name}`;
-      select.setAttribute("aria-label", name === "color" ? "Text color" : "Highlight color");
+      select.setAttribute("aria-label", name === "color" ? t("Text color") : t("Highlight color"));
       toolbar.append(select);
     }
     const toolbarRow = document.createElement("div");
@@ -55,7 +56,7 @@
     const typography = document.createElement("button");
     typography.type = "button";
     typography.className = "cell-editor-typography-toggle";
-    typography.textContent = "Typography";
+    typography.textContent = t("Typography");
     typography.setAttribute("aria-expanded", "false");
     typography.setAttribute("aria-controls", "cell-editor-typography-menu");
     toolbarRow.append(toolbar, typography);
@@ -64,22 +65,22 @@
     menu.className = "cell-editor-typography-menu";
     menu.hidden = true;
     const sizeLabel = document.createElement("label");
-    sizeLabel.textContent = "Font size (pt)";
+    sizeLabel.textContent = t("Font size (pt)");
     const sizeInput = document.createElement("input");
     sizeInput.type = "number";
     sizeInput.min = "1";
     sizeInput.max = "200";
     sizeInput.step = "any";
     sizeInput.required = true;
-    sizeInput.placeholder = "Mixed";
+    sizeInput.placeholder = t("Mixed");
     sizeLabel.append(sizeInput);
     const applySize = document.createElement("button");
     applySize.type = "button";
-    applySize.textContent = "Apply size";
+    applySize.textContent = t("Apply size");
     const spacingLabel = document.createElement("label");
-    spacingLabel.textContent = "Line spacing (whole cell)";
+    spacingLabel.textContent = t("Line spacing (whole cell)");
     const spacing = document.createElement("select");
-    spacing.setAttribute("aria-label", "Line spacing (whole cell)");
+    spacing.setAttribute("aria-label", t("Line spacing (whole cell)"));
     const heights = [...new Set([1, 1.15, 1.5, 1.6, 2, 2.5, 3, initialLineHeight])].sort((a, b) => a - b);
     heights.forEach(height => {
       const option = document.createElement("option");
@@ -94,7 +95,7 @@
     notice.className = 'cell-editor-notice';
     notice.setAttribute('role','status');
     function setWarnings(items) {
-      notice.textContent = items.map(item => `${item.name} is editing ${item.same_row ? 'another cell in this row' : 'another row in this etymon'} (${item.label} #${item.label_number}, ${item.column_name}).`).join(' ');
+      notice.textContent = items.map(item => t(item.same_row ? "{name} is editing another cell in this row ({label} #{number}, {column})." : "{name} is editing another row in this etymon ({label} #{number}, {column}).", {name:item.name, label:item.label, number:item.label_number, column:item.column_name})).join(' ');
       notice.hidden = items.length === 0;
     }
     setWarnings(warnings);
@@ -103,11 +104,11 @@
     actions.className = "cell-editor-actions";
     const close = document.createElement("button");
     close.type = "button";
-    close.textContent = "Close";
-    close.title = "Save changes and close (Ctrl+Enter)";
+    close.textContent = t("Close");
+    close.title = t("Save changes and close (Ctrl+Enter)");
     const cancel = document.createElement("button");
     cancel.type = "button";
-    cancel.textContent = "Cancel";
+    cancel.textContent = t("Cancel");
     const status = document.createElement("span");
     status.setAttribute("role", "status");
     actions.append(close, cancel, status);
@@ -119,6 +120,19 @@
       formats: ["bold", "italic", "underline", "strike", "script", "font", "size", "color", "background"],
       modules: { toolbar },
     });
+    // Quill replaces color selects with focusable picker labels. Name those
+    // generated controls too; the original select is hidden by the theme.
+    for (const name of ['color', 'background']) {
+      const picker = toolbar.querySelector(`.ql-picker.ql-${name}`);
+      const label = picker?.querySelector('.ql-picker-label');
+      const title = t(name === 'color' ? 'Text color' : 'Highlight color');
+      label?.setAttribute('aria-label', title);
+      if (label) label.title = title;
+      picker?.querySelectorAll('.ql-picker-item').forEach(item => {
+        item.setAttribute('aria-label', item.dataset.value
+          ? t('Color {value}', {value:item.dataset.value}) : t('Default color'));
+      });
+    }
     const Delta = Quill.import("delta");
     // Workbook text uses pre-wrap: retain spaces, tabs and line breaks.
     quill.clipboard.addMatcher(Node.TEXT_NODE, node => new Delta().insert(node.data));
@@ -141,7 +155,7 @@
     quill.root.style.lineHeight = String(currentLineHeight);
     const initial = JSON.stringify(quill.getContents());
     quill.history.clear();
-    quill.root.setAttribute("aria-label", "Cell contents");
+    quill.root.setAttribute("aria-label", t("Cell contents"));
     quill.root.setAttribute("role", "textbox");
     quill.root.setAttribute("aria-multiline", "true");
     // Linguistic entries mix languages; leave spelling and wording to editors.
@@ -157,6 +171,7 @@
       const size = quill.getFormat(selection).size;
       const pixels = parseFloat(getComputedStyle(quill.root).fontSize);
       const points = typeof size === "string" ? parseFloat(size) * (size.endsWith("px") ? 0.75 : 1) : pixels * 0.75;
+      sizeInput.setCustomValidity('');
       sizeInput.value = Array.isArray(size) ? "" : String(Number(points.toFixed(2)));
     }
 
@@ -211,7 +226,7 @@
       if (!save || (JSON.stringify(quill.getContents()) === initial && currentLineHeight === initialLineHeight)) {
         saving = true;
         close.disabled = cancel.disabled = true;
-        status.textContent = 'Closing…';
+        status.textContent = t('Closing…');
         try { await onFinish?.(save ? 'unchanged' : 'cancelled'); }
         finally { restore(); }
         return true;
@@ -224,13 +239,13 @@
       close.disabled = cancel.disabled = true;
       typography.disabled = sizeInput.disabled = applySize.disabled = spacing.disabled = true;
       quill.enable(false);
-      status.textContent = "Saving…";
+      status.textContent = t("Saving…");
       try {
         await onSave(quill.getContents().ops, currentLineHeight);
         restore();
         return true;
       } catch (error) {
-        status.textContent = error.message || "Could not save. Please try again.";
+        status.textContent = errorMessage(error, "Could not save. Please try again.");
         return false;
       } finally {
         saving = false;

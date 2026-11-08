@@ -1,5 +1,7 @@
 """Export SQLite edits into the original workbook, without rewriting untouched parts."""
 
+from i18n import gettext as _
+
 from copy import copy
 from datetime import datetime
 from html.parser import HTMLParser
@@ -123,16 +125,16 @@ def _worksheet_part(archive, title):
             identifier = sheet.attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id']
             target = targets[identifier]
             return posixpath.normpath(target.lstrip('/') if target.startswith('/') else posixpath.join('xl', target))
-    raise ValueError(f'Worksheet {title!r} is absent from the saved template.')
+    raise ValueError(_('Worksheet {value1} is absent from the saved template.', value1=repr(title)))
 
 
-def workbook_bytes(store):
+def workbook_bytes(store, *, snapshot=None):
     """Return the complete imported workbook with a consistent snapshot of edits.
 
     Only modified worksheet cells/row heights are patched. Unchanged workbook
     ZIP members (including other sheets, drawings and macros) remain intact.
     """
-    snapshot = store.export_snapshot()
+    snapshot = snapshot if snapshot is not None else store.export_snapshot()
     template = snapshot['dataset']['workbook']
     changed = [cell for cell in snapshot['cells'] if cell['revision']]
     deleted = any(row.get('trash_id') is not None for row in snapshot['rows'])
@@ -271,7 +273,43 @@ def export_timestamped(store, directory, *, now=None):
             return _write_atomic(path, payload)
         except FileExistsError:
             continue
-    raise FileExistsError('Could not allocate a new timestamped export filename.')
+    raise FileExistsError(_('Could not allocate a new timestamped export filename.'))
+
+
+def combined_workbook_bytes(collections):
+    """One named worksheet per collection, preserving each saved sheet package."""
+    from hashlib import sha256
+    from excel_merge import PackageMerger, sheet_titles
+    collections = list(collections)
+    if len(collections)<2:
+        raise ValueError(_('Choose at least two collections for a combined workbook.'))
+    sources = []
+    titles = sheet_titles([name for name,_ in collections])
+    for (name,store), title in zip(collections,titles):
+        snapshot = store.export_snapshot()
+        sources.append({'title':title,'sheet':snapshot['dataset']['sheet_name'],
+            'identity':sha256(snapshot['dataset']['workbook']).hexdigest(),
+            'payload':workbook_bytes(store,snapshot=snapshot)})
+    merger = PackageMerger()
+    for index,source in enumerate(sources,1):
+        names = {other['sheet'].casefold():other['title'] for other in sources if other['identity']==source['identity']}
+        names[source['sheet'].casefold()] = source['title']
+        with ZipFile(BytesIO(source['payload'])) as archive:
+            merger.add(archive,_worksheet_part(archive,source['sheet']),source['title'],source['sheet'],names,index)
+    return merger.finish()
+
+
+def export_collections_timestamped(collections, directory, *, now=None):
+    """Create a distinct .xlsx file containing only the selected collection sheets."""
+    stamp = (now or datetime.now(ZoneInfo('Europe/Bucharest'))).strftime('%Y-%m-%d_%H-%M-%S_%f%z')
+    payload = combined_workbook_bytes(collections)
+    for sequence in range(1000):
+        suffix = f'_{sequence}' if sequence else ''
+        try:
+            return _write_atomic(Path(directory)/f'Parallel_Words_{stamp}{suffix}.xlsx',payload)
+        except FileExistsError:
+            continue
+    raise FileExistsError(_('Could not allocate a new timestamped export filename.'))
 
 
 def overwrite_sheet(store, workbook_path, *, sheet_name=None):
@@ -288,7 +326,7 @@ def overwrite_sheet(store, workbook_path, *, sheet_name=None):
     try:
         target = load_workbook(path, rich_text=True, keep_vba=path.suffix.lower() == '.xlsm')
         if title not in target.sheetnames:
-            raise ValueError(f'Worksheet {title!r} does not exist in {path.name}.')
+            raise ValueError(_('Worksheet {value1} does not exist in {value2}.', value1=repr(title), value2=path.name))
         original = source[store.metadata['sheet_name']]
         sheet = target[title]
         for merged in list(sheet.merged_cells.ranges):

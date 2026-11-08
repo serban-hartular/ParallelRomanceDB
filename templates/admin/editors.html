@@ -1,11 +1,11 @@
 {% extends 'admin/base.html' %}
-{% block title %}Active editors · {{ collection.name }}{% endblock %}
+{% block title %}{{ _("Active editors ·") }} {{ collection.name }}{% endblock %}
 {% block content %}
-<div class="section-heading"><div><p class="eyebrow">{{ collection.name }}</p><h1>Active editors</h1></div><a href="{{ url_for('admin.editors',collection_id=collection.id) }}">Refresh</a></div>
-<p>Contacts renew every {{ heartbeat }} seconds, even without typing. A lock expires after {{ lease }} seconds without contact. Expired or revoked sessions are excluded.</p>
+<div class="section-heading"><div><p class="eyebrow">{{ collection.name }}</p><h1>{{ _("Active editors") }}</h1></div><a href="{{ url_for('admin.editors',collection_id=collection.id) }}">{{ _("Refresh") }}</a></div>
+<p>{{ _("Contacts renew every") }} {{ heartbeat }} {{ _("seconds, even without typing. A lock expires after") }} {{ lease }} {{ _("seconds without contact. Expired or revoked sessions are excluded.") }}</p>
 {% include 'admin/_collection.html' %}
-{% if editors %}<div class="table-scroll" role="region" aria-label="Active cell editors" tabindex="0"><table><caption>{{ editors|length }} active cell editor(s) · Europe/Bucharest times</caption><thead><tr><th scope="col">Editor</th><th scope="col">Etymon / row</th><th scope="col">Language</th><th scope="col">Started</th><th scope="col">Last contact</th><th scope="col">Expires without contact</th></tr></thead><tbody>
+{% if editors %}<div class="table-scroll" role="region" aria-label="{{ _('Active cell editors') }}" tabindex="0"><table><caption>{{ editors|length }} {{ _("active cell editor(s) · Europe/Bucharest times") }}</caption><thead><tr><th scope="col">{{ _("Editor") }}</th><th scope="col">{{ _("Etymon / row") }}</th><th scope="col">{{ _("Language") }}</th><th scope="col">{{ _("Started") }}</th><th scope="col">{{ _("Last contact") }}</th><th scope="col">{{ _("Expires without contact") }}</th></tr></thead><tbody>
 {% for editor in editors %}<tr><td>{{ editor.editor_name }}</td><td>{{ editor.etimon_number }}<br>{{ editor.label }} #{{ editor.label_number }}</td><td>{{ editor.column_name }}</td><td>{{ local_time(editor.started_at) }}</td><td>{{ local_time(editor.last_seen_at) }}</td><td>{{ local_time(editor.expires_at) }}</td></tr>{% endfor %}
-</tbody></table></div>{% else %}<p class="empty">No cells are currently being edited in this collection.</p>{% endif %}
-<p class="muted">This view shows editing sessions, not typing activity. It does not provide a lock takeover.</p>
+</tbody></table></div>{% else %}<p class="empty">{{ _("No cells are currently being edited in this collection.") }}</p>{% endif %}
+<p class="muted">{{ _("This view shows editing sessions, not typing activity. It does not provide a lock takeover.") }}</p>
 {% endblock %}

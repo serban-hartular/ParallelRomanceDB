@@ -16,7 +16,7 @@ from main import create_app
 class DeploymentTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app = create_app(test_config={
+        cls.app = create_app(test_config={'DEFAULT_UI_LANGUAGE':'en',
             'TESTING': True, 'SECRET_KEY': 'deployment-test-key',
             'TRUSTED_HOSTS': ['words.example.org', 'localhost'],
         })
@@ -51,7 +51,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_only_exact_trusted_proxy_can_supply_scheme_and_client_address(self):
-        app = create_app(test_config={
+        app = create_app(test_config={'DEFAULT_UI_LANGUAGE':'en',
             'TESTING': True, 'SECRET_KEY': 'proxy-test-key',
             'TRUSTED_HOSTS': ['words.example.org'], 'SESSION_COOKIE_SECURE': True,
         })
@@ -99,7 +99,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertNotIn('; Secure', cookie)
         self.assertNotIn('Strict-Transport-Security', response.headers)
 
-        app = create_app(test_config={'TESTING': True, 'SESSION_COOKIE_SECURE': True})
+        app = create_app(test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'SESSION_COOKIE_SECURE': True})
         for scheme in ('http', 'https'):
             response = app.test_client().get('/', base_url=f'{scheme}://localhost')
             self.assertIn('; Secure', response.headers['Set-Cookie'])
@@ -138,7 +138,7 @@ class DeploymentTests(unittest.TestCase):
             workbook.close()
             path.chmod(0o444)
             original = sha256(path.read_bytes()).digest()
-            app = create_app(path, test_config={'TESTING': True})
+            app = create_app(path, test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True})
             self.assertEqual(app.test_client().get('/?search=1&q=cafe').status_code, 200)
             self.assertEqual(sha256(path.read_bytes()).digest(), original)
             self.assertEqual(path.stat().st_mode & 0o777, 0o444)

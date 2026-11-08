@@ -1,0 +1,2246 @@
+{
+  " Copy your draft, then cancel and reload.": {
+    "en": " Copy your draft, then cancel and reload.",
+    "ro": " Copiați textul nesalvat, apoi anulați și reîncărcați pagina."
+  },
+  ", etymon": {
+    "en": ", etymon",
+    "ro": ", etimonul"
+  },
+  ". Import one worksheet into a new collection. Other worksheets remain in its export template.": {
+    "en": ". Import one worksheet into a new collection. Other worksheets remain in its export template.",
+    "ro": ". Importați o foaie de calcul într-o colecție nouă. Celelalte foi rămân în șablonul folosit la export."
+  },
+  ". Rows deleted separately before this entry will remain in their own Trash items.": {
+    "en": ". Rows deleted separately before this entry will remain in their own Trash items.",
+    "ro": ". Rândurile șterse separat înaintea acestui element vor rămâne în propriile intrări din Coș."
+  },
+  ". The preview below shows the deletion snapshot; the recovered content may have changed since.": {
+    "en": ". The preview below shows the deletion snapshot; the recovered content may have changed since.",
+    "ro": ". Previzualizarea de mai jos arată copia de la ștergere; conținutul recuperat se poate să fi fost modificat între timp."
+  },
+  ". This server currently serves a single database.": {
+    "en": ". This server currently serves a single database.",
+    "ro": ". Acest server folosește în prezent o singură bază de date."
+  },
+  "A selected collection is unavailable. Reload the export options.": {
+    "en": "A selected collection is unavailable. Reload the export options.",
+    "ro": "O colecție selectată nu este disponibilă. Reîncărcați opțiunile de export."
+  },
+  "A selected sheet has a formula that cannot be renamed safely. Export that collection separately to retain it.": {
+    "en": "A selected sheet has a formula that cannot be renamed safely. Export that collection separately to retain it.",
+    "ro": "O foaie selectată conține o formulă care nu poate fi redenumită în siguranță. Exportați separat colecția respectivă pentru a o păstra."
+  },
+  "A selected sheet uses workbook-level cell metadata. Export that collection separately to retain it.": {
+    "en": "A selected sheet uses workbook-level cell metadata. Export that collection separately to retain it.",
+    "ro": "O foaie selectată folosește metadate de celulă la nivelul registrului de calcul. Exportați separat colecția respectivă pentru a le păstra."
+  },
+  "A selected workbook has external workbook links. Export that collection separately to retain them.": {
+    "en": "A selected workbook has external workbook links. Export that collection separately to retain them.",
+    "ro": "Un registru selectat conține legături către alte registre de calcul. Exportați separat colecția respectivă pentru a le păstra."
+  },
+  "A workbook or create_empty=True is required to initialize a collection.": {
+    "en": "A workbook or create_empty=True is required to initialize a collection.",
+    "ro": "Inițializarea unei colecții necesită un registru de calcul sau create_empty=True."
+  },
+  "A workbook part has no content type.": {
+    "en": "A workbook part has no content type.",
+    "ro": "O componentă a registrului de calcul nu are tip de conținut."
+  },
+  "Access lasts for this browser session.": {
+    "en": "Access lasts for this browser session.",
+    "ro": "Accesul este valabil pe durata acestei sesiuni de browser."
+  },
+  "Action": {
+    "en": "Action",
+    "ro": "Acțiune"
+  },
+  "Action / outcome": {
+    "en": "Action / outcome",
+    "ro": "Acțiune / rezultat"
+  },
+  "Actions": {
+    "en": "Actions",
+    "ro": "Acțiuni"
+  },
+  "Active": {
+    "en": "Active",
+    "ro": "În curs"
+  },
+  "Active cell editors": {
+    "en": "Active cell editors",
+    "ro": "Editori de celule activi"
+  },
+  "Active collections": {
+    "en": "Active collections",
+    "ro": "Colecții active"
+  },
+  "Active editors": {
+    "en": "Active editors",
+    "ro": "Editori activi"
+  },
+  "Active editors ·": {
+    "en": "Active editors ·",
+    "ro": "Editori activi ·"
+  },
+  "Add entry": {
+    "en": "Add entry",
+    "ro": "Adăugare intrare"
+  },
+  "Add etymon": {
+    "en": "Add etymon",
+    "ro": "Adaugă etimon"
+  },
+  "Add row": {
+    "en": "Add row",
+    "ro": "Adaugă rând"
+  },
+  "Admin": {
+    "en": "Admin",
+    "ro": "Administrare"
+  },
+  "Administration": {
+    "en": "Administration",
+    "ro": "Administrare"
+  },
+  "Administration is not enabled yet. Set the administrator password locally.": {
+    "en": "Administration is not enabled yet. Set the administrator password locally.",
+    "ro": "Administrarea nu este încă activată. Setați local parola de administrator."
+  },
+  "Administration is not enabled yet. The server administrator must set the first administrator password locally.": {
+    "en": "Administration is not enabled yet. The server administrator must set the first administrator password locally.",
+    "ro": "Administrarea nu este încă activată. Administratorul serverului trebuie să seteze local prima parolă de administrator."
+  },
+  "Administration overview": {
+    "en": "Administration overview",
+    "ro": "Prezentare generală a administrării"
+  },
+  "Administrator login": {
+    "en": "Administrator login",
+    "ro": "Autentificare administrator"
+  },
+  "Administrator name": {
+    "en": "Administrator name",
+    "ro": "Numele administratorului"
+  },
+  "Administrator password": {
+    "en": "Administrator password",
+    "ro": "Parolă de administrator"
+  },
+  "Administrator password changed. All administrators have been signed out. Sign in with the new password.": {
+    "en": "Administrator password changed. All administrators have been signed out. Sign in with the new password.",
+    "ro": "Parola de administrator a fost schimbată. Toți administratorii au fost deconectați. Autentificați-vă cu noua parolă."
+  },
+  "Administrator sign in": {
+    "en": "Administrator sign in",
+    "ro": "Autentificare administrator"
+  },
+  "Administrator signed out.": {
+    "en": "Administrator signed out.",
+    "ro": "Administratorul a fost deconectat."
+  },
+  "After": {
+    "en": "After",
+    "ro": "După"
+  },
+  "All": {
+    "en": "All",
+    "ro": "Toate"
+  },
+  "All / not applicable": {
+    "en": "All / not applicable",
+    "ro": "Toate / nu se aplică"
+  },
+  "All actions": {
+    "en": "All actions",
+    "ro": "Toate acțiunile"
+  },
+  "All administrators, including you, will be signed out. Independent editor logins will stay active.": {
+    "en": "All administrators, including you, will be signed out. Independent editor logins will stay active.",
+    "ro": "Toți administratorii, inclusiv dumneavoastră, vor fi deconectați. Sesiunile independente ale editorilor vor rămâne active."
+  },
+  "All columns": {
+    "en": "All columns",
+    "ro": "Toate coloanele"
+  },
+  "All editors will be signed out. Open drafts cannot be saved under the old login; their text remains available to copy.": {
+    "en": "All editors will be signed out. Open drafts cannot be saved under the old login; their text remains available to copy.",
+    "ro": "Toți editorii vor fi deconectați. Textele nesalvate nu mai pot fi salvate cu vechea autentificare; acestea rămân disponibile pentru copiere."
+  },
+  "All labels": {
+    "en": "All labels",
+    "ro": "Toate etichetele"
+  },
+  "All rows in this deletion": {
+    "en": "All rows in this deletion",
+    "ro": "Toate rândurile incluse în această ștergere"
+  },
+  "All types": {
+    "en": "All types",
+    "ro": "Toate tipurile"
+  },
+  "Any": {
+    "en": "Any",
+    "ro": "Oricare"
+  },
+  "Any editor": {
+    "en": "Any editor",
+    "ro": "Orice editor"
+  },
+  "Apply filters": {
+    "en": "Apply filters",
+    "ro": "Aplică filtrele"
+  },
+  "Apply size": {
+    "en": "Apply size",
+    "ro": "Aplică mărimea"
+  },
+  "Are you really, really sure?": {
+    "en": "Are you really, really sure?",
+    "ro": "Sigur doriți să continuați?"
+  },
+  "Are you really, really sure? Editors must close all cell drafts first.": {
+    "en": "Are you really, really sure? Editors must close all cell drafts first.",
+    "ro": "Sigur doriți să continuați? Editorii trebuie să închidă mai întâi toate celulele aflate în editare."
+  },
+  "Awaiting recovery": {
+    "en": "Awaiting recovery",
+    "ro": "În așteptarea recuperării"
+  },
+  "Back to Trash": {
+    "en": "Back to Trash",
+    "ro": "Înapoi la Coș"
+  },
+  "Back to collection": {
+    "en": "Back to collection",
+    "ro": "Înapoi la colecție"
+  },
+  "Back to collections": {
+    "en": "Back to collections",
+    "ro": "Înapoi la colecții"
+  },
+  "Back to collections ↗": {
+    "en": "Back to collections ↗",
+    "ro": "Înapoi la colecții ↗"
+  },
+  "Back to history": {
+    "en": "Back to history",
+    "ro": "Înapoi la istoric"
+  },
+  "Before": {
+    "en": "Before",
+    "ro": "Înainte"
+  },
+  "Bold": {
+    "en": "Bold",
+    "ro": "Aldin"
+  },
+  "Browser imports support at most 100000 worksheet rows and 256 columns.": {
+    "en": "Browser imports support at most 100000 worksheet rows and 256 columns.",
+    "ro": "Importul din browser acceptă cel mult 100000 de rânduri și 256 de coloane pe foaie de calcul."
+  },
+  "Browser imports support at most 256 worksheet columns.": {
+    "en": "Browser imports support at most 256 worksheet columns.",
+    "ro": "Importul din browser acceptă cel mult 256 de coloane pe foaie de calcul."
+  },
+  "Browser imports support worksheet rows up to 100000. Use a smaller workbook.": {
+    "en": "Browser imports support worksheet rows up to 100000. Use a smaller workbook.",
+    "ro": "Importul din browser acceptă foi de calcul cu cel mult 100000 de rânduri. Folosiți un registru mai mic."
+  },
+  "Cancel": {
+    "en": "Cancel",
+    "ro": "Anulează"
+  },
+  "Cancel / back to collections": {
+    "en": "Cancel / back to collections",
+    "ro": "Anulează / înapoi la colecții"
+  },
+  "Cancel / back to item": {
+    "en": "Cancel / back to item",
+    "ro": "Anulează / înapoi la element"
+  },
+  "Cancel import and remove upload": {
+    "en": "Cancel import and remove upload",
+    "ro": "Anulează importul și elimină fișierul încărcat"
+  },
+  "Cancelled": {
+    "en": "Cancelled",
+    "ro": "Anulat"
+  },
+  "Cell": {
+    "en": "Cell",
+    "ro": "Celulă"
+  },
+  "Cell contents": {
+    "en": "Cell contents",
+    "ro": "Conținutul celulei"
+  },
+  "Cell edit": {
+    "en": "Cell edit",
+    "ro": "Editare celulă"
+  },
+  "Cell text contains an invalid Unicode character.": {
+    "en": "Cell text contains an invalid Unicode character.",
+    "ro": "Textul celulei conține un caracter Unicode nevalid."
+  },
+  "Cell text is too long.": {
+    "en": "Cell text is too long.",
+    "ro": "Textul celulei este prea lung."
+  },
+  "Cell {value1} has content but no column heading.": {
+    "en": "Cell {value1} has content but no column heading.",
+    "ro": "Celula {value1} are conținut, dar nu are antet de coloană."
+  },
+  "Change administrator password and sign out": {
+    "en": "Change administrator password and sign out",
+    "ro": "Schimbă parola de administrator și deconectează"
+  },
+  "Change check failed": {
+    "en": "Change check failed",
+    "ro": "Verificarea modificărilor a eșuat"
+  },
+  "Change edit password and sign out editors": {
+    "en": "Change edit password and sign out editors",
+    "ro": "Schimbă parola de editare și deconectează editorii"
+  },
+  "Change editor": {
+    "en": "Change editor",
+    "ro": "Schimbă editorul"
+  },
+  "Change global administrator password": {
+    "en": "Change global administrator password",
+    "ro": "Schimbare parolă globală de administrator"
+  },
+  "Change global edit password": {
+    "en": "Change global edit password",
+    "ro": "Schimbare parolă globală de editare"
+  },
+  "Changes and editing activity": {
+    "en": "Changes and editing activity",
+    "ro": "Modificări și activitate de editare"
+  },
+  "Check that it is a valid, unencrypted Excel workbook.": {
+    "en": "Check that it is a valid, unencrypted Excel workbook.",
+    "ro": "Verificați dacă fișierul este un registru Excel valid, necriptat."
+  },
+  "Choose Active collections or Collections Trash.": {
+    "en": "Choose Active collections or Collections Trash.",
+    "ro": "Alegeți Colecții active sau Coșul colecțiilor."
+  },
+  "Choose Cancel or unchanged Close.": {
+    "en": "Choose Cancel or unchanged Close.",
+    "ro": "Alegeți Anulează sau Închide fără modificări."
+  },
+  "Choose Search or Edit mode.": {
+    "en": "Choose Search or Edit mode.",
+    "ro": "Alegeți modul de căutare sau de editare."
+  },
+  "Choose a valid Trash item type.": {
+    "en": "Choose a valid Trash item type.",
+    "ro": "Alegeți un tip valid de element din Coș."
+  },
+  "Choose a valid Trash status.": {
+    "en": "Choose a valid Trash status.",
+    "ro": "Alegeți o stare validă pentru Coș."
+  },
+  "Choose a valid administration page.": {
+    "en": "Choose a valid administration page.",
+    "ro": "Alegeți o pagină de administrare validă."
+  },
+  "Choose a valid editing outcome.": {
+    "en": "Choose a valid editing outcome.",
+    "ro": "Alegeți un rezultat valid al editării."
+  },
+  "Choose a valid history action.": {
+    "en": "Choose a valid history action.",
+    "ro": "Alegeți o acțiune validă din istoric."
+  },
+  "Choose a worksheet from this workbook.": {
+    "en": "Choose a worksheet from this workbook.",
+    "ro": "Alegeți o foaie de calcul din acest registru."
+  },
+  "Choose an .xlsx or .xlsm workbook with a filename of at most 200 characters.": {
+    "en": "Choose an .xlsx or .xlsm workbook with a filename of at most 200 characters.",
+    "ro": "Alegeți un registru .xlsx sau .xlsm cu numele de fișier de cel mult 200 de caractere."
+  },
+  "Choose an Excel workbook to upload.": {
+    "en": "Choose an Excel workbook to upload.",
+    "ro": "Alegeți un registru Excel de încărcat."
+  },
+  "Choose an addable non-etymon row type.": {
+    "en": "Choose an addable non-etymon row type.",
+    "ro": "Alegeți un tip de rând care poate fi adăugat, diferit de etimon."
+  },
+  "Choose an etymon and row type.": {
+    "en": "Choose an etymon and row type.",
+    "ro": "Alegeți un etimon și un tip de rând."
+  },
+  "Choose at least one collection.": {
+    "en": "Choose at least one collection.",
+    "ro": "Alegeți cel puțin o colecție."
+  },
+  "Choose at least two collections for a combined workbook.": {
+    "en": "Choose at least two collections for a combined workbook.",
+    "ro": "Alegeți cel puțin două colecții pentru un registru de calcul combinat."
+  },
+  "Choose worksheet": {
+    "en": "Choose worksheet",
+    "ro": "Alegeți foaia de calcul"
+  },
+  "Clear": {
+    "en": "Clear",
+    "ro": "Resetează"
+  },
+  "Clear a filter, or return to the full collection.": {
+    "en": "Clear a filter, or return to the full collection.",
+    "ro": "Eliminați un filtru sau reveniți la întreaga colecție."
+  },
+  "Close": {
+    "en": "Close",
+    "ro": "Închide"
+  },
+  "Close or cancel the cell editor and wait for the current operation before changing language.": {
+    "en": "Close or cancel the cell editor and wait for the current operation before changing language.",
+    "ro": "Închideți sau anulați editarea celulei și așteptați încheierea operației curente înainte de a schimba limba."
+  },
+  "Close or cancel the cell editor and wait for the current operation before exporting.": {
+    "en": "Close or cancel the cell editor and wait for the current operation before exporting.",
+    "ro": "Închideți sau anulați editarea celulei și așteptați încheierea operației curente înainte de a exporta."
+  },
+  "Close or cancel the cell editor and wait for the current operation before opening administration.": {
+    "en": "Close or cancel the cell editor and wait for the current operation before opening administration.",
+    "ro": "Închideți sau anulați editarea celulei și așteptați încheierea operației curente înainte de a deschide administrarea."
+  },
+  "Close or cancel the cell editor before changing the table layout.": {
+    "en": "Close or cancel the cell editor before changing the table layout.",
+    "ro": "Închideți sau anulați editarea celulei înainte de a schimba aspectul tabelului."
+  },
+  "Close or cancel the cell editor before deleting an item.": {
+    "en": "Close or cancel the cell editor before deleting an item.",
+    "ro": "Închideți sau anulați editarea celulei înainte de a șterge un element."
+  },
+  "Close or cancel the cell editor before exporting or changing the table layout.": {
+    "en": "Close or cancel the cell editor before exporting or changing the table layout.",
+    "ro": "Închideți sau anulați editarea celulei înainte de a exporta sau de a schimba aspectul tabelului."
+  },
+  "Close or cancel the cell editor before navigating or searching.": {
+    "en": "Close or cancel the cell editor before navigating or searching.",
+    "ro": "Închideți sau anulați editarea celulei înainte de a naviga sau de a căuta."
+  },
+  "Close or cancel the cell editor before signing out or changing editor.": {
+    "en": "Close or cancel the cell editor before signing out or changing editor.",
+    "ro": "Închideți sau anulați editarea celulei înainte de a vă deconecta sau de a schimba editorul."
+  },
+  "Close or cancel the cell editor before switching collections.": {
+    "en": "Close or cancel the cell editor before switching collections.",
+    "ro": "Închideți sau anulați editarea celulei înainte de a schimba colecția."
+  },
+  "Close or cancel the cell editor before switching mode or adding entries.": {
+    "en": "Close or cancel the cell editor before switching mode or adding entries.",
+    "ro": "Închideți sau anulați editarea celulei înainte de a schimba modul sau de a adăuga intrări."
+  },
+  "Closing…": {
+    "en": "Closing…",
+    "ro": "Se închide…"
+  },
+  "Collection": {
+    "en": "Collection",
+    "ro": "Colecție"
+  },
+  "Collection created. It is ready for new etymons.": {
+    "en": "Collection created. It is ready for new etymons.",
+    "ro": "Colecția a fost creată. Puteți adăuga etimoane noi."
+  },
+  "Collection management requires catalog mode. Start the server with": {
+    "en": "Collection management requires catalog mode. Start the server with",
+    "ro": "Gestionarea colecțiilor necesită modul catalog. Porniți serverul cu"
+  },
+  "Collection management requires catalog mode. Start the server with --catalog PATH.": {
+    "en": "Collection management requires catalog mode. Start the server with --catalog PATH.",
+    "ro": "Gestionarea colecțiilor necesită modul catalog. Porniți serverul cu --catalog PATH."
+  },
+  "Collection moved to Collections Trash. Its data is retained.": {
+    "en": "Collection moved to Collections Trash. Its data is retained.",
+    "ro": "Colecția a fost mutată în Coșul colecțiilor. Datele sale sunt păstrate."
+  },
+  "Collection name": {
+    "en": "Collection name",
+    "ro": "Numele colecției"
+  },
+  "Collection overview": {
+    "en": "Collection overview",
+    "ro": "Prezentarea colecției"
+  },
+  "Collection restored.": {
+    "en": "Collection restored.",
+    "ro": "Colecția a fost restaurată."
+  },
+  "Collection:": {
+    "en": "Collection:",
+    "ro": "Colecție:"
+  },
+  "Collections": {
+    "en": "Collections",
+    "ro": "Colecții"
+  },
+  "Collections Trash": {
+    "en": "Collections Trash",
+    "ro": "Coșul colecțiilor"
+  },
+  "Collections Trash is empty.": {
+    "en": "Collections Trash is empty.",
+    "ro": "Coșul colecțiilor este gol."
+  },
+  "Collections to export": {
+    "en": "Collections to export",
+    "ro": "Colecții de exportat"
+  },
+  "Color {value}": {
+    "en": "Color {value}",
+    "ro": "Culoare {value}"
+  },
+  "Columns": {
+    "en": "Columns",
+    "ro": "Coloane"
+  },
+  "Completed / started": {
+    "en": "Completed / started",
+    "ro": "Încheiat / început"
+  },
+  "Configured · changed": {
+    "en": "Configured · changed",
+    "ro": "Configurată · modificată la"
+  },
+  "Connection interrupted. Your draft is retained; reconnect before the editing lock expires.": {
+    "en": "Connection interrupted. Your draft is retained; reconnect before the editing lock expires.",
+    "ro": "Conexiunea s-a întrerupt. Textul nesalvat este păstrat; reconectați-vă înainte să expire blocarea celulei."
+  },
+  "Contact the administrator to add a collection.": {
+    "en": "Contact the administrator to add a collection.",
+    "ro": "Contactați administratorul pentru a adăuga o colecție."
+  },
+  "Contacts renew every": {
+    "en": "Contacts renew every",
+    "ro": "Conexiunea este verificată la fiecare"
+  },
+  "Content display": {
+    "en": "Content display",
+    "ro": "Afișarea conținutului"
+  },
+  "Copy your draft": {
+    "en": "Copy your draft",
+    "ro": "Copiați textul nesalvat"
+  },
+  "Could not allocate a new timestamped export filename.": {
+    "en": "Could not allocate a new timestamped export filename.",
+    "ro": "Nu s-a putut aloca un nume nou de fișier cu data și ora exportului."
+  },
+  "Could not change mode.": {
+    "en": "Could not change mode.",
+    "ro": "Nu s-a putut schimba modul."
+  },
+  "Could not move the item to Trash.": {
+    "en": "Could not move the item to Trash.",
+    "ro": "Elementul nu a putut fi mutat în Coș."
+  },
+  "Could not open the cell editor.": {
+    "en": "Could not open the cell editor.",
+    "ro": "Nu s-a putut deschide editorul de celulă."
+  },
+  "Could not reach the server.": {
+    "en": "Could not reach the server.",
+    "ro": "Serverul nu a putut fi contactat."
+  },
+  "Could not reach the server. Please try again.": {
+    "en": "Could not reach the server. Please try again.",
+    "ro": "Serverul nu a putut fi contactat. Încercați din nou."
+  },
+  "Could not read this workbook. ": {
+    "en": "Could not read this workbook. ",
+    "ro": "Acest registru de calcul nu a putut fi citit. "
+  },
+  "Could not renew the editing lock.": {
+    "en": "Could not renew the editing lock.",
+    "ro": "Blocarea celulei pentru editare nu a putut fi reînnoită."
+  },
+  "Could not save. Please try again.": {
+    "en": "Could not save. Please try again.",
+    "ro": "Salvarea nu a reușit. Încercați din nou."
+  },
+  "Could not sign in.": {
+    "en": "Could not sign in.",
+    "ro": "Autentificarea nu a reușit."
+  },
+  "Could not sign out.": {
+    "en": "Could not sign out.",
+    "ro": "Deconectarea nu a reușit."
+  },
+  "Could not update the collection.": {
+    "en": "Could not update the collection.",
+    "ro": "Colecția nu a putut fi actualizată."
+  },
+  "Could not update the etimon grid": {
+    "en": "Could not update the etimon grid",
+    "ro": "Tabelul de etimoane nu a putut fi actualizat"
+  },
+  "Create": {
+    "en": "Create",
+    "ro": "Creează"
+  },
+  "Create an empty collection with the standard language columns and row types. Add its first etymon in Edit mode.": {
+    "en": "Create an empty collection with the standard language columns and row types. Add its first etymon in Edit mode.",
+    "ro": "Creați o colecție goală cu coloanele de limbi și tipurile de rând standard. Adăugați primul etimon în modul de editare."
+  },
+  "Create collection": {
+    "en": "Create collection",
+    "ro": "Creează colecție"
+  },
+  "Create collection →": {
+    "en": "Create collection →",
+    "ro": "Creează colecție →"
+  },
+  "Created": {
+    "en": "Created",
+    "ro": "Creată"
+  },
+  "Current administrator password": {
+    "en": "Current administrator password",
+    "ro": "Parola curentă de administrator"
+  },
+  "Default / all if activity included": {
+    "en": "Default / all if activity included",
+    "ro": "Implicit / toate dacă se include activitatea"
+  },
+  "Default color": {
+    "en": "Default color",
+    "ro": "Culoare implicită"
+  },
+  "Delete etymon": {
+    "en": "Delete etymon",
+    "ro": "Șterge etimonul"
+  },
+  "Delete etymon {etymon}: {name}, including ALL its rows?": {
+    "en": "Delete etymon {etymon}: {name}, including ALL its rows?",
+    "ro": "Ștergeți etimonul {etymon}: {name}, inclusiv TOATE rândurile sale?"
+  },
+  "Delete row": {
+    "en": "Delete row",
+    "ro": "Șterge rândul"
+  },
+  "Delete row: {label} #{number}": {
+    "en": "Delete row: {label} #{number}",
+    "ro": "Șterge rândul: {label} #{number}"
+  },
+  "Delete {label} #{number} from etymon {etymon}: {name}?": {
+    "en": "Delete {label} #{number} from etymon {etymon}: {name}?",
+    "ro": "Ștergeți {label} #{number} din etimonul {etymon}: {name}?"
+  },
+  "Deleted": {
+    "en": "Deleted",
+    "ro": "Șters la"
+  },
+  "Deleted by": {
+    "en": "Deleted by",
+    "ro": "Șters de"
+  },
+  "Deleted etymon": {
+    "en": "Deleted etymon",
+    "ro": "Etimon șters"
+  },
+  "Deleted row": {
+    "en": "Deleted row",
+    "ro": "Rând șters"
+  },
+  "Details": {
+    "en": "Details",
+    "ro": "Detalii"
+  },
+  "Double-click a content cell to edit. Close saves to the database.": {
+    "en": "Double-click a content cell to edit. Close saves to the database.",
+    "ro": "Faceți dublu clic pe o celulă de conținut pentru a o edita. Închidere salvează în baza de date."
+  },
+  "Download Excel": {
+    "en": "Download Excel",
+    "ro": "Descarcă Excel"
+  },
+  "Duplicate column heading {value1} in {value2} and {value3}.": {
+    "en": "Duplicate column heading {value1} in {value2} and {value3}.",
+    "ro": "Antetul de coloană {value1} este duplicat în {value2} și {value3}."
+  },
+  "EDIT_HEARTBEAT_SECONDS must be positive and less than EDIT_LEASE_SECONDS.": {
+    "en": "EDIT_HEARTBEAT_SECONDS must be positive and less than EDIT_LEASE_SECONDS.",
+    "ro": "EDIT_HEARTBEAT_SECONDS trebuie să fie pozitiv și mai mic decât EDIT_LEASE_SECONDS."
+  },
+  "ETYMONS": {
+    "en": "ETYMONS",
+    "ro": "ETIMOANE"
+  },
+  "Edit cell": {
+    "en": "Edit cell",
+    "ro": "Editează celula"
+  },
+  "Edit history": {
+    "en": "Edit history",
+    "ro": "Istoricul editărilor"
+  },
+  "Edit mode": {
+    "en": "Edit mode",
+    "ro": "Mod editare"
+  },
+  "Edit password": {
+    "en": "Edit password",
+    "ro": "Parolă de editare"
+  },
+  "Edit password changed. All editor logins have been signed out.": {
+    "en": "Edit password changed. All editor logins have been signed out.",
+    "ro": "Parola de editare a fost schimbată. Toți editorii au fost deconectați."
+  },
+  "Editing in progress. Unsaved typing is not transmitted to the server.": {
+    "en": "Editing in progress. Unsaved typing is not transmitted to the server.",
+    "ro": "Editare în curs. Textul nesalvat nu este transmis serverului."
+  },
+  "Editing is not available yet. Ask the administrator to set the edit password.": {
+    "en": "Editing is not available yet. Ask the administrator to set the edit password.",
+    "ro": "Editarea nu este încă disponibilă. Cereți administratorului să seteze parola de editare."
+  },
+  "Editor": {
+    "en": "Editor",
+    "ro": "Editor"
+  },
+  "Editor name": {
+    "en": "Editor name",
+    "ro": "Numele editorului"
+  },
+  "Encrypted workbooks and duplicate archive members are not supported.": {
+    "en": "Encrypted workbooks and duplicate archive members are not supported.",
+    "ro": "Registrele criptate și elementele duplicate din arhivă nu sunt acceptate."
+  },
+  "English": {
+    "en": "English",
+    "ro": "English"
+  },
+  "Enter a password of 1–1024 characters.": {
+    "en": "Enter a password of 1–1024 characters.",
+    "ro": "Introduceți o parolă de 1–1024 de caractere."
+  },
+  "Enter a positive {value1} (at most 1000000).": {
+    "en": "Enter a positive {value1} (at most 1000000).",
+    "ro": "Introduceți un număr pozitiv pentru {value1} (cel mult 1000000)."
+  },
+  "Enter a valid Unicode password.": {
+    "en": "Enter a valid Unicode password.",
+    "ro": "Introduceți o parolă Unicode validă."
+  },
+  "Enter a valid date range. The end date must not precede the start date.": {
+    "en": "Enter a valid date range. The end date must not precede the start date.",
+    "ro": "Introduceți un interval de date valid. Data de sfârșit nu trebuie să fie anterioară datei de început."
+  },
+  "Enter a valid number within the indicated limits.": {
+    "en": "Enter a valid number within the indicated limits.",
+    "ro": "Introduceți un număr valid în limitele indicate."
+  },
+  "Enter dates as YYYY-MM-DD.": {
+    "en": "Enter dates as YYYY-MM-DD.",
+    "ro": "Introduceți datele în formatul AAAA-LL-ZZ."
+  },
+  "Enter text before creating an entry.": {
+    "en": "Enter text before creating an entry.",
+    "ro": "Introduceți text înainte de a crea o intrare."
+  },
+  "Enter your name (1–120 characters).": {
+    "en": "Enter your name (1–120 characters).",
+    "ro": "Introduceți numele (1–120 de caractere)."
+  },
+  "Enter your name and the edit password.": {
+    "en": "Enter your name and the edit password.",
+    "ro": "Introduceți numele și parola de editare."
+  },
+  "Etimon comparison grid": {
+    "en": "Etimon comparison grid",
+    "ro": "Grilă de comparație pentru etimon"
+  },
+  "Etimon comparison table": {
+    "en": "Etimon comparison table",
+    "ro": "Tabel de comparație pentru etimon"
+  },
+  "Etymon": {
+    "en": "Etymon",
+    "ro": "Etimon"
+  },
+  "Etymon / row": {
+    "en": "Etymon / row",
+    "ro": "Etimon / rând"
+  },
+  "Etymon added": {
+    "en": "Etymon added",
+    "ro": "Etimon adăugat"
+  },
+  "Etymon deleted": {
+    "en": "Etymon deleted",
+    "ro": "Etimon șters"
+  },
+  "Etymon navigation": {
+    "en": "Etymon navigation",
+    "ro": "Navigare între etimoane"
+  },
+  "Etymon number": {
+    "en": "Etymon number",
+    "ro": "Numărul etimonului"
+  },
+  "Etymons": {
+    "en": "Etymons",
+    "ro": "Etimoane"
+  },
+  "Etymons in the collection: {count}": {
+    "en": "Etymons in the collection: {count}",
+    "ro": "Etimoane în colecție: {count}"
+  },
+  "Excel workbook": {
+    "en": "Excel workbook",
+    "ro": "Registru Excel"
+  },
+  "Expected a single IPv4 or IPv6 address.": {
+    "en": "Expected a single IPv4 or IPv6 address.",
+    "ro": "Se așteaptă o singură adresă IPv4 sau IPv6."
+  },
+  "Expired": {
+    "en": "Expired",
+    "ro": "Expirat"
+  },
+  "Expires without contact": {
+    "en": "Expires without contact",
+    "ro": "Expiră fără contact la"
+  },
+  "Export Excel": {
+    "en": "Export Excel",
+    "ro": "Export Excel"
+  },
+  "Export Excel downloads the updated workbook.": {
+    "en": "Export Excel downloads the updated workbook.",
+    "ro": "Export Excel descarcă registrul de calcul actualizat."
+  },
+  "Export Excel · Parallel Words": {
+    "en": "Export Excel · Parallel Words",
+    "ro": "Export Excel · Parallel Words"
+  },
+  "Exports include all saved entries, regardless of your search. In a combined workbook, references to sheets that are not included become #REF!.": {
+    "en": "Exports include all saved entries, regardless of your search. In a combined workbook, references to sheets that are not included become #REF!.",
+    "ro": "Exporturile includ toate intrările salvate, indiferent de căutare. Într-un registru combinat, referințele către foile neincluse devin #REF!."
+  },
+  "Filter Trash": {
+    "en": "Filter Trash",
+    "ro": "Filtrare Coș"
+  },
+  "Filter history": {
+    "en": "Filter history",
+    "ro": "Filtrare istoric"
+  },
+  "Finished": {
+    "en": "Finished",
+    "ro": "Încheiat"
+  },
+  "Font size (pt)": {
+    "en": "Font size (pt)",
+    "ro": "Mărime font (pt)"
+  },
+  "Font size must be between 1 and 200 pt/px.": {
+    "en": "Font size must be between 1 and 200 pt/px.",
+    "ro": "Mărimea fontului trebuie să fie între 1 și 200 pt/px."
+  },
+  "For a custom access database, add": {
+    "en": "For a custom access database, add",
+    "ro": "Pentru o bază de date de acces personalizată, adăugați"
+  },
+  "Formatted": {
+    "en": "Formatted",
+    "ro": "Formatat"
+  },
+  "Formatting (HTML as text)": {
+    "en": "Formatting (HTML as text)",
+    "ro": "Formatare (HTML ca text)"
+  },
+  "From date": {
+    "en": "From date",
+    "ro": "De la data"
+  },
+  "Global access": {
+    "en": "Global access",
+    "ro": "Acces global"
+  },
+  "Global administrator password": {
+    "en": "Global administrator password",
+    "ro": "Parolă globală de administrator"
+  },
+  "Global edit password": {
+    "en": "Global edit password",
+    "ro": "Parolă globală de editare"
+  },
+  "Hide etymons": {
+    "en": "Hide etymons",
+    "ro": "Ascunde etimoanele"
+  },
+  "Highlight color": {
+    "en": "Highlight color",
+    "ro": "Culoare de evidențiere"
+  },
+  "History": {
+    "en": "History",
+    "ro": "Istoric"
+  },
+  "History event": {
+    "en": "History event",
+    "ro": "Eveniment din istoric"
+  },
+  "History limit must be 1–10000.": {
+    "en": "History limit must be 1–10000.",
+    "ro": "Limita istoricului trebuie să fie între 1 și 10000."
+  },
+  "History ·": {
+    "en": "History ·",
+    "ro": "Istoric ·"
+  },
+  "Import Excel workbook": {
+    "en": "Import Excel workbook",
+    "ro": "Importă registru Excel"
+  },
+  "Import Excel workbook →": {
+    "en": "Import Excel workbook →",
+    "ro": "Importă registru Excel →"
+  },
+  "Import cancelled. No collection was created.": {
+    "en": "Import cancelled. No collection was created.",
+    "ro": "Importul a fost anulat. Nu s-a creat nicio colecție."
+  },
+  "Import failed; no collection was created. ": {
+    "en": "Import failed; no collection was created. ",
+    "ro": "Importul a eșuat; nu s-a creat nicio colecție. "
+  },
+  "Import failed; no collection was created. Check server storage and permissions.": {
+    "en": "Import failed; no collection was created. Check server storage and permissions.",
+    "ro": "Importul a eșuat; nu s-a creat nicio colecție. Verificați spațiul de stocare și permisiunile serverului."
+  },
+  "Import worksheet": {
+    "en": "Import worksheet",
+    "ro": "Importă foaia de calcul"
+  },
+  "Include editing activity": {
+    "en": "Include editing activity",
+    "ro": "Include activitatea de editare"
+  },
+  "Incorrect administrator password.": {
+    "en": "Incorrect administrator password.",
+    "ro": "Parolă de administrator incorectă."
+  },
+  "Incorrect edit password.": {
+    "en": "Incorrect edit password.",
+    "ro": "Parolă de editare incorectă."
+  },
+  "Inherited": {
+    "en": "Inherited",
+    "ro": "Moștenită"
+  },
+  "Interactive table unavailable. The standard table is shown.": {
+    "en": "Interactive table unavailable. The standard table is shown.",
+    "ro": "Tabelul interactiv nu este disponibil. Se afișează tabelul standard."
+  },
+  "Interface language": {
+    "en": "Interface language",
+    "ro": "Limba interfeței"
+  },
+  "Invalid cell edit.": {
+    "en": "Invalid cell edit.",
+    "ro": "Editare de celulă nevalidă."
+  },
+  "Invalid cell editor request.": {
+    "en": "Invalid cell editor request.",
+    "ro": "Cerere nevalidă de editare a celulei."
+  },
+  "Invalid editor close request.": {
+    "en": "Invalid editor close request.",
+    "ro": "Cerere nevalidă de închidere a editorului."
+  },
+  "Invalid editor document.": {
+    "en": "Invalid editor document.",
+    "ro": "Document nevalid al editorului."
+  },
+  "Invalid editor operation.": {
+    "en": "Invalid editor operation.",
+    "ro": "Operație nevalidă a editorului."
+  },
+  "Invalid text formatting.": {
+    "en": "Invalid text formatting.",
+    "ro": "Formatare de text nevalidă."
+  },
+  "Italic": {
+    "en": "Italic",
+    "ro": "Cursiv"
+  },
+  "Item": {
+    "en": "Item",
+    "ro": "Element"
+  },
+  "Item type": {
+    "en": "Item type",
+    "ro": "Tipul elementului"
+  },
+  "Items awaiting recovery": {
+    "en": "Items awaiting recovery",
+    "ro": "Elemente în așteptarea recuperării"
+  },
+  "LIVE_REFRESH_SECONDS must be a positive integer.": {
+    "en": "LIVE_REFRESH_SECONDS must be a positive integer.",
+    "ro": "LIVE_REFRESH_SECONDS trebuie să fie un număr întreg pozitiv."
+  },
+  "Label": {
+    "en": "Label",
+    "ro": "Etichetă"
+  },
+  "Label number": {
+    "en": "Label number",
+    "ro": "Numărul etichetei"
+  },
+  "Labels": {
+    "en": "Labels",
+    "ro": "Etichete"
+  },
+  "Language": {
+    "en": "Language",
+    "ro": "Limbă"
+  },
+  "Last contact": {
+    "en": "Last contact",
+    "ro": "Ultimul contact"
+  },
+  "Latest saved change": {
+    "en": "Latest saved change",
+    "ro": "Cea mai recentă modificare salvată"
+  },
+  "Line spacing (whole cell)": {
+    "en": "Line spacing (whole cell)",
+    "ro": "Spațiere între rânduri (întreaga celulă)"
+  },
+  "Line spacing must be a number between 0.5 and 4.": {
+    "en": "Line spacing must be a number between 0.5 and 4.",
+    "ro": "Spațierea între rânduri trebuie să fie un număr între 0,5 și 4."
+  },
+  "Line spacing:": {
+    "en": "Line spacing:",
+    "ro": "Spațiere între rânduri:"
+  },
+  "Live updates are temporarily unavailable. Retrying automatically.": {
+    "en": "Live updates are temporarily unavailable. Retrying automatically.",
+    "ro": "Actualizările automate sunt temporar indisponibile. Reîncercarea se face automat."
+  },
+  "Manage collections and access, recover deleted work, and inspect editing activity.": {
+    "en": "Manage collections and access, recover deleted work, and inspect editing activity.",
+    "ro": "Gestionați colecțiile și accesul, recuperați conținutul șters și consultați activitatea de editare."
+  },
+  "Manage collections →": {
+    "en": "Manage collections →",
+    "ro": "Gestionează colecțiile →"
+  },
+  "Matching etymons": {
+    "en": "Matching etymons",
+    "ro": "Etimoane găsite"
+  },
+  "MiB. Encrypted files and legacy .xls workbooks are unsupported. Large expanded workbooks are also limited.": {
+    "en": "MiB. Encrypted files and legacy .xls workbooks are unsupported. Large expanded workbooks are also limited.",
+    "ro": "MiB. Fișierele criptate și registrele vechi .xls nu sunt acceptate. Dimensiunea registrelor după decomprimare este, de asemenea, limitată."
+  },
+  "Mixed": {
+    "en": "Mixed",
+    "ro": "Mărimi diferite"
+  },
+  "Move collection to Collections Trash": {
+    "en": "Move collection to Collections Trash",
+    "ro": "Mută colecția în Coșul colecțiilor"
+  },
+  "Move collection to Trash": {
+    "en": "Move collection to Trash",
+    "ro": "Mută colecția în Coș"
+  },
+  "Move to Collections Trash": {
+    "en": "Move to Collections Trash",
+    "ro": "Mută în Coșul colecțiilor"
+  },
+  "Move to Collections Trash →": {
+    "en": "Move to Collections Trash →",
+    "ro": "Mută în Coșul colecțiilor →"
+  },
+  "Move to Trash": {
+    "en": "Move to Trash",
+    "ro": "Mută în Coș"
+  },
+  "Name": {
+    "en": "Name",
+    "ro": "Nume"
+  },
+  "Names must be unique, including names in Collections Trash. This upload expires after 30 minutes.": {
+    "en": "Names must be unique, including names in Collections Trash. This upload expires after 30 minutes.",
+    "ro": "Numele trebuie să fie unice, inclusiv față de cele din Coșul colecțiilor. Fișierul încărcat expiră după 30 de minute."
+  },
+  "New administrator password": {
+    "en": "New administrator password",
+    "ro": "Parolă nouă de administrator"
+  },
+  "New collections are immediately available for public browsing and export. The global edit password applies to all collections.": {
+    "en": "New collections are immediately available for public browsing and export. The global edit password applies to all collections.",
+    "ro": "Colecțiile noi sunt disponibile imediat pentru consultare publică și export. Parola globală de editare se aplică tuturor colecțiilor."
+  },
+  "New edit password": {
+    "en": "New edit password",
+    "ro": "Parolă nouă de editare"
+  },
+  "Next": {
+    "en": "Next",
+    "ro": "Următoarea"
+  },
+  "Next etymon: {name}": {
+    "en": "Next etymon: {name}",
+    "ro": "Etimonul următor: {name}"
+  },
+  "Next →": {
+    "en": "Next →",
+    "ro": "Următoarea →"
+  },
+  "No Trash entries match these filters.": {
+    "en": "No Trash entries match these filters.",
+    "ro": "Nicio intrare din Coș nu corespunde acestor filtre."
+  },
+  "No Trash item with that ID exists in this collection.": {
+    "en": "No Trash item with that ID exists in this collection.",
+    "ro": "În această colecție nu există niciun element în Coș cu acel ID."
+  },
+  "No active collections. Create one, import a workbook, or restore one from Collections Trash.": {
+    "en": "No active collections. Create one, import a workbook, or restore one from Collections Trash.",
+    "ro": "Nu există colecții active. Creați una, importați un registru de calcul sau restaurați o colecție din Coșul colecțiilor."
+  },
+  "No cells are currently being edited in this collection.": {
+    "en": "No cells are currently being edited in this collection.",
+    "ro": "Nicio celulă din această colecție nu este editată în prezent."
+  },
+  "No change saved. This record describes an editing session, not a saved revision.": {
+    "en": "No change saved. This record describes an editing session, not a saved revision.",
+    "ro": "Nu s-a salvat nicio modificare. Această înregistrare descrie o sesiune de editare, nu o revizie salvată."
+  },
+  "No collections are available yet.": {
+    "en": "No collections are available yet.",
+    "ro": "Nu există încă nicio colecție disponibilă."
+  },
+  "No collections are available yet. Create a collection, import an Excel worksheet, or restore a collection from Collections Trash.": {
+    "en": "No collections are available yet. Create a collection, import an Excel worksheet, or restore a collection from Collections Trash.",
+    "ro": "Nu există încă nicio colecție disponibilă. Creați o colecție, importați o foaie Excel sau restaurați o colecție din Coșul colecțiilor."
+  },
+  "No etimons match this search.": {
+    "en": "No etimons match this search.",
+    "ro": "Niciun etimon nu corespunde acestei căutări."
+  },
+  "No history event with that ID exists in this collection.": {
+    "en": "No history event with that ID exists in this collection.",
+    "ro": "În această colecție nu există niciun eveniment din istoric cu acel ID."
+  },
+  "No history events match these filters.": {
+    "en": "No history events match these filters.",
+    "ro": "Niciun eveniment din istoric nu corespunde acestor filtre."
+  },
+  "No language form": {
+    "en": "No language form",
+    "ro": "Fără formă într-o limbă"
+  },
+  "No populated cell snapshot is available.": {
+    "en": "No populated cell snapshot is available.",
+    "ro": "Nu există nicio copie disponibilă a celulelor cu conținut."
+  },
+  "No results": {
+    "en": "No results",
+    "ro": "Niciun rezultat"
+  },
+  "No saved changes yet": {
+    "en": "No saved changes yet",
+    "ro": "Nu există încă modificări salvate"
+  },
+  "No saved content change.": {
+    "en": "No saved content change.",
+    "ro": "Nicio modificare de conținut salvată."
+  },
+  "No selections means all columns.": {
+    "en": "No selections means all columns.",
+    "ro": "Dacă nu selectați nimic, sunt incluse toate coloanele."
+  },
+  "No selections means all labels.": {
+    "en": "No selections means all labels.",
+    "ro": "Dacă nu selectați nimic, sunt incluse toate etichetele."
+  },
+  "No snapshot for this side of the operation.": {
+    "en": "No snapshot for this side of the operation.",
+    "ro": "Nu există o copie pentru această parte a operației."
+  },
+  "No unrestored Trash entry has that ID.": {
+    "en": "No unrestored Trash entry has that ID.",
+    "ro": "Nu există nicio intrare nerecuperată în Coș cu acel ID."
+  },
+  "No.": {
+    "en": "No.",
+    "ro": "Nr."
+  },
+  "None selected": {
+    "en": "None selected",
+    "ro": "Nicio selecție"
+  },
+  "Not configured": {
+    "en": "Not configured",
+    "ro": "Neconfigurată"
+  },
+  "Not recorded": {
+    "en": "Not recorded",
+    "ro": "Neînregistrat"
+  },
+  "Not saved yet.": {
+    "en": "Not saved yet.",
+    "ro": "Încă nesalvat."
+  },
+  "One collection keeps its complete original workbook. Multiple collections create a new .xlsx workbook with one worksheet per collection.": {
+    "en": "One collection keeps its complete original workbook. Multiple collections create a new .xlsx workbook with one worksheet per collection.",
+    "ro": "O singură colecție păstrează întregul registru de calcul original. Mai multe colecții creează un registru .xlsx nou, cu câte o foaie de calcul pentru fiecare colecție."
+  },
+  "Only text can be inserted into a cell.": {
+    "en": "Only text can be inserted into a cell.",
+    "ro": "Într-o celulă se poate introduce doar text."
+  },
+  "Open": {
+    "en": "Open",
+    "ro": "Deschide"
+  },
+  "Open Trash →": {
+    "en": "Open Trash →",
+    "ro": "Deschide Coșul →"
+  },
+  "Open collection ↗": {
+    "en": "Open collection ↗",
+    "ro": "Deschide colecția ↗"
+  },
+  "Open recovered etymon ↗": {
+    "en": "Open recovered etymon ↗",
+    "ro": "Deschide etimonul recuperat ↗"
+  },
+  "Open the cell editor before saving.": {
+    "en": "Open the cell editor before saving.",
+    "ro": "Deschideți editorul de celulă înainte de a salva."
+  },
+  "Outcome": {
+    "en": "Outcome",
+    "ro": "Rezultat"
+  },
+  "Overview": {
+    "en": "Overview",
+    "ro": "Prezentare generală"
+  },
+  "Page {page} · Results: {count} · 50 per page": {
+    "en": "Page {page} · Results: {count} · 50 per page",
+    "ro": "Pagina {page} · Rezultate: {count} · 50 pe pagină"
+  },
+  "Parallel Words, {source}, show all etymons": {
+    "en": "Parallel Words, {source}, show all etymons",
+    "ro": "Parallel Words, {source}, afișează toate etimoanele"
+  },
+  "Pass output_file=False to overwrite the original file.": {
+    "en": "Pass output_file=False to overwrite the original file.",
+    "ro": "Folosiți output_file=False pentru a suprascrie fișierul original."
+  },
+  "Passwords": {
+    "en": "Passwords",
+    "ro": "Parole"
+  },
+  "Passwords apply to all collections. Trash, history, and active editors belong to the selected collection.": {
+    "en": "Passwords apply to all collections. Trash, history, and active editors belong to the selected collection.",
+    "ro": "Parolele se aplică tuturor colecțiilor. Coșul, istoricul și editorii activi aparțin colecției selectate."
+  },
+  "Plain text": {
+    "en": "Plain text",
+    "ro": "Text simplu"
+  },
+  "Please fill in this field.": {
+    "en": "Please fill in this field.",
+    "ro": "Completați acest câmp."
+  },
+  "Port must be an integer from 1 to 65535.": {
+    "en": "Port must be an integer from 1 to 65535.",
+    "ro": "Portul trebuie să fie un număr întreg între 1 și 65535."
+  },
+  "Previous": {
+    "en": "Previous",
+    "ro": "Precedenta"
+  },
+  "Previous etymon: {name}": {
+    "en": "Previous etymon: {name}",
+    "ro": "Etimonul precedent: {name}"
+  },
+  "Query string is too long.": {
+    "en": "Query string is too long.",
+    "ro": "Șirul de interogare este prea lung."
+  },
+  "ROW_BACKGROUND_COLORS must define all four canonical row labels.": {
+    "en": "ROW_BACKGROUND_COLORS must define all four canonical row labels.",
+    "ro": "ROW_BACKGROUND_COLORS trebuie să definească toate cele patru etichete de rând standard."
+  },
+  "ROW_BACKGROUND_COLORS values must be #RGB or #RRGGBB hex colors.": {
+    "en": "ROW_BACKGROUND_COLORS values must be #RGB or #RRGGBB hex colors.",
+    "ro": "Valorile ROW_BACKGROUND_COLORS trebuie să fie culori hexazecimale #RGB sau #RRGGBB."
+  },
+  "Recover deleted content with its original numbers, text, and formatting.": {
+    "en": "Recover deleted content with its original numbers, text, and formatting.",
+    "ro": "Recuperați conținutul șters cu numerele, textul și formatarea originale."
+  },
+  "Recovered": {
+    "en": "Recovered",
+    "ro": "Recuperat"
+  },
+  "Recovered from Trash": {
+    "en": "Recovered from Trash",
+    "ro": "Recuperat din Coș"
+  },
+  "Refresh": {
+    "en": "Refresh",
+    "ro": "Actualizează"
+  },
+  "Refresh failed": {
+    "en": "Refresh failed",
+    "ro": "Actualizarea a eșuat"
+  },
+  "Removed": {
+    "en": "Removed",
+    "ro": "Eliminată"
+  },
+  "Removed by": {
+    "en": "Removed by",
+    "ro": "Eliminată de"
+  },
+  "Removed collections retain their workbook, contents, formatting, history, and row/etymon Trash. Restore them here. Collection names remain reserved. There is no permanent deletion.": {
+    "en": "Removed collections retain their workbook, contents, formatting, history, and row/etymon Trash. Restore them here. Collection names remain reserved. There is no permanent deletion.",
+    "ro": "Colecțiile eliminate își păstrează registrul de calcul, conținutul, formatarea, istoricul și Coșul de rânduri/etimoane. Restaurați-le aici. Numele colecțiilor rămân rezervate. Nu există ștergere definitivă."
+  },
+  "Repeat new administrator password": {
+    "en": "Repeat new administrator password",
+    "ro": "Repetă parola nouă de administrator"
+  },
+  "Repeat new edit password": {
+    "en": "Repeat new edit password",
+    "ro": "Repetă parola nouă de editare"
+  },
+  "Request could not complete": {
+    "en": "Request could not complete",
+    "ro": "Cererea nu a putut fi finalizată"
+  },
+  "Reset layout": {
+    "en": "Reset layout",
+    "ro": "Resetează aspectul"
+  },
+  "Restore": {
+    "en": "Restore",
+    "ro": "Restaurează"
+  },
+  "Restore collection": {
+    "en": "Restore collection",
+    "ro": "Restaurează colecția"
+  },
+  "Restore the containing etymon first, then restore this row.": {
+    "en": "Restore the containing etymon first, then restore this row.",
+    "ro": "Restaurați mai întâi etimonul care conține acest rând, apoi restaurați rândul."
+  },
+  "Restore the containing etymon first, then return to this separately deleted row.": {
+    "en": "Restore the containing etymon first, then return to this separately deleted row.",
+    "ro": "Restaurați mai întâi etimonul care conține acest rând, apoi reveniți la rândul șters separat."
+  },
+  "Restore the containing etymon first.": {
+    "en": "Restore the containing etymon first.",
+    "ro": "Restaurați mai întâi etimonul care conține acest rând."
+  },
+  "Restore this collection with its original identity, contents, workbook, formatting, history, and row/etymon Trash. It will be available for public browsing and export again.": {
+    "en": "Restore this collection with its original identity, contents, workbook, formatting, history, and row/etymon Trash. It will be available for public browsing and export again.",
+    "ro": "Restaurați această colecție cu identitatea, conținutul, registrul de calcul, formatarea, istoricul și Coșul de rânduri/etimoane originale. Va fi din nou disponibilă pentru consultare publică și export."
+  },
+  "Restore this etymon": {
+    "en": "Restore this etymon",
+    "ro": "Restaurează acest etimon"
+  },
+  "Restore this row": {
+    "en": "Restore this row",
+    "ro": "Restaurează acest rând"
+  },
+  "Retained cell text": {
+    "en": "Retained cell text",
+    "ro": "Textul păstrat al celulelor"
+  },
+  "Retained content": {
+    "en": "Retained content",
+    "ro": "Conținut păstrat"
+  },
+  "Review restoration": {
+    "en": "Review restoration",
+    "ro": "Verifică restaurarea"
+  },
+  "Review restoration ·": {
+    "en": "Review restoration ·",
+    "ro": "Verifică restaurarea ·"
+  },
+  "Review restoration →": {
+    "en": "Review restoration →",
+    "ro": "Verifică restaurarea →"
+  },
+  "Revoked": {
+    "en": "Revoked",
+    "ro": "Revocat"
+  },
+  "Romanian": {
+    "en": "Română",
+    "ro": "Română"
+  },
+  "Row": {
+    "en": "Row",
+    "ro": "Rând"
+  },
+  "Row added": {
+    "en": "Row added",
+    "ro": "Rând adăugat"
+  },
+  "Row deleted": {
+    "en": "Row deleted",
+    "ro": "Rând șters"
+  },
+  "Row type": {
+    "en": "Row type",
+    "ro": "Tip de rând"
+  },
+  "Row {value1} has content before the first ETIMON/ label.": {
+    "en": "Row {value1} has content before the first ETIMON/ label.",
+    "ro": "Rândul {value1} are conținut înaintea primei etichete ETIMON/."
+  },
+  "Row:": {
+    "en": "Row:",
+    "ro": "Rând:"
+  },
+  "Rows": {
+    "en": "Rows",
+    "ro": "Rânduri"
+  },
+  "Rows: {count}": {
+    "en": "Rows: {count}",
+    "ro": "Rânduri: {count}"
+  },
+  "SEARCH_HIGHLIGHT_COLOR must be a #RGB or #RRGGBB hex color.": {
+    "en": "SEARCH_HIGHLIGHT_COLOR must be a #RGB or #RRGGBB hex color.",
+    "ro": "SEARCH_HIGHLIGHT_COLOR trebuie să fie o culoare hexazecimală #RGB sau #RRGGBB."
+  },
+  "Save changes and close (Ctrl+Enter)": {
+    "en": "Save changes and close (Ctrl+Enter)",
+    "ro": "Salvează modificările și închide (Ctrl+Enter)"
+  },
+  "Saved": {
+    "en": "Saved",
+    "ro": "Salvat"
+  },
+  "Saved changes": {
+    "en": "Saved changes",
+    "ro": "Modificări salvate"
+  },
+  "Saved changes are shown by default. Include editing activity to inspect other editor outcomes. Dates and times use Europe/Bucharest.": {
+    "en": "Saved changes are shown by default. Include editing activity to inspect other editor outcomes. Dates and times use Europe/Bucharest.",
+    "ro": "Implicit sunt afișate modificările salvate. Includeți activitatea de editare pentru a consulta și celelalte rezultate ale editorilor. Datele și orele folosesc fusul Europe/Bucharest."
+  },
+  "Saving…": {
+    "en": "Saving…",
+    "ro": "Se salvează…"
+  },
+  "Scroll etymon results up or down": {
+    "en": "Scroll etymon results up or down",
+    "ro": "Derulează rezultatele cu etimoane în sus sau în jos"
+  },
+  "Scroll table left or right": {
+    "en": "Scroll table left or right",
+    "ro": "Derulează tabelul la stânga sau la dreapta"
+  },
+  "Scroll table up or down": {
+    "en": "Scroll table up or down",
+    "ro": "Derulează tabelul în sus sau în jos"
+  },
+  "Search": {
+    "en": "Search",
+    "ro": "Caută"
+  },
+  "Search a word or phrase…": {
+    "en": "Search a word or phrase…",
+    "ro": "Căutați un cuvânt sau o expresie…"
+  },
+  "Search and replacement must be strings.": {
+    "en": "Search and replacement must be strings.",
+    "ro": "Textul căutat și înlocuitorul trebuie să fie șiruri de caractere."
+  },
+  "Search ignores case and diacritics. Choose any number of columns and labels; no selections means all. Both filters apply to the same matching cell.": {
+    "en": "Search ignores case and diacritics. Choose any number of columns and labels; no selections means all. Both filters apply to the same matching cell.",
+    "ro": "Căutarea nu ține cont de majuscule și diacritice. Alegeți oricâte coloane și etichete; dacă nu selectați nimic, sunt incluse toate. Ambele filtre se aplică aceleiași celule găsite."
+  },
+  "Search strings must not be empty.": {
+    "en": "Search strings must not be empty.",
+    "ro": "Șirurile de căutare nu pot fi goale."
+  },
+  "Search text": {
+    "en": "Search text",
+    "ro": "Text de căutat"
+  },
+  "Search text is too long.": {
+    "en": "Search text is too long.",
+    "ro": "Textul de căutat este prea lung."
+  },
+  "Search the Romance lexicon": {
+    "en": "Search the Romance lexicon",
+    "ro": "Caută în lexiconul romanic"
+  },
+  "See deletion snapshot": {
+    "en": "See deletion snapshot",
+    "ro": "Vezi copia de la ștergere"
+  },
+  "See who is editing →": {
+    "en": "See who is editing →",
+    "ro": "Vezi cine editează →"
+  },
+  "Show all etimons": {
+    "en": "Show all etimons",
+    "ro": "Afișează toate etimoanele"
+  },
+  "Show etymons": {
+    "en": "Show etymons",
+    "ro": "Afișează etimoanele"
+  },
+  "Sign in": {
+    "en": "Sign in",
+    "ro": "Autentificare"
+  },
+  "Sign in before opening a cell editor.": {
+    "en": "Sign in before opening a cell editor.",
+    "ro": "Autentificați-vă înainte de a deschide editorul de celulă."
+  },
+  "Sign in to edit. Your edit login may have expired.": {
+    "en": "Sign in to edit. Your edit login may have expired.",
+    "ro": "Autentificați-vă pentru a edita. Sesiunea de editare poate să fi expirat."
+  },
+  "Sign out": {
+    "en": "Sign out",
+    "ro": "Deconectare"
+  },
+  "Signed in as": {
+    "en": "Signed in as",
+    "ro": "Autentificat ca"
+  },
+  "Size": {
+    "en": "Size",
+    "ro": "Dimensiune"
+  },
+  "Snapshot details": {
+    "en": "Snapshot details",
+    "ro": "Detaliile copiei"
+  },
+  "Someone else changed this cell. Copy your draft, then cancel and reload.": {
+    "en": "Someone else changed this cell. Copy your draft, then cancel and reload.",
+    "ro": "Altcineva a modificat această celulă. Copiați textul nesalvat, apoi anulați și reîncărcați pagina."
+  },
+  "Someone else changed this cell. Reload before editing.": {
+    "en": "Someone else changed this cell. Reload before editing.",
+    "ro": "Altcineva a modificat această celulă. Reîncărcați pagina înainte de a edita."
+  },
+  "Started": {
+    "en": "Started",
+    "ro": "Început"
+  },
+  "Status": {
+    "en": "Status",
+    "ro": "Stare"
+  },
+  "Strikethrough": {
+    "en": "Strikethrough",
+    "ro": "Tăiat"
+  },
+  "Subscript": {
+    "en": "Subscript",
+    "ro": "Indice"
+  },
+  "Superscript": {
+    "en": "Superscript",
+    "ro": "Exponent"
+  },
+  "Switch to Edit mode before making changes.": {
+    "en": "Switch to Edit mode before making changes.",
+    "ro": "Treceți în modul de editare înainte de a face modificări."
+  },
+  "Switch to Edit mode to change content.": {
+    "en": "Switch to Edit mode to change content.",
+    "ro": "Treceți în modul de editare pentru a modifica conținutul."
+  },
+  "Table columns": {
+    "en": "Table columns",
+    "ro": "Coloanele tabelului"
+  },
+  "Text": {
+    "en": "Text",
+    "ro": "Text"
+  },
+  "Text color": {
+    "en": "Text color",
+    "ro": "Culoarea textului"
+  },
+  "Text for": {
+    "en": "Text for",
+    "ro": "Text pentru"
+  },
+  "Text for {column}": {
+    "en": "Text for {column}",
+    "ro": "Text pentru {column}"
+  },
+  "That collection name, identity, or database is already registered.": {
+    "en": "That collection name, identity, or database is already registered.",
+    "ro": "Numele, identitatea sau baza de date a colecției este deja înregistrată."
+  },
+  "The administrator login or password changed. Sign in again.": {
+    "en": "The administrator login or password changed. Sign in again.",
+    "ro": "Sesiunea sau parola de administrator s-a schimbat. Autentificați-vă din nou."
+  },
+  "The administrator password changed. Please try again.": {
+    "en": "The administrator password changed. Please try again.",
+    "ro": "Parola de administrator s-a schimbat. Încercați din nou."
+  },
+  "The cell editor could not load. Reload the page to try again.": {
+    "en": "The cell editor could not load. Reload the page to try again.",
+    "ro": "Editorul de celulă nu a putut fi încărcat. Reîncărcați pagina pentru a încerca din nou."
+  },
+  "The collection content changed. Review its removal again.": {
+    "en": "The collection content changed. Review its removal again.",
+    "ro": "Conținutul colecției s-a modificat. Verificați din nou eliminarea acesteia."
+  },
+  "The collection could not be created. Check server storage and permissions.": {
+    "en": "The collection could not be created. Check server storage and permissions.",
+    "ro": "Colecția nu a putut fi creată. Verificați spațiul de stocare și permisiunile serverului."
+  },
+  "The collection database does not exist.": {
+    "en": "The collection database does not exist.",
+    "ro": "Baza de date a colecției nu există."
+  },
+  "The collection database is missing. Restore the database file from backup first.": {
+    "en": "The collection database is missing. Restore the database file from backup first.",
+    "ro": "Baza de date a colecției lipsește. Restaurați mai întâi fișierul bazei de date dintr-o copie de siguranță."
+  },
+  "The collection has no etymon row type.": {
+    "en": "The collection has no etymon row type.",
+    "ro": "Colecția nu are un tip de rând pentru etimoane."
+  },
+  "The collection has no initial-entry column.": {
+    "en": "The collection has no initial-entry column.",
+    "ro": "Colecția nu are o coloană pentru intrarea inițială."
+  },
+  "The collection will disappear from browsing, search, editing, and export. Existing bookmarks will stop working until it is restored. All its data stays in Collections Trash, and its name remains reserved.": {
+    "en": "The collection will disappear from browsing, search, editing, and export. Existing bookmarks will stop working until it is restored. All its data stays in Collections Trash, and its name remains reserved.",
+    "ro": "Colecția va dispărea din consultare, căutare, editare și export. Semnele de carte existente nu vor funcționa până la restaurare. Toate datele rămân în Coșul colecțiilor, iar numele rămâne rezervat."
+  },
+  "The database for {value1} is missing.": {
+    "en": "The database for {value1} is missing.",
+    "ro": "Baza de date pentru {value1} lipsește."
+  },
+  "The database identity does not match its catalog entry.": {
+    "en": "The database identity does not match its catalog entry.",
+    "ro": "Identitatea bazei de date nu corespunde intrării din catalog."
+  },
+  "The displayed etymon was removed or no longer matches your search. The results have been updated.": {
+    "en": "The displayed etymon was removed or no longer matches your search. The results have been updated.",
+    "ro": "Etimonul afișat a fost eliminat sau nu mai corespunde căutării. Rezultatele au fost actualizate."
+  },
+  "The edit password allows content changes. The separate administrator password allows access to these tools.": {
+    "en": "The edit password allows content changes. The separate administrator password allows access to these tools.",
+    "ro": "Parola de editare permite modificarea conținutului. Parola separată de administrator permite accesul la aceste instrumente."
+  },
+  "The edit password changed. Please try again.": {
+    "en": "The edit password changed. Please try again.",
+    "ro": "Parola de editare s-a schimbat. Încercați din nou."
+  },
+  "The editor changed. Close this dialog and reload before adding entries.": {
+    "en": "The editor changed. Close this dialog and reload before adding entries.",
+    "ro": "Editorul s-a schimbat. Închideți această fereastră și reîncărcați pagina înainte de a adăuga intrări."
+  },
+  "The editor document must end with a newline.": {
+    "en": "The editor document must end with a newline.",
+    "ro": "Documentul editorului trebuie să se termine cu un caracter de linie nouă."
+  },
+  "The end date must not precede the start date.": {
+    "en": "The end date must not precede the start date.",
+    "ro": "Data de sfârșit nu trebuie să fie anterioară datei de început."
+  },
+  "The entire item, in every language, will disappear from the collection and Excel exports. An administrator can recover it from Trash.": {
+    "en": "The entire item, in every language, will disappear from the collection and Excel exports. An administrator can recover it from Trash.",
+    "ro": "Întregul element, în toate limbile, va dispărea din colecție și din exporturile Excel. Un administrator îl poate recupera din Coș."
+  },
+  "The expanded workbook exceeds the configured import limits.": {
+    "en": "The expanded workbook exceeds the configured import limits.",
+    "ro": "Registrul de calcul decomprimat depășește limitele de import configurate."
+  },
+  "The interactive table could not update. Please reload the page.": {
+    "en": "The interactive table could not update. Please reload the page.",
+    "ro": "Tabelul interactiv nu a putut fi actualizat. Reîncărcați pagina."
+  },
+  "The new passwords do not match; nothing was changed.": {
+    "en": "The new passwords do not match; nothing was changed.",
+    "ro": "Parolele noi nu coincid; nu s-a modificat nimic."
+  },
+  "The original IDs, numbers, formatting, and backgrounds will be retained. The recovery will be recorded under": {
+    "en": "The original IDs, numbers, formatting, and backgrounds will be retained. The recovery will be recorded under",
+    "ro": "ID-urile, numerele, formatarea și fundalurile originale vor fi păstrate. Recuperarea va fi înregistrată pe numele"
+  },
+  "The output path must differ from the original file.": {
+    "en": "The output path must differ from the original file.",
+    "ro": "Calea de ieșire trebuie să fie diferită de fișierul original."
+  },
+  "The password changed. Please try again.": {
+    "en": "The password changed. Please try again.",
+    "ro": "Parola s-a schimbat. Încercați din nou."
+  },
+  "The request could not be completed. Please return to the page and try again.": {
+    "en": "The request could not be completed. Please return to the page and try again.",
+    "ro": "Cererea nu a putut fi finalizată. Reveniți la pagină și încercați din nou."
+  },
+  "The row type default background must be a #RRGGBB color.": {
+    "en": "The row type default background must be a #RRGGBB color.",
+    "ro": "Fundalul implicit al tipului de rând trebuie să fie o culoare #RRGGBB."
+  },
+  "The search could not complete. Please try again.": {
+    "en": "The search could not complete. Please try again.",
+    "ro": "Căutarea nu a putut fi finalizată. Încercați din nou."
+  },
+  "The selected collection is unavailable.": {
+    "en": "The selected collection is unavailable.",
+    "ro": "Colecția selectată nu este disponibilă."
+  },
+  "The selected database contains a different worksheet. Choose another database.": {
+    "en": "The selected database contains a different worksheet. Choose another database.",
+    "ro": "Baza de date selectată conține o altă foaie de calcul. Alegeți o altă bază de date."
+  },
+  "The selected database is not a Parallel Words collection.": {
+    "en": "The selected database is not a Parallel Words collection.",
+    "ro": "Baza de date selectată nu este o colecție Parallel Words."
+  },
+  "The upload could not be stored. Check server storage and permissions.": {
+    "en": "The upload could not be stored. Check server storage and permissions.",
+    "ro": "Fișierul încărcat nu a putut fi stocat. Verificați spațiul de stocare și permisiunile serverului."
+  },
+  "The workbook contains an invalid or oversized cell coordinate.": {
+    "en": "The workbook contains an invalid or oversized cell coordinate.",
+    "ro": "Registrul de calcul conține o coordonată de celulă nevalidă sau prea mare."
+  },
+  "The workbook contains too many cells for a browser import.": {
+    "en": "The workbook contains too many cells for a browser import.",
+    "ro": "Registrul de calcul conține prea multe celule pentru importul din browser."
+  },
+  "The workbook exceeds the configured upload limit.": {
+    "en": "The workbook exceeds the configured upload limit.",
+    "ro": "Registrul de calcul depășește limita de încărcare configurată."
+  },
+  "The workbook has no worksheets.": {
+    "en": "The workbook has no worksheets.",
+    "ro": "Registrul de calcul nu conține foi de calcul."
+  },
+  "The worksheet must use row 1 for column headings, column A for row labels, and": {
+    "en": "The worksheet must use row 1 for column headings, column A for row labels, and",
+    "ro": "Foaia de calcul trebuie să folosească rândul 1 pentru antetele coloanelor, coloana A pentru etichetele rândurilor și marcaje"
+  },
+  "This administration form expired. Reload the page and try again.": {
+    "en": "This administration form expired. Reload the page and try again.",
+    "ro": "Acest formular de administrare a expirat. Reîncărcați pagina și încercați din nou."
+  },
+  "This cell changed. Copy your draft, then cancel and reload.": {
+    "en": "This cell changed. Copy your draft, then cancel and reload.",
+    "ro": "Această celulă s-a modificat. Copiați textul nesalvat, apoi anulați și reîncărcați pagina."
+  },
+  "This cell has expired. Cancel and reload before editing.": {
+    "en": "This cell has expired. Cancel and reload before editing.",
+    "ro": "Această celulă a expirat. Anulați și reîncărcați pagina înainte de a edita."
+  },
+  "This cell no longer exists. Cancel and reload.": {
+    "en": "This cell no longer exists. Cancel and reload.",
+    "ro": "Această celulă nu mai există. Anulați și reîncărcați pagina."
+  },
+  "This collection changed or has already been restored. Reload Collections Trash.": {
+    "en": "This collection changed or has already been restored. Reload Collections Trash.",
+    "ro": "Această colecție s-a modificat sau a fost deja restaurată. Reîncărcați Coșul colecțiilor."
+  },
+  "This collection changed. Review its removal again.": {
+    "en": "This collection changed. Review its removal again.",
+    "ro": "Această colecție s-a modificat. Verificați din nou eliminarea acesteia."
+  },
+  "This collection has active cell editors. Ask them to close their drafts first.": {
+    "en": "This collection has active cell editors. Ask them to close their drafts first.",
+    "ro": "Această colecție are editori de celule activi. Cereți-le să închidă mai întâi celulele aflate în editare."
+  },
+  "This collection has already changed. Reload the collections list.": {
+    "en": "This collection has already changed. Reload the collections list.",
+    "ro": "Această colecție s-a modificat deja. Reîncărcați lista colecțiilor."
+  },
+  "This collection has been updated. Changes will appear when the current operation finishes.": {
+    "en": "This collection has been updated. Changes will appear when the current operation finishes.",
+    "ro": "Această colecție a fost actualizată. Modificările vor apărea la încheierea operației curente."
+  },
+  "This collection has been updated. Changes will appear when you close the cell editor.": {
+    "en": "This collection has been updated. Changes will appear when you close the cell editor.",
+    "ro": "Această colecție a fost actualizată. Modificările vor apărea când închideți editorul de celulă."
+  },
+  "This collection requires the new schema (version 7). Reimport the workbook into a new database; the old file is unchanged.": {
+    "en": "This collection requires the new schema (version 7). Reimport the workbook into a new database; the old file is unchanged.",
+    "ro": "Această colecție necesită noua schemă (versiunea 7). Reimportați registrul de calcul într-o bază de date nouă; fișierul vechi rămâne nemodificat."
+  },
+  "This confirmation expired or the collection changed. Review it again.": {
+    "en": "This confirmation expired or the collection changed. Review it again.",
+    "ro": "Această confirmare a expirat sau colecția s-a modificat. Verificați-o din nou."
+  },
+  "This deletion request expired. Reload and review the item again.": {
+    "en": "This deletion request expired. Reload and review the item again.",
+    "ro": "Această cerere de ștergere a expirat. Reîncărcați pagina și verificați din nou elementul."
+  },
+  "This editing record belongs to another cell. Cancel and reload.": {
+    "en": "This editing record belongs to another cell. Cancel and reload.",
+    "ro": "Această înregistrare de editare aparține altei celule. Anulați și reîncărcați pagina."
+  },
+  "This editing session expired. Copy your draft, then cancel and reload.": {
+    "en": "This editing session expired. Copy your draft, then cancel and reload.",
+    "ro": "Această sesiune de editare a expirat. Copiați textul nesalvat, apoi anulați și reîncărcați pagina."
+  },
+  "This etymon does not exist.": {
+    "en": "This etymon does not exist.",
+    "ro": "Acest etimon nu există."
+  },
+  "This file is not a Parallel Words access database.": {
+    "en": "This file is not a Parallel Words access database.",
+    "ro": "Acest fișier nu este o bază de date de acces Parallel Words."
+  },
+  "This file is not a Parallel Words collection catalog.": {
+    "en": "This file is not a Parallel Words collection catalog.",
+    "ro": "Acest fișier nu este un catalog de colecții Parallel Words."
+  },
+  "This file is not an Excel workbook.": {
+    "en": "This file is not an Excel workbook.",
+    "ro": "Acest fișier nu este un registru Excel."
+  },
+  "This item changed since the page loaded. Reload and review it before deleting.": {
+    "en": "This item changed since the page loaded. Reload and review it before deleting.",
+    "ro": "Acest element s-a modificat de la încărcarea paginii. Reîncărcați pagina și verificați-l înainte de a-l șterge."
+  },
+  "This item has already been recovered. No further recovery is needed.": {
+    "en": "This item has already been recovered. No further recovery is needed.",
+    "ro": "Acest element a fost deja recuperat. Nu este necesară o nouă recuperare."
+  },
+  "This item no longer exists in the collection.": {
+    "en": "This item no longer exists in the collection.",
+    "ro": "Acest element nu mai există în colecție."
+  },
+  "This recovery form expired or belongs to another item. Review the item again.": {
+    "en": "This recovery form expired or belongs to another item. Review the item again.",
+    "ro": "Acest formular de recuperare a expirat sau aparține altui element. Verificați din nou elementul."
+  },
+  "This row was deleted or restored. Cancel and reload before editing.": {
+    "en": "This row was deleted or restored. Cancel and reload before editing.",
+    "ro": "Acest rând a fost șters sau restaurat. Anulați și reîncărcați pagina înainte de a edita."
+  },
+  "This row was deleted or restored. Reload before editing.": {
+    "en": "This row was deleted or restored. Reload before editing.",
+    "ro": "Acest rând a fost șters sau restaurat. Reîncărcați pagina înainte de a edita."
+  },
+  "This upload belongs to another administrator login. Upload the workbook again.": {
+    "en": "This upload belongs to another administrator login. Upload the workbook again.",
+    "ro": "Acest fișier încărcat aparține altei sesiuni de administrator. Încărcați din nou registrul de calcul."
+  },
+  "This upload expired or was already used. Upload the workbook again.": {
+    "en": "This upload expired or was already used. Upload the workbook again.",
+    "ro": "Acest fișier încărcat a expirat sau a fost deja folosit. Încărcați din nou registrul de calcul."
+  },
+  "This upload is unavailable. Upload the workbook again.": {
+    "en": "This upload is unavailable. Upload the workbook again.",
+    "ro": "Acest fișier încărcat nu este disponibil. Încărcați din nou registrul de calcul."
+  },
+  "This view shows editing sessions, not typing activity. It does not provide a lock takeover.": {
+    "en": "This view shows editing sessions, not typing activity. It does not provide a lock takeover.",
+    "ro": "Această pagină arată sesiunile de editare, nu activitatea de tastare. Nu permite preluarea unei celule blocate."
+  },
+  "This worksheet is too large for a browser import (100000 rows, 256 columns, or the configured grid limit).": {
+    "en": "This worksheet is too large for a browser import (100000 rows, 256 columns, or the configured grid limit).",
+    "ro": "Această foaie de calcul este prea mare pentru importul din browser (100000 de rânduri, 256 de coloane sau limita de grilă configurată)."
+  },
+  "Through date": {
+    "en": "Through date",
+    "ro": "Până la data"
+  },
+  "Too many pending uploads. Finish or cancel an import, or try again after 30 minutes.": {
+    "en": "Too many pending uploads. Finish or cancel an import, or try again after 30 minutes.",
+    "ro": "Prea multe fișiere încărcate în așteptare. Finalizați sau anulați un import ori încercați din nou după 30 de minute."
+  },
+  "Too many unsuccessful attempts. Please wait five minutes and try again.": {
+    "en": "Too many unsuccessful attempts. Please wait five minutes and try again.",
+    "ro": "Prea multe încercări nereușite. Așteptați cinci minute și încercați din nou."
+  },
+  "Trash": {
+    "en": "Trash",
+    "ro": "Coș"
+  },
+  "Trash entries": {
+    "en": "Trash entries",
+    "ro": "Intrări din Coș"
+  },
+  "Trash entries · times shown with Europe/Bucharest UTC offsets": {
+    "en": "Trash entries · times shown with Europe/Bucharest UTC offsets",
+    "ro": "Intrări din Coș · orele includ decalajele UTC pentru Europe/Bucharest"
+  },
+  "Trash item": {
+    "en": "Trash item",
+    "ro": "Element din Coș"
+  },
+  "Trash item restored. Open collection views will update automatically.": {
+    "en": "Trash item restored. Open collection views will update automatically.",
+    "ro": "Elementul din Coș a fost restaurat. Paginile deschise ale colecției se vor actualiza automat."
+  },
+  "Trash ·": {
+    "en": "Trash ·",
+    "ro": "Coș ·"
+  },
+  "Try another word or a broader search.": {
+    "en": "Try another word or a broader search.",
+    "ro": "Încercați un alt cuvânt sau o căutare mai largă."
+  },
+  "Type DELETE exactly to move this collection to Collections Trash.": {
+    "en": "Type DELETE exactly to move this collection to Collections Trash.",
+    "ro": "Tastați exact DELETE pentru a muta această colecție în Coșul colecțiilor."
+  },
+  "Type DELETE to confirm": {
+    "en": "Type DELETE to confirm",
+    "ro": "Tastați DELETE pentru a confirma"
+  },
+  "Type DELETE to confirm moving this item to Trash.": {
+    "en": "Type DELETE to confirm moving this item to Trash.",
+    "ro": "Tastați DELETE pentru a confirma mutarea acestui element în Coș."
+  },
+  "Typography": {
+    "en": "Typography",
+    "ro": "Tipografie"
+  },
+  "Unchanged": {
+    "en": "Unchanged",
+    "ro": "Fără modificări"
+  },
+  "Underline": {
+    "en": "Underline",
+    "ro": "Subliniat"
+  },
+  "Unknown collection column.": {
+    "en": "Unknown collection column.",
+    "ro": "Coloană necunoscută în colecție."
+  },
+  "Unknown collection.": {
+    "en": "Unknown collection.",
+    "ro": "Colecție necunoscută."
+  },
+  "Unknown filter field.": {
+    "en": "Unknown filter field.",
+    "ro": "Câmp de filtrare necunoscut."
+  },
+  "Unknown search filter.": {
+    "en": "Unknown search filter.",
+    "ro": "Filtru de căutare necunoscut."
+  },
+  "Unsupported access database schema.": {
+    "en": "Unsupported access database schema.",
+    "ro": "Schemă neacceptată a bazei de date de acces."
+  },
+  "Unsupported access role.": {
+    "en": "Unsupported access role.",
+    "ro": "Rol de acces neacceptat."
+  },
+  "Unsupported collection catalog schema.": {
+    "en": "Unsupported collection catalog schema.",
+    "ro": "Schemă neacceptată a catalogului de colecții."
+  },
+  "Unsupported text color.": {
+    "en": "Unsupported text color.",
+    "ro": "Culoare de text neacceptată."
+  },
+  "Unsupported text format: {value1}.": {
+    "en": "Unsupported text format: {value1}.",
+    "ro": "Format de text neacceptat: {value1}."
+  },
+  "Up to": {
+    "en": "Up to",
+    "ro": "Cel mult"
+  },
+  "Updating…": {
+    "en": "Updating…",
+    "ro": "Se actualizează…"
+  },
+  "Upload a workbook, then choose one worksheet and a name for the new collection.": {
+    "en": "Upload a workbook, then choose one worksheet and a name for the new collection.",
+    "ro": "Încărcați un registru de calcul, apoi alegeți o foaie și un nume pentru noua colecție."
+  },
+  "Upload and choose worksheet": {
+    "en": "Upload and choose worksheet",
+    "ro": "Încarcă și alege foaia de calcul"
+  },
+  "Use Delete etymon to remove an etymon and its rows.": {
+    "en": "Use Delete etymon to remove an etymon and its rows.",
+    "ro": "Folosiți Șterge etimonul pentru a elimina un etimon împreună cu rândurile sale."
+  },
+  "Use a collection name of 1–120 characters.": {
+    "en": "Use a collection name of 1–120 characters.",
+    "ro": "Folosiți un nume de colecție de 1–120 de caractere."
+  },
+  "Use a unique name. Names in Collections Trash remain reserved.": {
+    "en": "Use a unique name. Names in Collections Trash remain reserved.",
+    "ro": "Folosiți un nume unic. Numele din Coșul colecțiilor rămân rezervate."
+  },
+  "Use an editor filter of at most 120 characters.": {
+    "en": "Use an editor filter of at most 120 characters.",
+    "ro": "Folosiți un filtru pentru editor de cel mult 120 de caractere."
+  },
+  "Use no more than {count} characters.": {
+    "en": "Use no more than {count} characters.",
+    "ro": "Folosiți cel mult {count} caractere."
+  },
+  "Use the format shown in the instructions.": {
+    "en": "Use the format shown in the instructions.",
+    "ro": "Folosiți formatul indicat în instrucțiuni."
+  },
+  "Use the separate administrator password. The editing password does not grant access here.": {
+    "en": "Use the separate administrator password. The editing password does not grant access here.",
+    "ro": "Folosiți parola separată de administrator. Parola de editare nu oferă acces aici."
+  },
+  "View Trash item": {
+    "en": "View Trash item",
+    "ro": "Vezi elementul din Coș"
+  },
+  "View change →": {
+    "en": "View change →",
+    "ro": "Vezi modificarea →"
+  },
+  "View event →": {
+    "en": "View event →",
+    "ro": "Vezi evenimentul →"
+  },
+  "View item →": {
+    "en": "View item →",
+    "ro": "Vezi elementul →"
+  },
+  "View parent etymon in Trash →": {
+    "en": "View parent etymon in Trash →",
+    "ro": "Vezi etimonul părinte din Coș →"
+  },
+  "View parent etymon →": {
+    "en": "View parent etymon →",
+    "ro": "Vezi etimonul părinte →"
+  },
+  "Visible table columns": {
+    "en": "Visible table columns",
+    "ro": "Coloane vizibile în tabel"
+  },
+  "Wait for the cell editor to open before navigating or searching.": {
+    "en": "Wait for the cell editor to open before navigating or searching.",
+    "ro": "Așteptați deschiderea editorului de celulă înainte de a naviga sau de a căuta."
+  },
+  "Who is editing?": {
+    "en": "Who is editing?",
+    "ro": "Cine editează?"
+  },
+  "Workbook XML must not contain DTD or entity declarations.": {
+    "en": "Workbook XML must not contain DTD or entity declarations.",
+    "ro": "XML-ul registrului de calcul nu trebuie să conțină declarații DTD sau de entități."
+  },
+  "Workbook:": {
+    "en": "Workbook:",
+    "ro": "Registru de calcul:"
+  },
+  "Worksheet": {
+    "en": "Worksheet",
+    "ro": "Foaie de calcul"
+  },
+  "Worksheet imported as a new collection. The complete original workbook is retained for export.": {
+    "en": "Worksheet imported as a new collection. The complete original workbook is retained for export.",
+    "ro": "Foaia de calcul a fost importată ca o colecție nouă. Întregul registru original este păstrat pentru export."
+  },
+  "Worksheet {value1} does not exist in {value2}.": {
+    "en": "Worksheet {value1} does not exist in {value2}.",
+    "ro": "Foaia de calcul {value1} nu există în {value2}."
+  },
+  "Worksheet {value1} does not exist.": {
+    "en": "Worksheet {value1} does not exist.",
+    "ro": "Foaia de calcul {value1} nu există."
+  },
+  "Worksheet {value1} is absent from the saved template.": {
+    "en": "Worksheet {value1} is absent from the saved template.",
+    "ro": "Foaia de calcul {value1} lipsește din șablonul salvat."
+  },
+  "Your edit login or lock ended. Copy your draft, then cancel and reload.": {
+    "en": "Your edit login or lock ended. Copy your draft, then cancel and reload.",
+    "ro": "Sesiunea de editare sau blocarea celulei a încetat. Copiați textul nesalvat, apoi anulați și reîncărcați pagina."
+  },
+  "Your editing lock expired or ended. Copy your draft, then cancel and reload.": {
+    "en": "Your editing lock expired or ended. Copy your draft, then cancel and reload.",
+    "ro": "Blocarea celulei pentru editare a expirat sau a încetat. Copiați textul nesalvat, apoi anulați și reîncărcați pagina."
+  },
+  "Your editing lock expired.": {
+    "en": "Your editing lock expired.",
+    "ro": "Blocarea celulei pentru editare a expirat."
+  },
+  "Your editing lock expired. Copy your draft, then cancel and reload.": {
+    "en": "Your editing lock expired. Copy your draft, then cancel and reload.",
+    "ro": "Blocarea celulei pentru editare a expirat. Copiați textul nesalvat, apoi anulați și reîncărcați pagina."
+  },
+  "Your editing session expired. Reload the page before editing.": {
+    "en": "Your editing session expired. Reload the page before editing.",
+    "ro": "Sesiunea de editare a expirat. Reîncărcați pagina înainte de a edita."
+  },
+  "Your name will be recorded with your changes.": {
+    "en": "Your name will be recorded with your changes.",
+    "ro": "Numele dumneavoastră va fi înregistrat împreună cu modificările."
+  },
+  "Your session expired. Reload the page before signing in.": {
+    "en": "Your session expired. Reload the page before signing in.",
+    "ro": "Sesiunea a expirat. Reîncărcați pagina înainte de a vă autentifica."
+  },
+  "[To be added]": {
+    "en": "[To be added]",
+    "ro": "[De completat]"
+  },
+  "active cell editor(s) · Europe/Bucharest times": {
+    "en": "active cell editor(s) · Europe/Bucharest times",
+    "ro": "editori de celule activi · ore Europe/Bucharest"
+  },
+  "active cell editors.": {
+    "en": "active cell editors.",
+    "ro": "editori de celule activi."
+  },
+  "before the command. Use the same access file as the running server.": {
+    "en": "before the command. Use the same access file as the running server.",
+    "ro": "înaintea comenzii. Folosiți același fișier de acces ca serverul în funcțiune."
+  },
+  "cell_range must be a cell or rectangle such as A1:D20.": {
+    "en": "cell_range must be a cell or rectangle such as A1:D20.",
+    "ro": "cell_range trebuie să fie o celulă sau un dreptunghi, de exemplu A1:D20."
+  },
+  "etymon number": {
+    "en": "etymon number",
+    "ro": "numărul etimonului"
+  },
+  "etymons ·": {
+    "en": "etymons ·",
+    "ro": "etimoane ·"
+  },
+  "markers for etymons. The complete original workbook is retained for export; imports never replace an existing collection.": {
+    "en": "markers for etymons. The complete original workbook is retained for export; imports never replace an existing collection.",
+    "ro": "pentru etimoane. Întregul registru original este păstrat pentru export; importul nu înlocuiește niciodată o colecție existentă."
+  },
+  "output_file must be a path, None, or False.": {
+    "en": "output_file must be a path, None, or False.",
+    "ro": "output_file trebuie să fie o cale, None sau False."
+  },
+  "page number": {
+    "en": "page number",
+    "ro": "numărul paginii"
+  },
+  "populated cell(s)": {
+    "en": "populated cell(s)",
+    "ro": "celule cu conținut"
+  },
+  "populated cell(s) in": {
+    "en": "populated cell(s) in",
+    "ro": "celule cu conținut în"
+  },
+  "replace_dict must be a dictionary of string pairs.": {
+    "en": "replace_dict must be a dictionary of string pairs.",
+    "ro": "replace_dict trebuie să fie un dicționar de perechi de șiruri de caractere."
+  },
+  "row(s)": {
+    "en": "row(s)",
+    "ro": "rânduri"
+  },
+  "row(s) and": {
+    "en": "row(s) and",
+    "ro": "rânduri și"
+  },
+  "row(s) ·": {
+    "en": "row(s) ·",
+    "ro": "rânduri ·"
+  },
+  "row/etymon Trash items ·": {
+    "en": "row/etymon Trash items ·",
+    "ro": "elemente în Coșul de rânduri/etimoane ·"
+  },
+  "seconds without contact. Expired or revoked sessions are excluded.": {
+    "en": "seconds without contact. Expired or revoked sessions are excluded.",
+    "ro": "secunde fără contact. Sesiunile expirate sau revocate sunt excluse."
+  },
+  "seconds, even without typing. A lock expires after": {
+    "en": "seconds, even without typing. A lock expires after",
+    "ro": "secunde, chiar și fără tastare. Blocarea celulei expiră după"
+  },
+  "{count} selected": {
+    "en": "{count} selected",
+    "ro": "Selectate: {count}"
+  },
+  "{filter} to search": {
+    "en": "{filter} to search",
+    "ro": "{filter} de căutat"
+  },
+  "{names} are editing a cell in this etymon. You cannot delete it until they finish.": {
+    "en": "{names} are editing a cell in this etymon. You cannot delete it until they finish.",
+    "ro": "{names} editează o celulă în acest etimon. Nu îl puteți șterge până la încheierea editării."
+  },
+  "{names} are editing a cell in this row. You cannot delete it until they finish.": {
+    "en": "{names} are editing a cell in this row. You cannot delete it until they finish.",
+    "ro": "{names} editează o celulă în acest rând. Nu îl puteți șterge până la încheierea editării."
+  },
+  "{names} is editing a cell in this etymon. You cannot delete it until they finish.": {
+    "en": "{names} is editing a cell in this etymon. You cannot delete it until they finish.",
+    "ro": "{names} editează o celulă în acest etimon. Nu îl puteți șterge până la încheierea editării."
+  },
+  "{names} is editing a cell in this row. You cannot delete it until they finish.": {
+    "en": "{names} is editing a cell in this row. You cannot delete it until they finish.",
+    "ro": "{names} editează o celulă în acest rând. Nu îl puteți șterge până la încheierea editării."
+  },
+  "{name} is editing another cell in this row ({label} #{number}, {column}).": {
+    "en": "{name} is editing another cell in this row ({label} #{number}, {column}).",
+    "ro": "{name} editează o altă celulă din acest rând ({label} #{number}, {column})."
+  },
+  "{name} is editing another row in this etymon ({label} #{number}, {column}).": {
+    "en": "{name} is editing another row in this etymon ({label} #{number}, {column}).",
+    "ro": "{name} editează un alt rând din acest etimon ({label} #{number}, {column})."
+  },
+  "{name} — etymon {number}, language comparison": {
+    "en": "{name} — etymon {number}, language comparison",
+    "ro": "{name} — etimonul {number}, comparație între limbi"
+  },
+  "{value1} is editing this cell. Please try again after they finish.": {
+    "en": "{value1} is editing this cell. Please try again after they finish.",
+    "ro": "{value1} editează această celulă. Încercați din nou după încheierea editării."
+  },
+  "· Drag column edges or row borders to resize.": {
+    "en": "· Drag column edges or row borders to resize.",
+    "ro": "· Trageți marginile coloanelor sau ale rândurilor pentru a le redimensiona."
+  },
+  "· Event #": {
+    "en": "· Event #",
+    "ro": "· Eveniment #"
+  },
+  "· Parallel Words": {
+    "en": "· Parallel Words",
+    "ro": "· Parallel Words"
+  },
+  "· Trash #": {
+    "en": "· Trash #",
+    "ro": "· Coș #"
+  },
+  "· showing the first 200 cells": {
+    "en": "· showing the first 200 cells",
+    "ro": "· se afișează primele 200 de celule"
+  },
+  "← Previous": {
+    "en": "← Previous",
+    "ro": "← Precedenta"
+  }
+}

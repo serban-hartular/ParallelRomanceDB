@@ -3,7 +3,7 @@
 const assert=require('node:assert/strict');
 const {spawn,execFileSync}=require('node:child_process');
 const {once}=require('node:events');
-const {mkdtempSync,rmSync}=require('node:fs');
+const {mkdtempSync,rmSync,readFileSync}=require('node:fs');
 const {tmpdir}=require('node:os');
 const path=require('node:path');
 const readline=require('node:readline');
@@ -14,7 +14,10 @@ const python=process.env.XLDB_PYTHON||path.join(root,'.venv/bin/python');
 const ADMIN='temporary browser admin password', EDIT='temporary browser edit password';
 const source=`
 import json,sys
+from secrets import token_hex
 from pathlib import Path
+from openpyxl import Workbook
+from openpyxl.styles import Font
 from collection_catalog import CollectionCatalog
 from df_search import LABEL_ORDER
 from main import create_app
@@ -27,11 +30,20 @@ for entry,name in [(a,'headword'),(b,'fashion term')]:
  store.add_row(1,LABEL_ORDER[1],'keep this sense')
  store.delete_row(1,LABEL_ORDER[1],1,actor={'name':'Bob'})
 catalog.close()
+workbook=root/'original imported.xlsx'
+book=Workbook();book.active.title='Other worksheet'
+for i in range(80): book.active.append([token_hex(1000)])
+sheet=book.create_sheet(' Terms ')
+sheet.append(['Label','LIMBA FRANCEZĂ',' Notes '])
+sheet.append([' ETIMON/ CORESPONDENTE ROMANICE ','  café  ','original notes'])
+sheet['B2'].font=Font(bold=True,color='123456')
+book.save(workbook);book.close()
 app=create_app(catalog_path=root/'catalog.sqlite3',test_config={'EDIT_HEARTBEAT_SECONDS':1,'EDIT_LEASE_SECONDS':15,'LIVE_REFRESH_SECONDS':1})
 app.extensions['access_control'].set_admin_password(${JSON.stringify(ADMIN)})
 app.extensions['access_control'].set_edit_password(${JSON.stringify(EDIT)})
+app.config['DEFAULT_UI_LANGUAGE']='en'
 server=create_server(app,host='127.0.0.1',port=0)
-print(json.dumps({'port':server.effective_port,'a':a,'b':b}),flush=True)
+print(json.dumps({'port':server.effective_port,'a':a,'b':b,'workbook':str(workbook)}),flush=True)
 server.run()
 `;
 const server=spawn(python,['-u','-c',source,directory],{cwd:root,stdio:['ignore','pipe','inherit']});
@@ -47,7 +59,7 @@ async function main(){
  try{
   const lines=readline.createInterface({input:server.stdout});
   const [line]=await Promise.race([once(lines,'line'),once(server,'exit').then(()=>{throw new Error('Test server exited');})]);
-  const {port,a,b}=JSON.parse(line),base=`http://127.0.0.1:${port}`;
+  const {port,a,b,workbook}=JSON.parse(line),base=`http://127.0.0.1:${port}`;
   const collection=entry=>`${base}/collections/${entry.id}/`;
   browser=await chromium.launch({headless:true});
   const adminContext=await browser.newContext({javaScriptEnabled:false,viewport:{width:1440,height:1000}});
@@ -91,6 +103,52 @@ async function main(){
   await admin.screenshot({path:'/tmp/xldb-admin-working-desktop.png'});
   console.log('ok - Admin requires its own password; ordinary HTML login works without JavaScript and does not grant editing');
 
+  await admin.getByRole('link',{name:'Collections',exact:true}).click();
+  await admin.getByRole('link',{name:'Create collection →',exact:true}).click();
+  await admin.getByLabel('Collection name',{exact:true}).fill('Browser empty');
+  await admin.getByRole('button',{name:'Create collection',exact:true}).click();
+  await admin.getByRole('heading',{name:'Browser empty',exact:true}).waitFor();
+  const created=new URL(admin.url()).searchParams.get('collection_id');
+  assert.equal((await adminContext.request.get(collection({id:created}))).status(),200);
+  console.log('ok - An administrator creates a public empty collection through ordinary HTML forms');
+
+  await admin.getByRole('link',{name:'Import Excel workbook',exact:true}).click();
+  await admin.getByLabel('Excel workbook',{exact:true}).setInputFiles({name:'invalid.xlsx',mimeType:'application/octet-stream',buffer:Buffer.from('invalid')});
+  await admin.getByRole('button',{name:'Upload and choose worksheet',exact:true}).click();
+  await admin.getByRole('alert').filter({hasText:'Could not read this workbook'}).waitFor();
+  assert.ok(readFileSync(workbook).length>64*1024);
+  await admin.getByLabel('Excel workbook',{exact:true}).setInputFiles(workbook);
+  await admin.getByRole('button',{name:'Upload and choose worksheet',exact:true}).click();
+  await admin.getByRole('heading',{name:'Choose worksheet',exact:true}).waitFor();
+  await admin.getByLabel('Worksheet',{exact:true}).selectOption(' Terms ');
+  await admin.getByLabel('Collection name',{exact:true}).fill('Browser imported');
+  await admin.getByRole('button',{name:'Import worksheet',exact:true}).click();
+  await admin.getByRole('heading',{name:'Browser imported',exact:true}).waitFor();
+  const imported=new URL(admin.url()).searchParams.get('collection_id');
+  const exported=await adminContext.request.get(`${collection({id:imported})}export`);
+  assert.equal(exported.status(),200);assert.deepEqual(await exported.body(),readFileSync(workbook));
+  console.log('ok - A workbook larger than 64 KiB uploads without scripts; exact worksheet selection preserves its entire export');
+
+  await admin.getByRole('link',{name:'Collections',exact:true}).click();
+  const importedRow=admin.getByRole('row').filter({has:admin.getByText('Browser imported',{exact:true})});
+  await importedRow.getByRole('link',{name:'Move to Collections Trash →',exact:true}).click();
+  await admin.getByLabel('Type DELETE to confirm',{exact:true}).fill('DELETE');
+  await admin.getByRole('button',{name:'Move to Collections Trash',exact:true}).click();
+  await admin.getByRole('heading',{name:'Collections Trash',exact:true}).waitFor();
+  assert.equal((await adminContext.request.get(collection({id:imported}))).status(),404);
+  await admin.getByRole('link',{name:'Review restoration →',exact:true}).click();
+  await admin.setViewportSize({width:390,height:844});
+  assert.ok(await admin.locator('html').evaluate(el=>el.scrollWidth<=el.clientWidth));
+  await admin.screenshot({path:'/tmp/xldb-collection-restore-mobile.png'});
+  await admin.getByRole('button',{name:'Restore collection',exact:true}).click();
+  assert.equal((await adminContext.request.get(collection({id:imported}))).status(),200);
+  const restoredExport=await adminContext.request.get(`${collection({id:imported})}export`);
+  assert.deepEqual(await restoredExport.body(),readFileSync(workbook));
+  await admin.setViewportSize({width:1440,height:1000});
+  await admin.screenshot({path:'/tmp/xldb-collections-desktop.png'});
+  await admin.goto(`${base}/admin/?collection_id=${a.id}`);
+  console.log('ok - Collections Trash hides a collection and restores its original identity and workbook; mobile confirmation fits');
+
   await editorLogin();await openCell();
   await editor.locator('.ql-editor').fill('Ana protected draft');
   await editor.getByRole('link',{name:'Admin',exact:true}).click();
@@ -101,6 +159,14 @@ async function main(){
   assert.ok((await admin.locator('main').innerText()).includes('SENSURI DE BAZĂ #2'));
   assert.equal(await admin.locator('script').count(),0);
   console.log('ok - Active editors use the existing lease records; an open cell draft blocks navigation to administration');
+
+  await admin.goto(`${base}/admin/collections/${a.id}/delete`);
+  await admin.getByLabel('Type DELETE to confirm',{exact:true}).fill('DELETE');
+  await admin.getByRole('button',{name:'Move to Collections Trash',exact:true}).click();
+  await admin.getByText('This collection has active cell editors.',{exact:false}).waitFor();
+  assert.equal(await editor.locator('.ql-editor').innerText(),'Ana protected draft');
+  assert.equal((await adminContext.request.get(collection(a))).status(),200);
+  console.log('ok - Collection removal is rejected while a real editor holds a draft, preserving that draft and access');
 
   await admin.getByRole('link',{name:'Trash',exact:true}).click();
   await admin.getByRole('link',{name:'View item →',exact:true}).click();

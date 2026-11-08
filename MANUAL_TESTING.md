@@ -1,26 +1,33 @@
 # Parallel Words: manual test checklist
 
-This checklist covers the application as implemented on 2026-11-07. The
+This checklist covers the application as implemented on 2026-11-08. The
 admin interface is available at `/admin/` and described separately in
-[ADMIN_DESIGN.md](ADMIN_DESIGN.md). Tasks T60–T72 cover its implemented workflows.
+[ADMIN_DESIGN.md](ADMIN_DESIGN.md). Tasks T60–T80 cover its implemented workflows.
 
-## Current testing status — 2026-11-07
+## Current testing status — 2026-11-08
 
-**User acceptance testing has not started: all 72 tasks remain pending.** The
-user has looked at the application but has not worked through this checklist.
-No task has been marked passed, failed, or not applicable by the user yet.
+**The checklist currently marks T81 and T82 complete. The other 88 tasks
+remain pending, including all new language checks T85–T90.** Browser/date/environment
+details for the checked tasks have not yet been recorded below. Existing checkbox
+marks are preserved; automated checks do not change user acceptance status.
 
 | Coverage | Tasks | User testing status |
 | --- | --- | --- |
 | Browsing, editing, collections, locking, live updates, recovery, Excel, and deployment | T01–T59 | Pending |
 | Administrator setup/login, passwords, Trash/recovery, history, active editors, and remote access | T60–T72 | Pending |
+| Collection creation, Excel upload/import, Collections Trash, and restoration | T73–T80 | Pending |
+| Export picker, multiple collection sheets, formatting/formulas, and fallback | T81–T84 | T81–T82 checked; T83–T84 pending |
+| Romanian/English interface, remembered choice, messages, editing, and data integrity | T85–T90 | Pending |
 
-The preceding implementation passed 210 Python tests, 48 automated browser
-check groups, six Node scrollbar tests, and JavaScript syntax checks. Agent
-review of desktop/mobile screenshots also took place. These checks do not
-complete any task in this **user** checklist or confirm behavior in the user's
-Excel installation or deployed environment. Earlier informal reports that
-editing/export worked are not completion of this acceptance pass.
+Automated verification results are recorded in [HANDOFF.md](HANDOFF.md). These
+checks do not complete any task in this **user** checklist or confirm behavior
+in the user's Excel installation or deployed environment. Earlier informal
+reports that editing/export worked are not completion of this acceptance pass.
+
+The interface now defaults to Romanian. Earlier tasks use English control names;
+choose **English** in the page header to follow them verbatim, or use their
+Romanian equivalents. Workbook text, column headings, and row labels retain their
+original language.
 
 Tick a task only after its expected result is observed. Record the browser,
 collection, etymon, row label/number, language column, and any error when a task
@@ -238,6 +245,44 @@ explicit Sign out when checking revocation.
 - [ ] **T71 — Plain HTML, mobile, and sign-out.** Use all admin forms with JavaScript disabled and review at a narrow/mobile width. Forms, filters, collection switching, confirmation pages, and table scrolling should work. Admin Sign out should require admin login on revisit without ending a separate editor login. A stale form from a previous admin login must not perform an operation under a replacement name.
 - [ ] **T72 — Remote administrator access.** On the HTTPS test deployment, repeat administrator login, a password change, and a recovery. The same site should serve `/admin/` without a new port. Direct tool URLs should require admin access; browser Back after sign-out must not authorize further operations, even if the browser displays an old page from its own history.
 
+## Collection management (administrator, disposable catalog only)
+
+Use Admin → Collections with the disposable catalog/access file. Prepare a copy
+of a workbook containing at least two worksheets. Include exact label spacing,
+rich formatting, and known content in the worksheet to import. None of these
+tasks have been performed or accepted by the user yet.
+
+- [ ] **T73 — Create an empty collection.** Choose Create collection, enter a unique name, and submit. Its overview should show no etymons; opening it publicly should work, and Edit mode should allow adding its first etymon. Standard language columns and row types should be present. Blank/duplicate names should fail without leaving extra collections. Cancel should leave the catalog unchanged.
+- [ ] **T74 — Import the chosen worksheet.** Choose Import Excel workbook, upload the workbook copy, then choose the exact worksheet and a new unique name. The correct worksheet's etymons, language headings, labels, numbers, spacing, formatting, and fills should appear. Other worksheet contents must not become this collection's data. The uploaded filename should appear as the source label. The original workbook copy must remain unchanged.
+- [ ] **T75 — Imported full-workbook export.** Before editing the imported collection, export it and compare with the uploaded workbook: all worksheets, original content, rich formatting, names, and spacing should be retained. Open the export in actual Excel. Edit a disposable cell, export again, and check that only the selected worksheet has the intended change. Existing collections must remain unchanged throughout import/export.
+- [ ] **T76 — Invalid uploads, retry, cancellation, and expiry.** Try a renamed non-Excel file, unsupported .xls, a worksheet with invalid layout, an existing collection name, and a workbook exceeding the configured upload limit. Each should show a clear error and leave no new collection. Correct a failed name and retry without reuploading. Cancel a staged upload: it should create no collection, and revisiting its URL should fail. A different administrator login should not open the first login's pending upload. An abandoned upload should expire after 30 minutes; mark only the expiry part unrun if not observed.
+- [ ] **T77 — Move a collection to Collections Trash.** Review removal of a disposable collection, check its name/counts, then Cancel. It should remain intact. Review again and confirm by typing DELETE exactly. It should leave active/admin/public collection lists; reloading old collection/search/export URLs should report it unavailable. Another collection should still work. An already-open page's chooser updates on reload. Its name should remain reserved. Collections Trash should show the removing administrator and time; it must be separate from the row/etymon Trash.
+- [ ] **T78 — Active editors and stale confirmations.** With Ana's cell draft open, try removing that collection. Removal should be blocked and Ana's draft should remain editable/saveable. Close the draft, reopen the removal confirmation, and save a change from another browser before confirming: the old confirmation should be rejected. Also try using a removal form opened before admin sign-out/sign-in; it must not remove the collection under the new login.
+- [ ] **T79 — Restore a collection and restart.** Remove a disposable collection containing edits, row/etymon Trash, and history, then review restoration in Collections Trash. Cancel must leave it removed. Confirm restoration and verify the same collection URL/identity, original data/formatting, saved search/layout preferences, row Trash, and history. Its exported workbook must retain all original worksheets. Reusing old removal/restoration forms must not perform another operation. Restart the test server and verify removal/restoration persists. Removing the last active disposable collection should leave an empty landing page with usable Admin access and restoration.
+- [ ] **T80 — HTML/mobile and remote uploads.** Repeat empty creation, worksheet import, removal, and restoration with JavaScript disabled and at a narrow/mobile width. Repeat an upload larger than 64 KiB on the HTTPS test deployment after applying the documented Nginx upload limit; a valid workbook within the configured limit should pass. Anonymous/editor-only browsers must be redirected to admin login when opening collection management URLs. A server in single-database mode should explain that collection management requires --catalog.
+
+## Exporting multiple collections
+
+Use disposable collections; keep all original workbook copies unchanged. Earlier
+single-collection export tasks now use Export Excel → Download Excel.
+
+- [X] **T81 — Current collection by default.** Open Export Excel in each of two different collection tabs. Exactly the current collection should be checked. Cancel/Escape must leave the page, selection, search, layout, and scroll unchanged. Download without changing the selection: the full original workbook should be retained, including unrelated sheets. Reopen after a multi-selection: it should again default only to the current collection. Unchecking every collection should disable Download Excel; a plain HTML submission with no selection should show an error.
+- [X] **T82 — Several collections in one workbook.** Select at least two collections and download. Open the .xlsx in actual Excel: it should have exactly one worksheet per selected collection, in catalog order, with no repair warning. Every collection's complete saved entries should appear even under a narrow search. Check saved edits, additions, deleted/recovered rows, empty collections, and distinct language/row definitions. A single different collection selected on its own should export that collection's complete original workbook.
+- [ ] **T83 — Formats, names, and references.** Check unusual text/label spacing, blank lines, rich fonts/colors, fills, borders, widths/heights, merged cells, and comments against each source. Check tables/charts where present. Long/invalid/colliding collection names should become valid unique tab names without changing collection names or cell labels. Self-references should use the new tab name; references to another selected sheet from the same original workbook should follow its new name. References to omitted sheets should become #REF!. Combined output is .xlsx; use individual exports to retain macros or external-workbook links.
+- [ ] **T84 — HTML/mobile and unavailable collections.** Use the picker on a narrow screen and download multiple collections with JavaScript disabled. Try Export Excel with an open or opening cell editor: the draft should remain intact and export should be blocked. In a disposable second administrator session, remove a collection after opening the picker; submitting that stale selection should report it unavailable, without silently omitting it or downloading a partial selection. A refreshed picker should exclude Collections Trash. Verify that exports also work when the app serves a single database.
+
+## Romanian and English interface
+
+Use disposable collections and credentials. These new checks are pending user
+acceptance; agent-run browser checks do not complete them.
+
+- [ ] **T85 — Romanian default and language switch.** In a fresh browser/profile with no saved language preference, open a collection, Export Excel, and `/admin/`. The interface should be Romanian even if the browser prefers English. The header should offer Română / English with the current choice indicated. Switch to English and back from each page; verify page titles, labels, instructions, accessibility labels, and empty states. Try a narrow/mobile screen.
+- [ ] **T86 — Remembered choice and plain HTML.** Choose English, reload, navigate between collections/admin/export, close and reopen the browser, and verify the choice persists. Change back to Romanian. Repeat the export and administrator flows with JavaScript disabled; the language links, login, collection forms, history filters, and recovery pages should still work.
+- [ ] **T87 — Messages and administration.** In both languages, try incorrect login credentials, missing required input, duplicate collection names, an invalid Excel upload, an invalid history filter, and an empty export selection. Check success notices after a disposable collection creation/restoration. History actions/outcomes should be translated; event text, editor names, and stored snapshots should stay original. Romanian dates should use numeric day.month.year with the Europe/Bucharest UTC offset.
+- [ ] **T88 — Editing controls and draft safety.** In Romanian, sign in, open a disposable cell, and check formatting tooltips, color controls, Typography, font size/spacing, Close/Cancel, Add row/Add etymon, and deletion instructions. Try changing language while a cell draft is open: navigation should be blocked with a translated message and the draft should remain intact. Cancel or save, then change language successfully. DELETE remains the literal confirmation word in both languages.
+- [ ] **T89 — Original collection data.** Switch languages while viewing imported content with unusual spaces, line breaks, rich formatting, English words such as Cancel/Search, and custom column/row names. Only interface text should change. Export in each language and compare the actual worksheet contents/labels/formatting with the original. Existing data must not be translated; the initial text for a newly created entry is localized ([De completat] / [To be added]).
+- [ ] **T90 — Search and separate tabs.** Search and select another etymon, then change language: the applied search, filters, display mode, and selected etymon should be retained. Leave an English page open, change the preference to Romanian in another tab, and use search/live updates in the original page: its labels/messages should stay English until navigation or an explicit language change. New full pages should use the saved Romanian preference.
+
 ## Report a failure
 
 Leave failed or unrun tasks unchecked and record their outcome below. If a task
@@ -246,7 +291,8 @@ task as passed. Update the status above as actual results become available.
 
 | Task | Outcome (pass/fail/not applicable) | Date / browser / environment | Notes or issue |
 | --- | --- | --- | --- |
-| — | No user results recorded yet | — | All tasks pending |
+| T81–T82 | Checked complete in the checklist | Not recorded | Existing user marks preserved; details pending |
+| Remaining tasks | Pending | — | Includes new language checks T85–T90 |
 
 Record a short reproduction such as:
 

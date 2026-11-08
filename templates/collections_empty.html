@@ -1,17 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ ui_language }}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Parallel Words</title>
     <link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}">
-  </head>
+  {% include '_interface.html' %}
+</head>
   <body>
-    <header class="site-header"><span class="brand">Parallel Words</span></header>
+    <header class="site-header"><span class="brand">Parallel Words</span>{% include '_language_switch.html' %}</header>
     <main class="empty-state">
-      <h1>No collections are available yet.</h1>
-      <p>Contact the administrator to add a collection.</p>
-      <p><a href="{{ url_for('admin.overview') }}">Administration</a></p>
+      <h1>{{ _("No collections are available yet.") }}</h1>
+      <p>{{ _("Contact the administrator to add a collection.") }}</p>
+      <p><a href="{{ url_for('admin.overview') }}">{{ _("Administration") }}</a></p>
     </main>
   </body>
 </html>

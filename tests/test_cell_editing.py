@@ -31,7 +31,7 @@ class CellEditingTests(unittest.TestCase):
         workbook.save(self.path)
         workbook.close()
         self.original = sha256(self.path.read_bytes()).digest()
-        self.app = create_app(self.path, test_config={'TESTING': True, 'SECRET_KEY': 'edit-test-key'})
+        self.app = create_app(self.path, test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'SECRET_KEY': 'edit-test-key'})
         self.client = self.app.test_client()
 
     def payload(self, client=None, url='/'):
@@ -63,7 +63,7 @@ class CellEditingTests(unittest.TestCase):
         self.assertEqual(frame.iloc[0]['nodiacritics_plaintext'], 'Prajitura')
         self.assertEqual(frame.iloc[0]['background_color'], '#AAFFAA')
         self.assertEqual(sha256(self.path.read_bytes()).digest(), self.original)
-        restarted = create_app(self.path, test_config={'TESTING': True, 'SECRET_KEY': 'edit-test-key'})
+        restarted = create_app(self.path, test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'SECRET_KEY': 'edit-test-key'})
         self.assertIn('café', restarted.extensions['lexicon_store'].to_dataframe().iloc[0]['plaintext_content'])
 
     def test_editing_plaintext_or_highlighted_display_loads_original_html(self):
@@ -98,7 +98,7 @@ class CellEditingTests(unittest.TestCase):
         workbook.save(self.path)
         workbook.close()
         database = Path(self.directory.name) / 'fills.sqlite3'
-        app = create_app(self.path, database_path=database, test_config={'TESTING': True})
+        app = create_app(self.path, database_path=database, test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True})
         self.addCleanup(app.extensions['lexicon_store'].close)
         client = app.test_client()
         payload = self.payload(client)
@@ -108,7 +108,7 @@ class CellEditingTests(unittest.TestCase):
         # Reopening also covers old initialized databases: no reimport or
         # migration is needed to recover the formerly empty cell's fill.
         self.path.unlink()
-        restarted = create_app(self.path, database_path=database, test_config={'TESTING': True})
+        restarted = create_app(self.path, database_path=database, test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True})
         self.addCleanup(restarted.extensions['lexicon_store'].close)
         response = restarted.test_client().get('/?plaintext=1')
         self.assertEqual(Page(response).payload['rows'][1]['backgrounds']['content_1'], '#ABCDEF')
@@ -189,7 +189,7 @@ class CellEditingTests(unittest.TestCase):
 
     def test_restart_expires_edit_tokens_even_with_stable_secret_key(self):
         old = self.payload()
-        restarted = create_app(self.path, test_config={'TESTING': True, 'SECRET_KEY': 'edit-test-key'})
+        restarted = create_app(self.path, test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'SECRET_KEY': 'edit-test-key'})
         client = restarted.test_client()
         fresh = self.payload(client)
         self.assertEqual(self.save(fresh, [{'insert': 'stale\n'}], client=client,

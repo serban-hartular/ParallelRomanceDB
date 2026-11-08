@@ -234,6 +234,15 @@ h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 #delete-entry-confirmation { box-sizing: border-box; width: 100%; padding: 8px; border: 1px solid var(--line); font: inherit; }
 #delete-entry-dialog [type="submit"] { background: #9c3428; color: white; }
 .deletion-error { color: #9c3428; font-size: 12px; }
+#export-dialog { width: min(540px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow: auto; box-sizing: border-box; border: 1px solid var(--line); border-radius: 6px; padding: 22px; background: var(--surface); color: var(--ink); }
+#export-dialog::backdrop { background: #253b3566; }
+#export-dialog h2 { margin-top: 0; }
+.export-page { max-width: 650px; margin: 30px auto; padding: 20px; background: var(--surface); }
+.export-choices { max-height: 40vh; overflow: auto; padding: 12px; border: 1px solid var(--line); margin: 16px 0; }
+.export-choices label { display: flex; align-items: baseline; gap: 8px; padding: 8px 2px; overflow-wrap: anywhere; }
+.export-choices input { flex-shrink: 0; }
+.export-note { font-size: 12px; }
+.export-page [data-cancel-export] { display: none; }
 @media (max-width: 1000px) {
   .workspace-toolbar { flex-wrap: wrap; }
   .workspace-tools { flex-shrink: 1; flex-wrap: wrap; }
@@ -251,3 +260,15 @@ h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 .add-row-options button { display: block; width: 100%; padding: 9px; border: 0; background: none; color: var(--ink); font-size: 11px; text-align: left; cursor: pointer; }
 .add-row-options button:hover, .add-row-options button:focus-visible { background: var(--highlight); }
 .cell-editor-toolbar-row, .cell-editor-actions { user-select: none; }
+
+/* The language selector remains available without JavaScript. */
+.language-switch { display: flex; align-items: center; gap: 4px; white-space: nowrap; font-size: 0.8rem; }
+.language-switch a { padding: 4px; text-underline-offset: 3px; }
+.language-switch a[aria-current="true"] { font-weight: 700; text-decoration-thickness: 2px; }
+
+/* Allow longer translated controls to wrap without widening the page. */
+.site-header { flex-wrap: wrap; gap: 8px; }
+.brand { max-width: 100%; }
+.header-tools { min-width: 0; max-width: 100%; flex-shrink: 1; flex-wrap: wrap; }
+.collection-chooser { max-width: 100%; }
+.collection-chooser select { max-width: min(210px, 100%); }

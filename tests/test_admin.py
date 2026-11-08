@@ -50,7 +50,7 @@ class AdminTests(unittest.TestCase):
             store.add_etymon('headword')
             store.add_row(1,LABEL_ORDER[1],'sense')
         self.store = self.catalog.store(self.a['id'])
-        self.app = create_app(catalog_path=self.root/'catalog.sqlite3',test_config={
+        self.app = create_app(catalog_path=self.root/'catalog.sqlite3',test_config={'DEFAULT_UI_LANGUAGE':'en',
             'TESTING':True,'SECRET_KEY':'admin-regression','AUTH_DATABASE_PATH':str(self.root/'access.sqlite3')})
         self.addCleanup(self.app.extensions['collection_catalog'].close)
         self.access = self.app.extensions['access_control']
@@ -406,7 +406,7 @@ class AdminTests(unittest.TestCase):
         self.login()
         response = self.client.get(self.path('history'),query_string={'editor':'wanted','collection_id':self.b['id']})
         self.assertEqual(response.status_code,200)
-        self.assertIn('60 results',response.get_data(as_text=True))
+        self.assertIn('Results: 60',response.get_data(as_text=True))
         self.assertIn('editor=wanted',response.get_data(as_text=True))
         self.assertIn(self.path('history'),response.get_data(as_text=True))
         second = admin_data.history_page(self.store,editor='wanted',page=2)
@@ -426,7 +426,7 @@ class AdminTests(unittest.TestCase):
         self.assertEqual(listing['total'],1)
 
     def test_single_database_mode_and_empty_catalog_have_working_admin_pages(self):
-        app = create_app(database_path=self.a['database_path'],test_config={'TESTING':True,'AUTH_DATABASE_PATH':str(self.root/'access.sqlite3')})
+        app = create_app(database_path=self.a['database_path'],test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING':True,'AUTH_DATABASE_PATH':str(self.root/'access.sqlite3')})
         self.addCleanup(app.extensions['lexicon_store'].close);self.addCleanup(app.extensions['access_control'].close)
         client = app.test_client()
         client.get('/admin/login')
@@ -435,7 +435,7 @@ class AdminTests(unittest.TestCase):
         self.assertEqual(client.get('/admin/').status_code,200)
         self.assertEqual(client.get(self.path('history')).status_code,200)
         self.assertEqual(client.get(self.path('history',self.b)).status_code,404)
-        empty = create_app(catalog_path=self.root/'empty-catalog.sqlite3',test_config={'TESTING':True,'AUTH_DATABASE_PATH':str(self.root/'access.sqlite3')})
+        empty = create_app(catalog_path=self.root/'empty-catalog.sqlite3',test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING':True,'AUTH_DATABASE_PATH':str(self.root/'access.sqlite3')})
         self.addCleanup(empty.extensions['collection_catalog'].close);self.addCleanup(empty.extensions['access_control'].close)
         client = empty.test_client();csrf = Inputs(client.get('/admin/login')).values['csrf_token']
         client.post('/admin/login',data={'csrf_token':csrf,'name':'Empty','password':ADMIN_PASSWORD})

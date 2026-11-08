@@ -1,0 +1,5 @@
+<nav class="language-switch" aria-label="{{ _('Interface language') }}" hx-disable>
+  <a href="{{ language_url('ro') }}" lang="ro" hreflang="ro" data-language-switch{% if ui_language == 'ro' %} aria-current="true"{% endif %}>{{ _('Romanian') }}</a>
+  <span aria-hidden="true"> / </span>
+  <a href="{{ language_url('en') }}" lang="en" hreflang="en" data-language-switch{% if ui_language == 'en' %} aria-current="true"{% endif %}>{{ _('English') }}</a>
+</nav>

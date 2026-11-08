@@ -1,0 +1,13 @@
+<form method="get" action="{{ url_for('export_excel') }}" data-export-form hx-disable>
+  <input type="hidden" name="selection" value="1">
+  <p>{{ _("One collection keeps its complete original workbook. Multiple collections create a new .xlsx workbook with one worksheet per collection.") }}</p>
+  <fieldset class="export-choices"><legend>{{ _("Collections to export") }}</legend>
+    {% for item in collections %}<label><input type="checkbox" name="collection" value="{{ item.id }}"{% if item.id in selected %} checked{% endif %}> <span>{{ item.name }}</span></label>{% endfor %}
+  </fieldset>
+  <p class="export-note">{{ _("Exports include all saved entries, regardless of your search. In a combined workbook, references to sheets that are not included become #REF!.") }}</p>
+  {% if error %}<p class="creation-error" role="alert">{{ error }}</p>{% endif %}
+  <div class="creation-actions">
+    <button type="button" data-cancel-export>{{ _("Cancel") }}</button>
+    <button type="submit">{{ _("Download Excel") }}</button>
+  </div>
+</form>

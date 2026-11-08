@@ -10,7 +10,8 @@ Use one application process while editor-token signing remains process-specific.
 Schema-4/5/6 collections upgrade automatically to schema 7, adding history/lifecycle
 fields and content versioning without changing existing content/IDs/Trash. The
 access database upgrades from schema 1 to 2 for administrator password-change
-audit events. Back up before updating.
+audit events. The catalog upgrades additively from schema 1 to 2 for recoverable
+collection removal and collection-event attribution. Back up before updating.
 Schema versions 1–3 still require a fresh collection import; export saved edits
 with the previous version first if needed. Never replace the old files during
 reimport. Earlier edits cannot gain retroactive author names.
@@ -103,8 +104,11 @@ password management, collection-specific Trash/recovery, history, and active
 editors. All are protected by the separate admin grant; POSTs also require CSRF.
 Changing the edit password signs out editors; changing the admin password signs
 out administrators, including the current browser, while independent edit logins
-remain valid. Responses are no-store. Collection creation/import still use local
-commands, and there is no permanent purge or history-revert action.
+remain valid. Responses are no-store. Admin → Collections now creates empty
+collections and imports uploaded Excel worksheets. Collections Trash hides and
+restores whole collections while retaining their database files and original
+identities. Active editors block removal. Names in Collections Trash remain
+reserved. There is no permanent purge or history-revert action.
 
 The access schema-1-to-2 upgrade is additive, retains credentials/grants, and
 records successful password-change metadata without secrets in `admin_events`.
@@ -155,7 +159,7 @@ server {
     server_name words.example.org;
     ssl_certificate /etc/letsencrypt/live/words.example.org/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/words.example.org/privkey.pem;
-    client_max_body_size 64k;
+    client_max_body_size 26m;  # 25 MiB workbook plus multipart overhead; Flask limits other routes to 64 KiB.
 
     location / {
         # For private data, configure authentication here (for every route),
@@ -196,9 +200,11 @@ need to write the source workbook or project directory. It now needs a separate
 writable directory for SQLite (including its journal) and timestamped exports,
 for example `/var/lib/parallel-words`. When launching outside systemd, create
 that directory with ownership for the service account first. Set `--catalog` and `--export-dir` explicitly. Collection files live in
-`collections/` beside the catalog; exports use a per-collection subdirectory.
+`collections/` beside the catalog; single exports use a per-collection subdirectory,
+and multi-collection exports use `exports/combined/` (also beneath --export-dir).
 The account needs write access to the catalog, its directory, collection files
-and directory, and export directories, including SQLite journal files. The access database and
+and directory, and export directories, including SQLite journal files. Browser imports also create a private `imports/`
+directory beside the catalog for temporary uploads. The access database and
 its directory must also be writable; newly created access files are owner-only. Keep code/configuration and source workbooks owned by an administrator;
 do not use `chmod 777`. A typical arrangement is `/opt/parallel-words` for code
 and `/srv/parallel-words` for workbooks, with group-readable files and directories
@@ -246,7 +252,7 @@ UMask=0077
 WantedBy=multi-user.target
 ```
 
-Create/register the collections before starting the service. Adapt paths and
+Create/register collections locally or create/import them through administration after starting the service. Adapt paths and
 create the venv on the destination rather
 than copying the development venv. `ProtectHome=true` intentionally prevents
 loading files from `/home`; place the deployment outside it. The read-only
@@ -261,7 +267,14 @@ See [systemd's execution settings](https://www.freedesktop.org/software/systemd/
   sniffing, and limit referrer sharing. Inline CSS remains allowed for imported
   Excel formatting and table sizing. htmx evaluation and history caching are
   disabled. Workbook text is escaped by the importer.
-- The CLI caps headers at 16 KiB, request bodies at 64 KiB, idle connections at
+- The CLI caps headers at 16 KiB. Waitress permits
+  `COLLECTION_UPLOAD_MAX_BYTES + 64 KiB` request bodies (25 MiB plus form overhead
+  by default). Flask allows that size only at `/admin/collections/import`; other
+  routes retain their 64 KiB cap. Set Nginx `client_max_body_size` to at least
+  the configured upload size plus overhead (26m for the default). After changing
+  the Python configuration, restart the app; validate/reload Nginx separately.
+  No remote proxy configuration is changed by updating the source.
+  The CLI caps idle connections at
   30 seconds, and concurrent connections at 100, using four worker threads.
   See [Waitress's settings](https://docs.pylonsproject.org/projects/waitress/en/latest/arguments.html).
   Application limits in `config.py` cap query strings at 8 KiB and search terms
@@ -290,7 +303,18 @@ See [systemd's execution settings](https://www.freedesktop.org/software/systemd/
   writes. Exclusive cell leases block same-cell edits and row/etymon deletion,
   naming the owner; inline notices warn about other cells in the same row/etymon. Creation
   requires initial text in the collection's configured column (French by default).
-- Collection creation/import remain local CLI operations. Trash recovery is
+- Collection creation/import are available in administrator-only HTML forms
+  in catalog mode. Uploads accept `.xlsx`/`.xlsm`, keep the whole workbook, and
+  import one selected worksheet into a new uniquely named collection. Expanded
+  archives default to 100 MiB/2,000 members/500,000 populated cells; selected
+  sheet grids are capped at 2,000,000 cells, with at most 100,000 rows and 256
+  columns. DTD/entity XML and encrypted/duplicate-member archives are rejected.
+  At most ten uploads may be pending globally. They expire after 30 minutes and
+  are removed on the next upload/import request; successful import and Cancel
+  remove them immediately. Uploads are private and bound to the admin login.
+  Collections Trash retains database files, preferences, and history. Include
+  removed collections in backups; do not delete their files from `collections/`.
+  Local creation/import commands remain available. Row/etymon Trash recovery is
   available in the protected admin interface and through the local CLI. Run
   `manage_collections.py --catalog PATH create NAME [--workbook FILE --sheet NAME]`
   with the service account's file permissions. Run `trash.py COLLECTION_DB list`

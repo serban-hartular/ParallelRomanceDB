@@ -53,7 +53,7 @@ class Page(HTMLParser):
 class FlaskAppTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app = create_app(test_config={'TESTING': True, 'SECRET_KEY': 'test-session-key'})
+        cls.app = create_app(test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'SECRET_KEY': 'test-session-key'})
 
     def setUp(self):
         self.client = self.app.test_client()
@@ -165,14 +165,14 @@ class FlaskAppTests(unittest.TestCase):
 
     def test_search_highlight_color_configuration(self):
         self.assertIn('--search-highlight-color: #ffff00;', self.client.get('/').get_data(as_text=True))
-        app = create_app(test_config={
+        app = create_app(test_config={'DEFAULT_UI_LANGUAGE':'en',
             'TESTING': True, 'SECRET_KEY': 'test', 'SEARCH_HIGHLIGHT_COLOR': '#ff88cc',
         })
         for headers in ({}, {'HX-Request': 'true'}):
             html = app.test_client().get('/?search=1&q=crema', headers=headers).get_data(as_text=True)
             self.assertIn('--search-highlight-color: #ff88cc;', html)
         with self.assertRaisesRegex(ValueError, 'SEARCH_HIGHLIGHT_COLOR'):
-            create_app(test_config={'SEARCH_HIGHLIGHT_COLOR': '#fff; color: red'})
+            create_app(test_config={'DEFAULT_UI_LANGUAGE':'en', 'SEARCH_HIGHLIGHT_COLOR': '#fff; color: red'})
 
     def test_imported_backgrounds_and_highlights_coexist_in_both_display_modes(self):
         with TemporaryDirectory() as directory:
@@ -191,7 +191,7 @@ class FlaskAppTests(unittest.TestCase):
             sheet.append(['SENSURI DE BAZĂ', 'cafe elsewhere'])
             workbook.save(source)
             workbook.close()
-            app = create_app(source, test_config={'TESTING': True, 'SECRET_KEY': 'test'})
+            app = create_app(source, test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'SECRET_KEY': 'test'})
             original = app.extensions['lexicon_store'].to_dataframe().copy(deep=True)
             for headers in ({}, {'HX-Request': 'true'}):
                 for plaintext in (False, True):
@@ -238,7 +238,7 @@ class FlaskAppTests(unittest.TestCase):
             sheet['A4'].fill = PatternFill('solid', fgColor='FFCCCC')
             workbook.save(source)
             workbook.close()
-            app = create_app(source, test_config={'TESTING': True, 'SECRET_KEY': 'test'})
+            app = create_app(source, test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'SECRET_KEY': 'test'})
             original = app.extensions['lexicon_store'].to_dataframe().copy(deep=True)
             for headers in ({}, {'HX-Request': 'true'}):
                 for plaintext in (False, True):
@@ -290,7 +290,7 @@ class FlaskAppTests(unittest.TestCase):
 
     def test_workbook_loaded_once_per_app(self):
         with patch('main.excel_to_dataframe', wraps=excel_to_dataframe) as loader:
-            app = create_app(test_config={'TESTING': True, 'SECRET_KEY': 'test'})
+            app = create_app(test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'SECRET_KEY': 'test'})
             client = app.test_client()
             client.get('/')
             client.get('/?etimon=2')
@@ -372,7 +372,7 @@ class FlaskAppTests(unittest.TestCase):
             sheet.append(['ETIMON/ CORESPONDENTE ROMANICE', None, None, 'PAROLA, sostantivo'])
             workbook.save(source)
             workbook.close()
-            app = create_app(source, test_config={'TESTING': True, 'SECRET_KEY': 'test'})
+            app = create_app(source, test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'SECRET_KEY': 'test'})
             client = app.test_client()
             html = client.get('/').get_data(as_text=True)
             self.assertIn('<strong>CUVÂNT</strong>', html)
@@ -406,7 +406,7 @@ class FlaskAppTests(unittest.TestCase):
                     sheet.append(['Basic', 'different text'])
             workbook.save(source)
             workbook.close()
-            client = create_app(source, test_config={
+            client = create_app(source, test_config={'DEFAULT_UI_LANGUAGE':'en',
                 'TESTING': True, 'SECRET_KEY': 'test',
             }).test_client()
             response = client.get('/', headers={'HX-Request': 'true'}, query_string=[
@@ -445,7 +445,7 @@ class FlaskAppTests(unittest.TestCase):
             workbook = Workbook()
             workbook.save(source)
             workbook.close()
-            app = create_app(source, test_config={'TESTING': True, 'SECRET_KEY': 'test'})
+            app = create_app(source, test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'SECRET_KEY': 'test'})
             response = app.test_client().get('/')
             self.assertEqual(response.status_code, 200)
             self.assertEqual(Page(response).matches, [])

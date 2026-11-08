@@ -143,7 +143,7 @@ class LiveRefreshHTTPTests(unittest.TestCase):
         self.store = self.catalog.store(self.a['id'])
         self.store.add_etymon('first')
         self.store.add_etymon('second')
-        self.app = create_app(catalog_path=self.catalog_path,test_config={'TESTING':True,'SECRET_KEY':'live-test'})
+        self.app = create_app(catalog_path=self.catalog_path,test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING':True,'SECRET_KEY':'live-test'})
         self.addCleanup(self.app.extensions['collection_catalog'].close)
         self.client = self.app.test_client()
         self.url = f"/collections/{self.a['id']}/"
@@ -207,7 +207,7 @@ class LiveRefreshHTTPTests(unittest.TestCase):
         self.assertEqual(view['criteria'],{'query':'','column':[],'label':[]})
 
     def test_single_collection_changes_route(self):
-        app = create_app(database_path=self.a['database_path'],test_config={'TESTING':True})
+        app = create_app(database_path=self.a['database_path'],test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING':True})
         self.addCleanup(app.extensions['lexicon_store'].close)
         self.addCleanup(app.extensions['access_control'].close)
         client = app.test_client()
@@ -216,7 +216,7 @@ class LiveRefreshHTTPTests(unittest.TestCase):
     def test_refresh_interval_requires_a_positive_integer(self):
         for interval in (0,-1,True,0.5,'5'):
             with self.assertRaisesRegex(ValueError,'LIVE_REFRESH_SECONDS'):
-                create_app(catalog_path=self.catalog_path,test_config={'LIVE_REFRESH_SECONDS':interval})
+                create_app(catalog_path=self.catalog_path,test_config={'DEFAULT_UI_LANGUAGE':'en', 'LIVE_REFRESH_SECONDS':interval})
 
 
 if __name__ == '__main__':

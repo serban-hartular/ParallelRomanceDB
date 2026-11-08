@@ -30,6 +30,7 @@ for entry in (a,b):
 catalog.close()
 app=create_app(catalog_path=root/'catalog.sqlite3',test_config={'EDIT_HEARTBEAT_SECONDS':1,'EDIT_LEASE_SECONDS':6})
 app.extensions['access_control'].set_edit_password('temporary browser password')
+app.config['DEFAULT_UI_LANGUAGE']='en'
 server=create_server(app,host='127.0.0.1',port=0)
 print(json.dumps({'port':server.effective_port,'a':a,'b':b}),flush=True)
 server.run()

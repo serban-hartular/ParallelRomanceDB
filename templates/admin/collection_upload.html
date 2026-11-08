@@ -1,0 +1,12 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ _("Import Excel workbook") }}{% endblock %}
+{% block content %}
+<h1>{{ _("Import Excel workbook") }}</h1><p>{{ _("Upload a workbook, then choose one worksheet and a name for the new collection.") }}</p>
+<p>{{ _("The worksheet must use row 1 for column headings, column A for row labels, and") }} <code>ETIMON/</code> {{ _("markers for etymons. The complete original workbook is retained for export; imports never replace an existing collection.") }}</p>
+<form class="panel" method="post" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label for="workbook">{{ _("Excel workbook") }}</label><input id="workbook" name="workbook" type="file" accept=".xlsx,.xlsm" required>
+<p class="muted">{{ _("Up to") }} {{ '%g'|format(upload_mib) }} {{ _("MiB. Encrypted files and legacy .xls workbooks are unsupported. Large expanded workbooks are also limited.") }}</p>
+<button type="submit">{{ _("Upload and choose worksheet") }}</button>
+</form><p><a href="{{ url_for('admin.manage_collections') }}">{{ _("Cancel / back to collections") }}</a></p>
+{% endblock %}

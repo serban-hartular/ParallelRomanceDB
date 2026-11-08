@@ -39,6 +39,7 @@ store.save_cell((1,LABEL_ORDER[0],1,'Headword'),0,[{'insert':'beta\\n'}])
 catalog.close()
 app=create_app(catalog_path=root/'catalog.sqlite3')
 app.extensions['access_control'].set_edit_password('temporary browser password')
+app.config['DEFAULT_UI_LANGUAGE']='en'
 server=create_server(app,host='127.0.0.1',port=0)
 print(json.dumps({'port':server.effective_port,'a':a['id'],'b':b['id'],'empty':empty['id']}),flush=True)
 server.run()
@@ -119,7 +120,7 @@ async function main() {
     assert.equal((await payload(first)).criteria.query,'');
     assert.equal((await payload(first)).columns[0].title,'Headword');
     assert.ok((await first.locator('.brand span').textContent()).includes('Fashion'));
-    assert.equal(await first.getByRole('link',{name:'Export Excel',exact:true}).getAttribute('href'),`/collections/${b}/export`);
+    assert.equal(await first.getByRole('link',{name:'Export Excel',exact:true}).getAttribute('href'),`/collections/${b}/export?choose=1`);
     await first.getByRole('button',{name:'Add row',exact:true}).click();
     await first.getByRole('button',{name:'Definition',exact:true}).click();
     assert.equal(await first.getByLabel('Text for Headword',{exact:true}).inputValue(),'[To be added]');
@@ -150,6 +151,7 @@ async function main() {
 
     const downloadEvent = first.waitForEvent('download');
     await first.getByRole('link',{name:'Export Excel',exact:true}).click();
+    await first.getByRole('button',{name:'Download Excel',exact:true}).click();
     const download = await downloadEvent;
     execFileSync(python,['-c',`
 from io import BytesIO

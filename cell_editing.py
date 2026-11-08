@@ -1,5 +1,7 @@
 """Validate Quill's text-only Delta and render escaped, inline-formatted HTML."""
 
+from i18n import gettext as _
+
 from html import escape
 import re
 
@@ -12,7 +14,7 @@ def validate_line_height(value):
         isinstance(value, bool) or not isinstance(value, (int, float))
         or not 0.5 <= value <= 4
     ):
-        raise ValueError('Line spacing must be a number between 0.5 and 4.')
+        raise ValueError(_('Line spacing must be a number between 0.5 and 4.'))
     return float(value)
 
 
@@ -23,18 +25,18 @@ def _color(value):
         match = re.fullmatch(r'rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)', value)
         if match and all(int(part) <= 255 for part in match.groups()):
             return value
-    raise ValueError('Unsupported text color.')
+    raise ValueError(_('Unsupported text color.'))
 
 
 def _styles(attributes):
     if not isinstance(attributes, dict):
-        raise ValueError('Invalid text formatting.')
+        raise ValueError(_('Invalid text formatting.'))
     styles = []
     decorations = []
     for name, value in attributes.items():
         if name in ('bold', 'italic', 'underline', 'strike'):
             if not isinstance(value, bool):
-                raise ValueError('Invalid text formatting.')
+                raise ValueError(_('Invalid text formatting.'))
             if name == 'bold':
                 styles.append(f"font-weight: {'bold' if value else 'normal'}")
             elif name == 'italic':
@@ -48,12 +50,12 @@ def _styles(attributes):
             styles.append(f'font-family: {value}')
         elif name == 'size' and isinstance(value, str) and re.fullmatch(r'\d+(?:\.\d+)?(?:pt|px)', value):
             if not 1 <= float(value[:-2]) <= 200:
-                raise ValueError('Font size must be between 1 and 200 pt/px.')
+                raise ValueError(_('Font size must be between 1 and 200 pt/px.'))
             styles.append(f'font-size: {value}')
         elif name in ('color', 'background'):
             styles.append(f"{'color' if name == 'color' else 'background-color'}: {_color(value)}")
         else:
-            raise ValueError(f'Unsupported text format: {name}.')
+            raise ValueError(_('Unsupported text format: {value1}.', value1=name))
     if decorations:
         styles.append(f"text-decoration-line: {' '.join(decorations)}")
     return '; '.join(styles)
@@ -67,26 +69,26 @@ def render_delta(ops, *, line_height=None):
     """
     line_height = validate_line_height(line_height)
     if not isinstance(ops, list) or not 1 <= len(ops) <= 4096:
-        raise ValueError('Invalid editor document.')
+        raise ValueError(_('Invalid editor document.'))
     parts = []
     length = 0
     for op in ops:
         if not isinstance(op, dict) or set(op) - {'insert', 'attributes'}:
-            raise ValueError('Invalid editor operation.')
+            raise ValueError(_('Invalid editor operation.'))
         text = op.get('insert')
         if not isinstance(text, str):
-            raise ValueError('Only text can be inserted into a cell.')
+            raise ValueError(_('Only text can be inserted into a cell.'))
         try:
             text.encode('utf-8')
         except UnicodeError as error:
-            raise ValueError('Cell text contains an invalid Unicode character.') from error
+            raise ValueError(_('Cell text contains an invalid Unicode character.')) from error
         length += len(text)
         if length > 65536:
-            raise ValueError('Cell text is too long.')
+            raise ValueError(_('Cell text is too long.'))
         parts.append([text, _styles(op.get('attributes', {}))])
     # The final newline may be an operation of its own, or follow cell text.
     if not parts[-1][0].endswith('\n'):
-        raise ValueError('The editor document must end with a newline.')
+        raise ValueError(_('The editor document must end with a newline.'))
     parts[-1][0] = parts[-1][0][:-1]
     plaintext = ''.join(text for text, _ in parts)
     if not plaintext:

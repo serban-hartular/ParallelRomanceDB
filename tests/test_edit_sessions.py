@@ -302,7 +302,7 @@ class CellLeaseHTTPTests(unittest.TestCase):
         store.add_etymon('headword')
         store.add_row(1,LABEL_ORDER[1],'sense')
         store.close()
-        self.app = create_app(database_path=path,test_config={'TESTING':True})
+        self.app = create_app(database_path=path,test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING':True})
         self.addCleanup(self.app.extensions['access_control'].close)
         self.store = self.app.extensions['lexicon_store']
         self.addCleanup(self.store.close)

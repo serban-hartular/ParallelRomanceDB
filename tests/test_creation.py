@@ -62,7 +62,7 @@ class CreationTests(unittest.TestCase):
         self.addCleanup(self.store.close)
 
     def open_app(self, **config):
-        app = create_app(self.source, database_path=self.database, test_config={
+        app = create_app(self.source, database_path=self.database, test_config={'DEFAULT_UI_LANGUAGE':'en',
             'TESTING': True, 'SECRET_KEY': 'creation', **config,
         })
         self.addCleanup(app.extensions['lexicon_store'].close)
@@ -174,7 +174,7 @@ class CreationTests(unittest.TestCase):
         book.save(source)
         book.close()
         original = source.read_bytes()
-        app = create_app(source, database_path=self.root / 'large.sqlite3', test_config={
+        app = create_app(source, database_path=self.root / 'large.sqlite3', test_config={'DEFAULT_UI_LANGUAGE':'en',
             'TESTING': True, 'EXPORT_DIRECTORY': str(self.root / 'downloads'),
         })
         store = app.extensions['lexicon_store']
@@ -290,7 +290,7 @@ class CreationTests(unittest.TestCase):
                 destination = self.root / 'invalid.sqlite3'
                 with self.assertRaisesRegex(ValueError, 'ROW_BACKGROUND_COLORS'):
                     create_app(self.source, database_path=destination,
-                               test_config={'TESTING': True, 'ROW_BACKGROUND_COLORS': invalid})
+                               test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING': True, 'ROW_BACKGROUND_COLORS': invalid})
                 self.assertFalse(destination.exists())
 
     def test_creation_is_serialized_across_connections_and_survives_restart(self):

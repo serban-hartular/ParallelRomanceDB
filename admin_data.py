@@ -1,5 +1,7 @@
 """Bounded, collection-local queries for the HTML administration interface."""
 
+from i18n import gettext as _
+
 import json
 
 
@@ -38,7 +40,7 @@ def trash_page(store, *, page=1, etymon=None, kind='', recovered=False):
         scope.append('t.etimon_number=?'); values.append(etymon)
     if kind:
         if kind not in ('row','etymon'):
-            raise ValueError('Choose a valid Trash item type.')
+            raise ValueError(_('Choose a valid Trash item type.'))
         scope.append('t.kind=?'); values.append(kind)
     where = ' WHERE '+' AND '.join(scope)
     with store.transaction():
@@ -81,9 +83,9 @@ def trash_detail(store, identifier):
 def history_page(store, *, page=1, etymon=None, editor='', action='', status='', activities=False, since=None, until=None):
     scope, values = [], []
     if status and status not in STATUSES:
-        raise ValueError('Choose a valid editing outcome.')
+        raise ValueError(_('Choose a valid editing outcome.'))
     if action and action not in ACTIONS:
-        raise ValueError('Choose a valid history action.')
+        raise ValueError(_('Choose a valid history action.'))
     if status:
         scope.append('status=?'); values.append(status)
     elif not activities:

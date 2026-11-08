@@ -27,6 +27,7 @@ catalog.store(b['id']).add_etymon('Fashion term')
 catalog.close()
 app=create_app(catalog_path=root/'catalog.sqlite3',test_config={'LIVE_REFRESH_SECONDS':1,'EDIT_HEARTBEAT_SECONDS':1,'EDIT_LEASE_SECONDS':30})
 app.extensions['access_control'].set_edit_password('temporary browser password')
+app.config['DEFAULT_UI_LANGUAGE']='en'
 server=create_server(app,host='127.0.0.1',port=0)
 print(json.dumps({'port':server.effective_port,'a':a,'b':b}),flush=True)
 server.run()

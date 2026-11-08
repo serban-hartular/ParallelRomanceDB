@@ -1,0 +1,17 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ _('Restore collection') if restoring else _('Move collection to Trash') }}{% endblock %}
+{% block content %}
+<h1>{{ _('Restore collection') if restoring else _('Move collection to Collections Trash') }}</h1>
+<h2>{{ entry.name }}</h2>
+{% if restoring %}<p>{{ _("Restore this collection with its original identity, contents, workbook, formatting, history, and row/etymon Trash. It will be available for public browsing and export again.") }}</p>
+<p>{{ _("Removed by") }} {{ entry.deleted_by }} · {{ local_time(entry.deleted_at) }}</p>
+{% else %}<p>{{ summary.etymons }} {{ _("etymons ·") }} {{ summary.trash }} {{ _("row/etymon Trash items ·") }} {{ summary.editors }} {{ _("active cell editors.") }}</p>
+<p>{{ _("The collection will disappear from browsing, search, editing, and export. Existing bookmarks will stop working until it is restored. All its data stays in Collections Trash, and its name remains reserved.") }}</p>
+<p>{{ _("Are you really, really sure? Editors must close all cell drafts first.") }}</p>{% endif %}
+<form class="panel login-panel" method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ target }}">
+{% if not restoring %}<label for="confirmation">{{ _("Type DELETE to confirm") }}</label><input id="confirmation" name="confirmation" autocomplete="off" pattern="DELETE" required>{% endif %}
+<button type="submit">{{ _('Restore collection') if restoring else _('Move to Collections Trash') }}</button>
+</form>
+<p><a href="{{ url_for('admin.manage_collections',state='deleted' if restoring else 'active') }}">{{ _("Cancel / back to collections") }}</a></p>
+{% endblock %}

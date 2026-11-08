@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ ui_language }}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,107 +11,114 @@
     <script defer src="{{ url_for('static', filename='vendor/htmx.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='vendor/tabulator.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='vendor/quill.js') }}"></script>
+    {% include '_interface.html' %}
     <script defer src="{{ url_for('static', filename='cell_editor.js') }}"></script>
     <script defer src="{{ url_for('static', filename='scrollbars.js') }}"></script>
     <script defer src="{{ url_for('static', filename='app.js') }}"></script>
   </head>
   <body id="app-shell" hx-target="#workspace" hx-swap="outerHTML" hx-sync="#app-shell:replace" hx-indicator="#request-status">
     <header class="site-header">
-      <a class="brand" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}" aria-label="Parallel Words, {{ source_label }}, show all etimons">Parallel Words<span title="{{ source_label }}">{% if collection_name %}{{ collection_name }} · {% endif %}{{ source_label }}</span></a>
+      <a class="brand" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}" aria-label="{{ _('Parallel Words, {source}, show all etymons', source=source_label) }}">Parallel Words<span title="{{ source_label }}">{% if collection_name %}{{ collection_name }} · {% endif %}{{ source_label }}</span></a>
       <div class="header-tools">
         {% if collection_options %}
-          <label class="collection-chooser">Collection
+          <label class="collection-chooser">{{ _("Collection") }}
             <select id="collection-select">
               {% for item in collection_options %}<option value="{{ item.url }}"{% if item.id == grid_payload.dataset %} selected{% endif %}>{{ item.name }}</option>{% endfor %}
             </select>
           </label>
         {% endif %}
-        <button type="button" class="mode-toggle" data-toggle-edit aria-pressed="{{ 'true' if edit_mode else 'false' }}">Edit mode</button>
-        <span class="editor-identity" data-editor-identity title="{{ editor_name or '' }}"{% if not editor_name %} hidden{% endif %}>Signed in as <strong data-editor-name>{{ editor_name or '' }}</strong></span>
-        <button type="button" class="auth-button" data-change-editor{% if not editor_name %} hidden{% endif %}>Change editor</button>
-        <button type="button" class="auth-button" data-sign-out{% if not editor_name %} hidden{% endif %}>Sign out</button>
-        <button type="button" class="add-entry" data-add-etymon{% if not edit_mode %} hidden{% endif %}>Add etymon</button>
-        <a class="export-link" href="{{ url_for('export_excel') }}" data-export-excel>Export Excel</a>
-        <a class="auth-button" href="{{ url_for('admin.overview') }}" data-admin-link>Admin</a>
-        <span class="collection-count">{{ total }} etimon{% if total != 1 %}s{% endif %} in the collection</span>
+        <button type="button" class="mode-toggle" data-toggle-edit aria-pressed="{{ 'true' if edit_mode else 'false' }}">{{ _("Edit mode") }}</button>
+        <span class="editor-identity" data-editor-identity title="{{ editor_name or '' }}"{% if not editor_name %} hidden{% endif %}>{{ _('Signed in as') }} <strong data-editor-name>{{ editor_name or '' }}</strong></span>
+        <button type="button" class="auth-button" data-change-editor{% if not editor_name %} hidden{% endif %}>{{ _("Change editor") }}</button>
+        <button type="button" class="auth-button" data-sign-out{% if not editor_name %} hidden{% endif %}>{{ _("Sign out") }}</button>
+        <button type="button" class="add-entry" data-add-etymon{% if not edit_mode %} hidden{% endif %}>{{ _("Add etymon") }}</button>
+        <a class="export-link" href="{{ url_for('export_excel',choose=1) }}" data-export-excel>{{ _("Export Excel") }}</a>
+        <a class="auth-button" href="{{ url_for('admin.overview') }}" data-admin-link>{{ _("Admin") }}</a>
+        <span class="collection-count">{{ _('Etymons in the collection: {count}', count=total) }}</span>
       </div>
-    </header>
+    {% include '_language_switch.html' %}</header>
 
     <main>
       <section class="search-panel" aria-labelledby="search-heading">
-        <h1 id="search-heading" class="visually-hidden">Search the Romance lexicon</h1>
+        <h1 id="search-heading" class="visually-hidden">{{ _("Search the Romance lexicon") }}</h1>
         <form method="get" action="{{ url_for('index') }}" class="search-form" role="search" hx-get="{{ url_for('index') }}">
           <input type="hidden" name="search" value="1">
           <div class="field query-field">
-            <label for="query" class="visually-hidden">Search text</label>
-            <input id="query" type="search" name="q" value="{{ criteria.query }}" maxlength="{{ max_search_length }}" placeholder="Search a word or phrase…" aria-describedby="search-hint">
+            <label for="query" class="visually-hidden">{{ _("Search text") }}</label>
+            <input id="query" type="search" name="q" value="{{ criteria.query }}" maxlength="{{ max_search_length }}" placeholder="{{ _('Search a word or phrase…') }}" aria-describedby="search-hint">
           </div>
           {% for name, title, options in [('column', 'Columns', columns), ('label', 'Labels', labels)] %}
             <div class="field filter-field">
               <details class="search-filter" data-search-filter="{{ name }}">
                 <summary aria-labelledby="{{ name }}-heading {{ name }}-summary">
-                  <span id="{{ name }}-heading">{{ title }}</span>
-                  <span id="{{ name }}-summary" data-filter-summary>{% if criteria[name] %}{{ criteria[name] | length }} selected{% else %}All{% endif %}</span>
+                  <span id="{{ name }}-heading">{{ _(title) }}</span>
+                  <span id="{{ name }}-summary" data-filter-summary>{% if criteria[name] %}{{ _('{count} selected', count=criteria[name] | length) }}{% else %}{{ _("All") }}{% endif %}</span>
                 </summary>
                 <fieldset>
-                  <legend class="visually-hidden">{{ title }} to search</legend>
-                  <button type="button" data-clear-filter>All {{ title | lower }}</button>
+                  <legend class="visually-hidden">{{ _('{filter} to search', filter=_(title)) }}</legend>
+                  <button type="button" data-clear-filter>{{ _('All columns') if name == 'column' else _('All labels') }}</button>
                   {% for option in options %}
                     <label><input type="checkbox" name="{{ name }}" value="{{ option }}"{% if option in criteria[name] %} checked{% endif %}> {{ option }}</label>
                   {% endfor %}
-                  <p>No selections means all {{ title | lower }}.</p>
+                  <p>{{ _('No selections means all columns.') if name == 'column' else _('No selections means all labels.') }}</p>
                 </fieldset>
               </details>
             </div>
           {% endfor %}
-          <button type="submit" class="search-button">Search <span aria-hidden="true">→</span></button>
-          <a class="clear-link" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}">Clear</a>
+          <button type="submit" class="search-button">{{ _("Search") }} <span aria-hidden="true">→</span></button>
+          <a class="clear-link" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}">{{ _("Clear") }}</a>
         </form>
-        <p id="search-hint" class="visually-hidden">Search ignores case and diacritics. Choose any number of columns and labels; no selections means all. Both filters apply to the same matching cell.</p>
+        <p id="search-hint" class="visually-hidden">{{ _("Search ignores case and diacritics. Choose any number of columns and labels; no selections means all. Both filters apply to the same matching cell.") }}</p>
       </section>
 
-      <p id="request-status" class="request-status" role="status" aria-live="polite">Updating…</p>
+      <p id="request-status" class="request-status" role="status" aria-live="polite">{{ _("Updating…") }}</p>
       <p id="live-update-status" class="live-update-status" role="status" aria-live="polite" hidden></p>
       {% include '_workspace.html' %}
     </main>
     <dialog id="editor-login-dialog" aria-labelledby="editor-login-title">
       <form id="editor-login-form" autocomplete="off">
-        <h2 id="editor-login-title">Who is editing?</h2>
-        <label for="editor-name">Name</label>
+        <h2 id="editor-login-title">{{ _("Who is editing?") }}</h2>
+        <label for="editor-name">{{ _("Name") }}</label>
         <input id="editor-name" name="name" type="text" required maxlength="120" autocomplete="off" spellcheck="false">
-        <label for="editor-password">Edit password</label>
+        <label for="editor-password">{{ _("Edit password") }}</label>
         <input id="editor-password" name="password" type="password" required maxlength="1024" autocomplete="off">
-        <p>Your name will be recorded with your changes.</p>
+        <p>{{ _("Your name will be recorded with your changes.") }}</p>
         <p class="login-error" role="alert"></p>
         <div class="creation-actions">
-          <button type="button" data-cancel-login>Cancel</button>
-          <button type="submit">Sign in</button>
+          <button type="button" data-cancel-login>{{ _("Cancel") }}</button>
+          <button type="submit">{{ _("Sign in") }}</button>
         </div>
       </form>
     </dialog>
+    <dialog id="export-dialog" aria-labelledby="export-title">
+      <h2 id="export-title">{{ _("Export Excel") }}</h2>
+      {% with collections=collection_options if collection_options else [{'id':grid_payload.dataset,'name':source_label}], selected=[grid_payload.dataset], error=none %}
+        {% include '_export_form.html' %}
+      {% endwith %}
+    </dialog>
     <dialog id="create-entry-dialog" aria-labelledby="create-entry-title">
       <form id="create-entry-form">
-        <h2 id="create-entry-title">Add entry</h2>
-        <label for="create-entry-text" data-initial-column-label>Text for {{ initial_column_name }}</label>
+        <h2 id="create-entry-title">{{ _("Add entry") }}</h2>
+        <label for="create-entry-text" data-initial-column-label>{{ _("Text for") }} {{ initial_column_name }}</label>
         <textarea id="create-entry-text" rows="5" required maxlength="16000" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" writingsuggestions="false"></textarea>
         <p class="creation-error" role="status"></p>
         <div class="creation-actions">
-          <button type="button" data-cancel-entry>Cancel</button>
-          <button type="submit">Create</button>
+          <button type="button" data-cancel-entry>{{ _("Cancel") }}</button>
+          <button type="submit">{{ _("Create") }}</button>
         </div>
       </form>
     </dialog>
     <dialog id="delete-entry-dialog" aria-labelledby="delete-entry-title" aria-describedby="delete-entry-description">
       <form id="delete-entry-form">
-        <h2 id="delete-entry-title">Are you really, really sure?</h2>
+        <h2 id="delete-entry-title">{{ _("Are you really, really sure?") }}</h2>
         <p id="delete-entry-description"></p>
-        <p>The entire item, in every language, will disappear from the collection and Excel exports. An administrator can recover it from Trash.</p>
-        <label for="delete-entry-confirmation">Type DELETE to confirm</label>
+        <p>{{ _("The entire item, in every language, will disappear from the collection and Excel exports. An administrator can recover it from Trash.") }}</p>
+        <label for="delete-entry-confirmation">{{ _("Type DELETE to confirm") }}</label>
         <input id="delete-entry-confirmation" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off">
         <p class="deletion-error" role="status"></p>
         <div class="creation-actions">
-          <button type="button" data-cancel-delete autofocus>Cancel</button>
-          <button type="submit" class="delete-entry" disabled>Move to Trash</button>
+          <button type="button" data-cancel-delete autofocus>{{ _("Cancel") }}</button>
+          <button type="submit" class="delete-entry" disabled>{{ _("Move to Trash") }}</button>
         </div>
       </form>
     </dialog>

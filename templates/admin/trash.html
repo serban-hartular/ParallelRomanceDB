@@ -1,23 +1,23 @@
 {% extends 'admin/base.html' %}
-{% block title %}Trash · {{ collection.name }}{% endblock %}
+{% block title %}{{ _("Trash ·") }} {{ collection.name }}{% endblock %}
 {% block content %}
-<p class="eyebrow">{{ collection.name }}</p><h1>Trash</h1>
-<p>Recover deleted content with its original numbers, text, and formatting.</p>
+<p class="eyebrow">{{ collection.name }}</p><h1>{{ _("Trash") }}</h1>
+<p>{{ _("Recover deleted content with its original numbers, text, and formatting.") }}</p>
 {% include 'admin/_collection.html' %}
-<form class="filter-form" method="get"><fieldset><legend class="visually-hidden">Filter Trash</legend>
-  <div><label for="kind">Item type</label><select name="kind" id="kind">{% for value,label in [('','All types'),('row','Rows'),('etymon','Etymons')] %}<option value="{{ value }}"{% if request.args.get('kind','') == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-  <div><label for="etymon">Etymon number</label><input id="etymon" name="etymon" type="number" min="1" max="1000000" value="{{ request.args.get('etymon','') }}" placeholder="Any"></div>
-  <div><label for="state">Status</label><select name="state" id="state"><option value="pending">Awaiting recovery</option><option value="recovered"{% if request.args.get('state') == 'recovered' %} selected{% endif %}>Recovered</option></select></div>
-  <button type="submit">Apply filters</button><a href="{{ url_for('admin.trash',collection_id=collection.id) }}">Clear</a>
+<form class="filter-form" method="get"><fieldset><legend class="visually-hidden">{{ _("Filter Trash") }}</legend>
+  <div><label for="kind">{{ _("Item type") }}</label><select name="kind" id="kind">{% for value,label in [('','All types'),('row','Rows'),('etymon','Etymons')] %}<option value="{{ value }}"{% if request.args.get('kind','') == value %} selected{% endif %}>{{ _(label) }}</option>{% endfor %}</select></div>
+  <div><label for="etymon">{{ _("Etymon number") }}</label><input id="etymon" name="etymon" type="number" min="1" max="1000000" value="{{ request.args.get('etymon','') }}" placeholder="{{ _('Any') }}"></div>
+  <div><label for="state">{{ _("Status") }}</label><select name="state" id="state"><option value="pending">{{ _("Awaiting recovery") }}</option><option value="recovered"{% if request.args.get('state') == 'recovered' %} selected{% endif %}>{{ _("Recovered") }}</option></select></div>
+  <button type="submit">{{ _("Apply filters") }}</button><a href="{{ url_for('admin.trash',collection_id=collection.id) }}">{{ _("Clear") }}</a>
 </fieldset></form>
 {% if listing['items'] %}
-<div class="table-scroll" role="region" aria-label="Trash entries" tabindex="0"><table><caption>Trash entries · times shown with Europe/Bucharest UTC offsets</caption>
-<thead><tr><th scope="col">Deleted</th><th scope="col">Item</th><th scope="col">Etymon / row</th><th scope="col">Deleted by</th><th scope="col">Size</th><th scope="col">Details</th></tr></thead><tbody>
-{% for item in listing['items'] %}<tr><td>{{ local_time(item.deleted_at) }}{% if item.restored_at %}<br>Recovered {{ local_time(item.restored_at) }}{% endif %}</td><td><span class="tag">{{ 'Row' if item.kind == 'row' else 'Etymon' }}</span></td>
-<td>{{ item.etimon_number }} · {{ item.title }}<br>{% if item.label %}{{ item.label }} #{{ item.label_number }}{% else %}All rows in this deletion{% endif %}</td><td>{{ item.deleted_by or 'Not recorded' }}</td>
-<td>{% if not item.restored_at %}{{ item.row_count }} row(s)<br>{{ item.cell_count }} populated cell(s){% else %}See deletion snapshot{% endif %}</td>
-<td><a href="{{ url_for('admin.trash_item',collection_id=collection.id,trash_id=item.id) }}">View item →</a></td></tr>{% endfor %}
+<div class="table-scroll" role="region" aria-label="{{ _('Trash entries') }}" tabindex="0"><table><caption>{{ _("Trash entries · times shown with Europe/Bucharest UTC offsets") }}</caption>
+<thead><tr><th scope="col">{{ _("Deleted") }}</th><th scope="col">{{ _("Item") }}</th><th scope="col">{{ _("Etymon / row") }}</th><th scope="col">{{ _("Deleted by") }}</th><th scope="col">{{ _("Size") }}</th><th scope="col">{{ _("Details") }}</th></tr></thead><tbody>
+{% for item in listing['items'] %}<tr><td>{{ local_time(item.deleted_at) }}{% if item.restored_at %}<br>{{ _("Recovered") }} {{ local_time(item.restored_at) }}{% endif %}</td><td><span class="tag">{{ _('Row') if item.kind == 'row' else _('Etymon') }}</span></td>
+<td>{{ item.etimon_number }} · {{ item.title }}<br>{% if item.label %}{{ item.label }} #{{ item.label_number }}{% else %}{{ _("All rows in this deletion") }}{% endif %}</td><td>{{ item.deleted_by or _('Not recorded') }}</td>
+<td>{% if not item.restored_at %}{{ item.row_count }} {{ _("row(s)") }}<br>{{ item.cell_count }} {{ _("populated cell(s)") }}{% else %}{{ _("See deletion snapshot") }}{% endif %}</td>
+<td><a href="{{ url_for('admin.trash_item',collection_id=collection.id,trash_id=item.id) }}">{{ _("View item →") }}</a></td></tr>{% endfor %}
 </tbody></table></div>
-{% else %}<p class="empty">No Trash entries match these filters.</p>{% endif %}
+{% else %}<p class="empty">{{ _("No Trash entries match these filters.") }}</p>{% endif %}
 {% include 'admin/_pagination.html' %}
 {% endblock %}

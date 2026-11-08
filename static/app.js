@@ -1,6 +1,7 @@
 /* htmx owns the workspace; Tabulator owns the preserved grid inside it. */
 (() => {
   "use strict";
+  const {t, fetch:localizedFetch, error:interfaceError, message:errorMessage} = window.XLDBI18n;
 
   const preferences = new Map();
   let active = null;
@@ -50,8 +51,8 @@
     const workspace = document.getElementById('workspace');
     try {
       if (document.visibilityState !== 'visible') return;
-      const response = await fetch(payload.urls.changes, {cache:'no-store', signal:AbortSignal.timeout(10000)});
-      if (!response.ok) throw new Error('Change check failed');
+      const response = await localizedFetch(payload.urls.changes, {cache:'no-store', signal:AbortSignal.timeout(10000)});
+      if (!response.ok) throw interfaceError(t('Change check failed'));
       const result = await response.json();
       if (generation !== viewGeneration) return;
       if (result.version === payload.content_version) {
@@ -61,8 +62,8 @@
       livePending = true;
       if (refreshBlocked()) {
         liveStatus(editing() || editorOpening
-          ? 'This collection has been updated. Changes will appear when you close the cell editor.'
-          : 'This collection has been updated. Changes will appear when the current operation finishes.');
+          ? t('This collection has been updated. Changes will appear when you close the cell editor.')
+          : t('This collection has been updated. Changes will appear when the current operation finishes.'));
         return;
       }
       // Describe this tab's applied search, not another tab's saved preferences
@@ -74,8 +75,8 @@
       for (const name of ['label','column']) {
         for (const value of payload.criteria[name]) url.searchParams.append(name,value);
       }
-      const refreshed = await fetch(url, {headers:{'HX-Request':'true'},cache:'no-store',signal:AbortSignal.timeout(10000)});
-      if (!refreshed.ok) throw new Error('Refresh failed');
+      const refreshed = await localizedFetch(url, {headers:{'HX-Request':'true'},cache:'no-store',signal:AbortSignal.timeout(10000)});
+      if (!refreshed.ok) throw interfaceError(t('Refresh failed'));
       const html = await refreshed.text();
       // A person may have navigated or opened an editor while the GET was in flight.
       if (generation !== viewGeneration || !workspace.isConnected || refreshBlocked()) return;
@@ -98,7 +99,7 @@
         workspaceBusy = false;
       }
     } catch (_) {
-      if (generation === viewGeneration) liveStatus('Live updates are temporarily unavailable. Retrying automatically.');
+      if (generation === viewGeneration) liveStatus(t('Live updates are temporarily unavailable. Retrying automatically.'));
     } finally {
       liveChecking = false;
       scheduleLiveCheck();
@@ -142,7 +143,7 @@
     const editor = cell.getRow().getData().editors?.[cell.getField()];
     if (!editor) return;
     if (!window.XLDBCellEditor || typeof Quill === "undefined") {
-      showError("The cell editor could not load. Reload the page to try again.");
+      showError(t("The cell editor could not load. Reload the page to try again."));
       return;
     }
     const payload = instance.payload;
@@ -163,8 +164,8 @@
     }
     function loseLock(message) {
       stopContact();
-      message = message || 'Your editing lock expired.';
-      if (!message.includes('Copy your draft')) message += ' Copy your draft, then cancel and reload.';
+      message = message || t('Your editing lock expired.');
+      if (!message.includes(t('Copy your draft'))) message += t(' Copy your draft, then cancel and reload.');
       quillEditor?.loseLock(message);
     }
     function setDeadline(duration, requestStarted) {
@@ -180,7 +181,7 @@
       heartbeatInFlight = true;
       const requestStarted = performance.now();
       try {
-        const response = await fetch(payload.urls.edit_heartbeat, {
+        const response = await localizedFetch(payload.urls.edit_heartbeat, {
           method:'POST', headers, signal:AbortSignal.timeout(10000),
           body:JSON.stringify({lease:acquired.lease,token:editor.token}),
         });
@@ -188,16 +189,16 @@
         if (stopped) return;
         if (!response.ok) {
           if ([401,403,409].includes(response.status)) {
-            loseLock(result.error || 'Your edit login or lock ended. Copy your draft, then cancel and reload.');
+            loseLock(result.error || t('Your edit login or lock ended. Copy your draft, then cancel and reload.'));
             return;
           }
-          throw new Error('Could not renew the editing lock.');
+          throw interfaceError(t('Could not renew the editing lock.'));
         }
         setDeadline(result.lease_ms,requestStarted);
         quillEditor?.warnings(result.warnings || []);
         quillEditor?.connectionWarning('');
       } catch (_) {
-        quillEditor?.connectionWarning('Connection interrupted. Your draft is retained; reconnect before the editing lock expires.');
+        quillEditor?.connectionWarning(t('Connection interrupted. Your draft is retained; reconnect before the editing lock expires.'));
       } finally {
         heartbeatInFlight = false;
         if (!stopped) heartbeatTimer = setTimeout(heartbeat, acquired.heartbeat_ms);
@@ -206,7 +207,7 @@
     async function release(outcome) {
       stopContact();
       try {
-        await fetch(payload.urls.edit_finish, {method:'POST',headers,keepalive:true,
+        await localizedFetch(payload.urls.edit_finish, {method:'POST',headers,keepalive:true,
           signal:AbortSignal.timeout(5000),body:JSON.stringify({lease:acquired.lease,outcome})});
       } catch (_) { /* An unreachable server releases the lease on expiry. */ }
     }
@@ -215,16 +216,16 @@
     };
     const leavePage = () => {
       stopContact();
-      fetch(payload.urls.edit_finish, {method:'POST',headers,keepalive:true,
+      localizedFetch(payload.urls.edit_finish, {method:'POST',headers,keepalive:true,
         body:JSON.stringify({lease:acquired.lease,outcome:'cancelled'})}).catch(() => {});
     };
     editorOpening = mutationBusy = true;
     try {
       const requestStarted = performance.now();
-      const response = await fetch(payload.urls.edit_start,{method:'POST',headers,
+      const response = await localizedFetch(payload.urls.edit_start,{method:'POST',headers,
         signal:AbortSignal.timeout(10000),body:JSON.stringify({token:editor.token})});
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || 'Could not open the cell editor.');
+      if (!response.ok) throw interfaceError(result.error || t('Could not open the cell editor.'));
       acquired = result;
       if (active!==instance) { await release('cancelled'); return; }
       const requestStatus = document.getElementById('request-status');
@@ -237,16 +238,16 @@
         async onSave(ops,lineHeight) {
           if (stopped || performance.now()>=leaseDeadline) {
             loseLock();
-            throw new Error('Your editing lock expired. Copy your draft, then cancel and reload.');
+            throw interfaceError(t('Your editing lock expired. Copy your draft, then cancel and reload.'));
           }
-          const response = await fetch(payload.urls.cell, {
+          const response = await localizedFetch(payload.urls.cell, {
             method:'POST',headers,
             body:JSON.stringify({token:editor.token,lease:acquired.lease,ops,line_height:lineHeight}),
           });
           const result = await response.json().catch(() => ({}));
           if (!response.ok) {
             if ([401,403,409].includes(response.status)) loseLock(result.error);
-            throw new Error(result.error || 'Could not save. Please try again.');
+            throw interfaceError(result.error || t('Could not save. Please try again.'));
           }
           saved = true;
           stopContact();
@@ -281,7 +282,7 @@
       scrollbars?.schedule();
     } catch (error) {
       if (acquired) await release('cancelled');
-      showError(error.message || 'Could not reach the server. Please try again.');
+      showError(errorMessage(error, 'Could not reach the server. Please try again.'));
     } finally {
       editorOpening = mutationBusy = false;
     }
@@ -370,7 +371,7 @@
   function columnDefinitions(instance) {
     const definitions = [
       {
-        title: "Label", field: "label", width: 180, minWidth: 100,
+        title: t("Label"), field: "label", width: 180, minWidth: 100,
         frozen: true, variableHeight: true, cssClass: "grid-label",
         formatter(cell) {
           const row = cell.getRow().getData();
@@ -381,18 +382,18 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'delete-entry delete-row';
-            button.textContent = 'Delete row';
+            button.textContent = t('Delete row');
             button.dataset.deleteRow = row.delete_token;
             button.dataset.rowLabel = row.label;
             button.dataset.rowNumber = row.label_number;
-            button.setAttribute('aria-label', `Delete row: ${row.label} #${row.label_number}`);
+            button.setAttribute('aria-label', t("Delete row: {label} #{number}", {label:row.label, number:row.label_number}));
             label.appendChild(button);
           }
           return label;
         },
       },
       {
-        title: "No.", field: "label_number", width: 55, minWidth: 45,
+        title: t("No."), field: "label_number", width: 55, minWidth: 45,
         frozen: true, hozAlign: "center", cssClass: "grid-number",
       },
       ...instance.payload.columns.map(column => ({
@@ -495,7 +496,7 @@
 
   function updateFilterSummary(filter) {
     const count = filter.querySelectorAll('input[type="checkbox"]:checked').length;
-    filter.querySelector("[data-filter-summary]").textContent = count ? `${count} selected` : "All";
+    filter.querySelector("[data-filter-summary]").textContent = count ? t("{count} selected", {count}) : t("All");
   }
 
   function bindScrollbars(workspace, viewport) {
@@ -522,7 +523,7 @@
     viewPayload = payload;
     livePending = false;
     liveStatus(liveView && liveView.etimon !== payload.etimon
-      ? 'The displayed etymon was removed or no longer matches your search. The results have been updated.' : '');
+      ? t('The displayed etymon was removed or no longer matches your search. The results have been updated.') : '');
     scheduleLiveCheck();
     document.querySelector('[data-toggle-edit]').setAttribute('aria-pressed', String(payload.edit_mode));
     document.querySelector('[data-editor-name]').textContent = payload.auth.name || '';
@@ -531,7 +532,19 @@
       element.hidden = !payload.auth.authenticated;
     });
     document.querySelector('[data-add-etymon]').hidden = !payload.edit_mode;
-    document.querySelector('.collection-count').textContent = `${payload.total} etimon${payload.total === 1 ? '' : 's'} in the collection`;
+    document.querySelectorAll('[data-language-switch]').forEach(link => {
+      const next = new URL(payload.urls.index, window.location.href);
+      next.search = new URLSearchParams({search:'1', q:payload.criteria.query,
+        plaintext:payload.plaintext ? '1' : '0', editing:payload.edit_mode ? '1' : '0'});
+      if (payload.etimon !== null) next.searchParams.set('etimon', payload.etimon);
+      for (const name of ['label','column']) {
+        for (const value of payload.criteria[name]) next.searchParams.append(name, value);
+      }
+      const url = new URL(link.href);
+      url.searchParams.set('next', next.pathname + next.search);
+      link.href = url.href;
+    });
+    document.querySelector('.collection-count').textContent = t("Etymons in the collection: {count}", {count:payload.total});
     document.title = payload.title;
     const chooser = document.getElementById('collection-select');
     if (chooser) {
@@ -550,8 +563,8 @@
     source.title = source.textContent;
     brand.href = `${payload.urls.index}?reset=1`;
     brand.setAttribute('hx-get', brand.getAttribute('href'));
-    document.querySelector('[data-export-excel]').href = payload.urls.export;
-    document.querySelector('[data-initial-column-label]').textContent = `Text for ${payload.initial_column}`;
+    document.querySelector('[data-export-excel]').href = `${payload.urls.export}?choose=1`;
+    document.querySelector('[data-initial-column-label]').textContent = t("Text for {column}", {column:payload.initial_column});
     const clear = document.querySelector('.clear-link');
     clear.href = `${payload.urls.index}?reset=1`;
     clear.setAttribute('hx-get', clear.getAttribute('href'));
@@ -595,7 +608,7 @@
     }
     if (typeof Tabulator === "undefined") {
       bindScrollbars(workspace, workspace.querySelector(".table-fallback"));
-      showError("Interactive table unavailable. The standard table is shown.");
+      showError(t("Interactive table unavailable. The standard table is shown."));
       return;
     }
     if (active && (active.element !== element || active.payload.dataset !== payload.dataset)) destroyGrid();
@@ -658,8 +671,8 @@
 
   function scheduleWorkspace(workspace, reset = false, liveView = null) {
     updates = updates.catch(() => {}).then(() => renderWorkspace(workspace, reset, liveView)).catch(error => {
-      console.error("Could not update the etimon grid", error);
-      showError("The interactive table could not update. Please reload the page.");
+      console.error(t("Could not update the etimon grid"), error);
+      showError(t("The interactive table could not update. Please reload the page."));
     });
   }
 
@@ -668,7 +681,7 @@
     workspace.classList.toggle("results-hidden", resultsHidden);
     workspace.querySelector("#results-panel").hidden = resultsHidden;
     const toggle = workspace.querySelector("[data-toggle-results]");
-    const label = resultsHidden ? "Show etymons" : "Hide etymons";
+    const label = resultsHidden ? t("Show etymons") : t("Hide etymons");
     toggle.hidden = false;
     toggle.setAttribute("aria-expanded", String(!resultsHidden));
     toggle.setAttribute("aria-label", label);
@@ -690,11 +703,16 @@
   }
 
   document.addEventListener("change", event => {
+    if (event.target.closest('[data-export-form]')) {
+      const form = event.target.closest('form');
+      form.querySelector('[type="submit"]').disabled = !form.querySelector('[name="collection"]:checked');
+      return;
+    }
     if (event.target.id === 'collection-select') {
       const chooser = event.target;
       if (editing() || mutationBusy || workspaceBusy || active?.updating) {
         chooser.value = chooser.dataset.current;
-        showError('Close or cancel the cell editor before switching collections.');
+        showError(t('Close or cancel the cell editor before switching collections.'));
         window.XLDBCellEditor?.focus();
         return;
       }
@@ -707,7 +725,7 @@
     if (!event.target.matches("[data-grid-field]") || !active || active.updating) return;
     if (editing()) {
       syncColumnChooser(active);
-      showError("Close or cancel the cell editor before changing the table layout.");
+      showError(t("Close or cancel the cell editor before changing the table layout."));
       return;
     }
     const column = active.table.getColumn(event.target.dataset.gridField);
@@ -715,9 +733,44 @@
   });
 
   document.addEventListener("click", event => {
+    if (event.target.closest('[data-cancel-export]')) {
+      document.getElementById('export-dialog').close();
+      return;
+    }
+    if (event.target.closest('[data-export-excel]') && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+      event.preventDefault();
+      if (editing() || editorOpening || mutationBusy || workspaceBusy || active?.updating) {
+        showError(t('Close or cancel the cell editor and wait for the current operation before exporting.'));
+        window.XLDBCellEditor?.focus();
+        return;
+      }
+      const payload = JSON.parse(document.querySelector('.workspace-data').textContent);
+      const dialog = document.getElementById('export-dialog');
+      const form = dialog.querySelector('form');
+      form.action = payload.urls.export;
+      const choices = payload.collection_options.length ? payload.collection_options : [{id:payload.dataset,name:payload.source_label}];
+      form.querySelectorAll('.export-choices label').forEach(element => element.remove());
+      choices.forEach(item => {
+        const label = document.createElement('label'), checkbox = document.createElement('input'), name = document.createElement('span');
+        checkbox.type = 'checkbox'; checkbox.name = 'collection'; checkbox.value = item.id;
+        checkbox.checked = item.id === payload.dataset;
+        name.textContent = item.name;
+        label.append(checkbox,name); form.querySelector('.export-choices').append(label);
+      });
+      form.querySelector('[type="submit"]').disabled = false;
+      dialog.showModal();
+      form.querySelector('[name="collection"]:checked')?.focus();
+      return;
+    }
+    if (event.target.closest('[data-language-switch]') && (editing() || editorOpening || mutationBusy || workspaceBusy || active?.updating)) {
+      event.preventDefault();
+      showError(t('Close or cancel the cell editor and wait for the current operation before changing language.'));
+      window.XLDBCellEditor?.focus();
+      return;
+    }
     if (event.target.closest('[data-admin-link]') && (editing() || editorOpening || mutationBusy || workspaceBusy || active?.updating)) {
       event.preventDefault();
-      showError('Close or cancel the cell editor and wait for the current operation before opening administration.');
+      showError(t('Close or cancel the cell editor and wait for the current operation before opening administration.'));
       window.XLDBCellEditor?.focus();
       return;
     }
@@ -725,7 +778,7 @@
     if (authentication) {
       event.preventDefault();
       if (editing()) {
-        showError('Close or cancel the cell editor before signing out or changing editor.');
+        showError(t('Close or cancel the cell editor before signing out or changing editor.'));
         window.XLDBCellEditor.focus();
         return;
       }
@@ -741,7 +794,7 @@
     if (deletion) {
       event.preventDefault();
       if (editing()) {
-        showError('Close or cancel the cell editor before deleting an item.');
+        showError(t('Close or cancel the cell editor before deleting an item.'));
         window.XLDBCellEditor.focus();
         return;
       }
@@ -755,8 +808,8 @@
       dialog.querySelector('[type="submit"]').disabled = true;
       dialog.querySelector('.deletion-error').textContent = '';
       dialog.querySelector('#delete-entry-description').textContent = deletionTarget.row
-        ? `Delete ${deletion.dataset.rowLabel} #${deletion.dataset.rowNumber} from etymon ${payload.etimon}: ${payload.etymon_name}?`
-        : `Delete etymon ${payload.etimon}: ${payload.etymon_name}, including ALL its rows?`;
+        ? t("Delete {label} #{number} from etymon {etymon}: {name}?", {label:deletion.dataset.rowLabel, number:deletion.dataset.rowNumber, etymon:payload.etimon, name:payload.etymon_name})
+        : t("Delete etymon {etymon}: {name}, including ALL its rows?", {etymon:payload.etimon, name:payload.etymon_name});
       dialog.showModal();
       dialog.querySelector('[data-cancel-delete]').focus();
       return;
@@ -765,7 +818,7 @@
     if (operation) {
       event.preventDefault();
       if (editing()) {
-        showError('Close or cancel the cell editor before switching mode or adding entries.');
+        showError(t('Close or cancel the cell editor before switching mode or adding entries.'));
         window.XLDBCellEditor.focus();
         return;
       }
@@ -781,9 +834,9 @@
           const dialog = document.getElementById('create-entry-dialog');
           dialog.querySelector('form').reset();
           const text = dialog.querySelector('textarea');
-          text.value = '[To be added]';
+          text.value = t('[To be added]');
           dialog.querySelector('.creation-error').textContent = '';
-          dialog.querySelector('h2').textContent = operation.matches('[data-add-row]') ? 'Add row' : 'Add etymon';
+          dialog.querySelector('h2').textContent = operation.matches('[data-add-row]') ? t('Add row') : t('Add etymon');
           dialog.showModal();
           text.focus();
           text.select();
@@ -793,7 +846,7 @@
     }
     if (editing() && event.target.closest("[data-toggle-results], [data-reset-layout], [data-export-excel], .add-row-menu")) {
       event.preventDefault();
-      showError("Close or cancel the cell editor before exporting or changing the table layout.");
+      showError(t("Close or cancel the cell editor before exporting or changing the table layout."));
       window.XLDBCellEditor.focus();
       return;
     }
@@ -827,7 +880,7 @@
   function openLogin(enterEdit) {
     const payload = JSON.parse(document.querySelector('.workspace-data').textContent);
     if (!payload.auth.configured) {
-      showError('Editing is not available yet. Ask the administrator to set the edit password.');
+      showError(t('Editing is not available yet. Ask the administrator to set the edit password.'));
       return;
     }
     loginEntersEdit = enterEdit;
@@ -848,14 +901,14 @@
     mutationBusy = true;
     button.disabled = true;
     try {
-      const response = await fetch(payload.auth.logout_url, {
+      const response = await localizedFetch(payload.auth.logout_url, {
         method:'POST', headers:{'X-CSRF-Token':payload.csrf},
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Could not sign out.');
+      if (!response.ok) throw interfaceError(result.error || t('Could not sign out.'));
       await refreshWorkspace(payload);
     } catch (error) {
-      showError(error.message || 'Could not reach the server.');
+      showError(errorMessage(error, 'Could not reach the server.'));
     } finally {
       mutationBusy = false;
       button.disabled = false;
@@ -863,6 +916,14 @@
   }
 
   document.addEventListener('submit', async event => {
+    if (event.target.matches('[data-export-form]')) {
+      if (!event.target.querySelector('[name="collection"]:checked') || editing() || editorOpening || mutationBusy || workspaceBusy) {
+        event.preventDefault();
+        return;
+      }
+      document.getElementById('export-dialog').close();
+      return;
+    }
     if (event.target.id !== 'editor-login-form') return;
     event.preventDefault();
     if (mutationBusy) return;
@@ -874,26 +935,26 @@
     submit.disabled = true;
     dialog.querySelector('.login-error').textContent = '';
     try {
-      const response = await fetch(payload.auth.login_url, {
+      const response = await localizedFetch(payload.auth.login_url, {
         method:'POST', headers:{'Content-Type':'application/json', 'X-CSRF-Token':payload.csrf},
         body:JSON.stringify({name:dialog.querySelector('#editor-name').value, password:password.value}),
       });
       const result = await response.json();
       password.value = '';
-      if (!response.ok) throw new Error(result.error || 'Could not sign in.');
-      const modeResponse = await fetch(payload.urls.mode, {
+      if (!response.ok) throw interfaceError(result.error || t('Could not sign in.'));
+      const modeResponse = await localizedFetch(payload.urls.mode, {
         method:'POST', headers:{'Content-Type':'application/json', 'X-CSRF-Token':payload.csrf},
         body:JSON.stringify({edit_mode:loginEntersEdit}),
       });
       if (!modeResponse.ok) {
         const failure = await modeResponse.json();
-        throw new Error(failure.error || 'Could not change mode.');
+        throw interfaceError(failure.error || t('Could not change mode.'));
       }
       dialog.close();
       await refreshWorkspace(payload);
     } catch (error) {
       password.value = '';
-      dialog.querySelector('.login-error').textContent = error.message || 'Could not reach the server.';
+      dialog.querySelector('.login-error').textContent = errorMessage(error, 'Could not reach the server.');
       password.focus();
     } finally {
       mutationBusy = false;
@@ -919,7 +980,7 @@
     mutationBusy = true;
     button.disabled = true;
     try {
-      const response = await fetch(path, {
+      const response = await localizedFetch(path, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': payload.csrf,
           'X-Editor-Session': payload.auth.identity || '' },
         body: JSON.stringify(body),
@@ -929,7 +990,7 @@
         openLogin(true);
         return;
       }
-      if (!response.ok) throw new Error(result.error || 'Could not update the collection.');
+      if (!response.ok) throw interfaceError(result.error || t('Could not update the collection.'));
       if (!mode) {
         pendingFocus = result;
         document.getElementById('create-entry-dialog').close();
@@ -940,8 +1001,8 @@
       await updates;
     } catch (error) {
       pendingFocus = null;
-      showError(error.message || 'Could not reach the server. Please try again.');
-      document.querySelector('.creation-error').textContent = error.message;
+      showError(errorMessage(error, 'Could not reach the server. Please try again.'));
+      document.querySelector('.creation-error').textContent = errorMessage(error, 'Could not reach the server. Please try again.');
     } finally {
       mutationBusy = false;
       button.disabled = false;
@@ -954,7 +1015,7 @@
     if (mutationBusy) return;
     const text = document.getElementById('create-entry-text');
     if (!text.value.trim()) {
-      document.querySelector('.creation-error').textContent = 'Enter text before creating an entry.';
+      document.querySelector('.creation-error').textContent = t('Enter text before creating an entry.');
       text.focus();
       return;
     }
@@ -987,12 +1048,12 @@
     mutationBusy = true;
     submit.disabled = true;
     try {
-      const response = await fetch(target.urls.trash, {
+      const response = await localizedFetch(target.urls.trash, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': target.csrf },
         body: JSON.stringify({ token: target.token, confirmation: 'DELETE' }),
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || 'Could not move the item to Trash.');
+      if (!response.ok) throw interfaceError(result.error || t('Could not move the item to Trash.'));
       dialog.close();
       if (target.row && active) {
         const viewport = active.element.querySelector('.tabulator-tableholder');
@@ -1003,8 +1064,8 @@
       });
       await updates;
     } catch (error) {
-      dialog.querySelector('.deletion-error').textContent = error.message;
-      showError(error.message || 'Could not reach the server.');
+      dialog.querySelector('.deletion-error').textContent = errorMessage(error, 'Could not reach the server.');
+      showError(errorMessage(error, 'Could not reach the server.'));
     } finally {
       mutationBusy = false;
       submit.disabled = document.getElementById('delete-entry-confirmation').value !== 'DELETE';
@@ -1029,18 +1090,18 @@
   document.addEventListener("htmx:beforeRequest", event => {
     if (editorOpening) {
       event.preventDefault();
-      showError('Wait for the cell editor to open before navigating or searching.');
+      showError(t('Wait for the cell editor to open before navigating or searching.'));
       return;
     }
     if (editing()) {
       event.preventDefault();
-      showError("Close or cancel the cell editor before navigating or searching.");
+      showError(t("Close or cancel the cell editor before navigating or searching."));
       window.XLDBCellEditor.focus();
       return;
     }
     workspaceBusy = true;
     const status = document.getElementById("request-status");
-    status.textContent = "Updating…";
+    status.textContent = t("Updating…");
     status.classList.remove("is-error");
     document.getElementById("workspace").setAttribute("aria-busy", "true");
   });
@@ -1048,8 +1109,8 @@
     workspaceBusy = false;
     document.getElementById("workspace").removeAttribute("aria-busy");
   });
-  document.addEventListener("htmx:responseError", () => showError("The search could not complete. Please try again."));
-  document.addEventListener("htmx:sendError", () => showError("Could not reach the server. Please try again."));
+  document.addEventListener("htmx:responseError", () => showError(t("The search could not complete. Please try again.")));
+  document.addEventListener("htmx:sendError", () => showError(t("Could not reach the server. Please try again.")));
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initialize);

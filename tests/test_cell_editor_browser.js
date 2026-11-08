@@ -45,6 +45,7 @@ workbook.save(path)
 workbook.close()
 app = create_app(path)
 app.extensions['access_control'].set_edit_password('temporary browser password')
+app.config['DEFAULT_UI_LANGUAGE']='en'
 server = create_server(app, host='127.0.0.1', port=0)
 print(server.effective_port, flush=True)
 server.run()
@@ -237,6 +238,7 @@ async function main() {
     if ((await payload()).edit_mode) await page.locator('.cell-editor').waitFor();
     await page.locator(".ql-editor").fill("  Prăjitură  \nline two  ");
     await page.getByRole('link', { name: 'Export Excel', exact: true }).click();
+    assert.equal(await page.locator('#export-dialog').isVisible(),false);
     assert.equal(await page.locator('.cell-editor').count(), 1);
     await page.getByRole('button', { name: 'Edit mode', exact: true }).click();
     assert.equal(await page.locator(".cell-editor").count(), 1);
@@ -306,6 +308,7 @@ async function main() {
 
     const downloading = page.waitForEvent('download');
     await page.getByRole('link', { name: 'Export Excel', exact: true }).click();
+    await page.getByRole('button',{name:'Download Excel',exact:true}).click();
     const download = await downloading;
     assert.match(download.suggestedFilename(), /^browser_\d{4}-\d{2}-\d{2}_.*\.xlsx$/);
     execFileSync(process.env.XLDB_PYTHON || path.join(root, '.venv/bin/python'), ['-c', `
@@ -474,6 +477,7 @@ workbook.close()
     assert.ok((await page.locator('.collection-count').textContent()).startsWith('3 '));
     const trashedDownloadEvent = page.waitForEvent('download');
     await page.getByRole('link', { name: 'Export Excel', exact: true }).click();
+    await page.getByRole('button',{name:'Download Excel',exact:true}).click();
     const trashedDownload = await trashedDownloadEvent;
     execFileSync(process.env.XLDB_PYTHON || path.join(root, '.venv/bin/python'), ['-c', `
 import sys

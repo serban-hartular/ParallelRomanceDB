@@ -1,0 +1,11 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ _("Create collection") }}{% endblock %}
+{% block content %}
+<h1>{{ _("Create collection") }}</h1><p>{{ _("Create an empty collection with the standard language columns and row types. Add its first etymon in Edit mode.") }}</p>
+<form class="panel login-panel" method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label for="name">{{ _("Collection name") }}</label><input id="name" name="name" value="{{ name }}" maxlength="120" required>
+<p class="muted">{{ _("Use a unique name. Names in Collections Trash remain reserved.") }}</p>
+<button type="submit">{{ _("Create collection") }}</button>
+</form><p><a href="{{ url_for('admin.manage_collections') }}">{{ _("Cancel / back to collections") }}</a></p>
+{% endblock %}
