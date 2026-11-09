@@ -8,8 +8,8 @@ A small catalog database lists the collections and stores browser preferences.
 Read [HANDOFF.md](HANDOFF.md) for development continuity and
 [DEPLOYMENT.md](DEPLOYMENT.md) before deployment work.
 Use [MANUAL_TESTING.md](MANUAL_TESTING.md) for the user acceptance checklist.
-The checklist currently marks T81–T82 complete; the remaining 88 tasks,
-including new language checks T85–T90, are pending. Automated test results are
+The checklist currently marks T01–T16 and T81–T82 complete; the remaining 75 of
+93 tasks, including new collection-name checks T91–T93, are pending. Automated test results are
 recorded separately in HANDOFF.md and do not change user acceptance status.
 Administration is available at `/admin/` (also linked from the page header).
 See [ADMIN_DESIGN.md](ADMIN_DESIGN.md) for its interface and access rules; the
@@ -75,7 +75,19 @@ locally in the browser, keyed by collection identity.
 No collections are imported automatically. An empty catalog shows an empty
 landing page until an administrator creates a collection. **Admin → Collections**
 creates empty collections, imports Excel worksheets, and manages recoverable
-Collections Trash. Local create/import/register commands remain available;
+Collections Trash. Import names default to the selected worksheet, with (1), (2),
+and so on added for names already used by active or trashed collections. Automatic
+suggestions follow worksheet changes; a name you type is retained. **Suggest name
+for worksheet** refreshes the suggestion and also works without JavaScript.
+
+**Admin → Collections → Rename collection** changes an active collection's name.
+It requires a unique name and is blocked while any cell editor is open in that
+collection. Edit mode without an open cell is allowed; editors in other
+collections do not block it. Closing/Cancel releases the restriction. Renaming
+preserves the collection's ID/bookmarks, workbook, content, history, Trash, and
+preferences. An already-open collection page picks up its new name on the next
+live refresh. The main header prominently shows only the collection name; in
+single-database mode it uses the worksheet name. Local create/import/register commands remain available;
 registering an existing database still requires the local command.
 
 To put the catalog elsewhere, pass the same path to both commands:
@@ -688,6 +700,7 @@ Run the checks with:
 ```bash
 .venv/bin/python -m unittest -v
 node --check static/i18n.js
+node --check static/admin.js
 node --check static/app.js
 node --check static/cell_editor.js
 node --check static/scrollbars.js
@@ -716,6 +729,7 @@ node tests/test_collections_browser.js
 node tests/test_authentication_browser.js
 node tests/test_edit_sessions_browser.js
 node tests/test_localization_browser.js
+node tests/test_collection_names_browser.js
 ```
 
 Set `NODE_PATH` and `PLAYWRIGHT_BROWSERS_PATH` if installed outside the project.
@@ -747,6 +761,7 @@ deployed remotely by this work.
 | `translations.json` | Editable Romanian and English interface text; preserve message keys/placeholders |
 | `i18n.py` | Server translation lookup, browser language preference, localized HTTP errors |
 | `static/i18n.js` | Browser translation lookup, localized validation, request language headers |
+| `static/admin.js` | Optional worksheet-based import name suggestions |
 | `HANDOFF.md` | Continuation prompt, current state, contracts, verification, and future work |
 | `DEPLOYMENT.md` | Local/public startup, HTTPS proxy, permissions, and deployment limits |
 | `search_highlighting.py` | Normalized match ranges and formatting-preserving highlights |

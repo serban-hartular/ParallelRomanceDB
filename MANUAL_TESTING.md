@@ -1,23 +1,24 @@
 # Parallel Words: manual test checklist
 
-This checklist covers the application as implemented on 2026-11-08. The
+This checklist covers the application as implemented on 2026-11-09. The
 admin interface is available at `/admin/` and described separately in
 [ADMIN_DESIGN.md](ADMIN_DESIGN.md). Tasks T60–T80 cover its implemented workflows.
 
-## Current testing status — 2026-11-08
+## Current testing status — 2026-11-09
 
-**The checklist currently marks T81 and T82 complete. The other 88 tasks
-remain pending, including all new language checks T85–T90.** Browser/date/environment
+**The checklist currently marks T01–T16 and T81–T82 complete. The other 75 of
+93 tasks remain pending, including new collection-name checks T91–T93.** Browser/date/environment
 details for the checked tasks have not yet been recorded below. Existing checkbox
 marks are preserved; automated checks do not change user acceptance status.
 
 | Coverage | Tasks | User testing status |
 | --- | --- | --- |
-| Browsing, editing, collections, locking, live updates, recovery, Excel, and deployment | T01–T59 | Pending |
+| Browsing, editing, collections, locking, live updates, recovery, Excel, and deployment | T01–T59 | T01–T16 checked; T17–T59 pending |
 | Administrator setup/login, passwords, Trash/recovery, history, active editors, and remote access | T60–T72 | Pending |
 | Collection creation, Excel upload/import, Collections Trash, and restoration | T73–T80 | Pending |
 | Export picker, multiple collection sheets, formatting/formulas, and fallback | T81–T84 | T81–T82 checked; T83–T84 pending |
 | Romanian/English interface, remembered choice, messages, editing, and data integrity | T85–T90 | Pending |
+| Import name suggestions, renaming restrictions, and prominent collection headings | T91–T93 | Pending |
 
 Automated verification results are recorded in [HANDOFF.md](HANDOFF.md). These
 checks do not complete any task in this **user** checklist or confirm behavior
@@ -80,32 +81,32 @@ saving, creation, locking, live updates, recovery, Excel, and restart persistenc
 For an admin-focused first pass, complete T60, T61, T63, T66, T68, T70, and T71.
 Prepare disposable deleted content using T44–T45 if needed. Continue with the
 remaining tasks afterward; finishing a short first pass does not complete the
-full checklist. All of these checks are still pending.
+full checklist. Keep completed tasks checked and continue with the pending ones.
 
 ## Browsing and search
 
-- [ ] **T01 — Initial view.** Open the imported collection without signing in. Check several source cells, language names, row labels and numbers against Excel. Text, diacritics, label spelling/spacing, rich text, and imported backgrounds should agree. Browser layout need not match Excel's dimensions.
-- [ ] **T02 — Public browsing.** Double-click a cell in Search mode. No editor should open. Search, navigation, and Excel download should remain available without a password.
-- [ ] **T03 — Navigation.** Select an etymon from the list, then use previous/next. Title, selected entry, and displayed rows should agree; the first/last result should have no unavailable neighbor link.
-- [ ] **T04 — Case and accents.** Search a distinctive accented word using its normal spelling, uppercase/lowercase, and an unaccented spelling. The same cells should match, and displayed source text should remain unchanged.
-- [ ] **T05 — Multiple filters.** Combine two language columns and two row labels. Results should come from a cell satisfying both the selected language and row-label restrictions; selections within one filter are alternatives. Clearing a filter should mean all values in that filter.
-- [ ] **T06 — Highlighting and display.** Search a word in richly formatted content, then switch between Formatted and Plain text. Matches should be highlighted without saving those highlights or changing the stored text; original formatting should return in Formatted mode.
-- [ ] **T07 — No matches and Clear.** Search for a unique nonexistent string. The app should show no results without an error. Clear should restore the full collection and clear the filters.
-- [ ] **T08 — Search while editing is enabled.** Turn on Edit mode after signing in, then search/filter/navigate while no cell editor is open. Search controls should stay visible and usable.
+- [X] **T01 — Initial view.** Open the imported collection without signing in. Check several source cells, language names, row labels and numbers against Excel. Text, diacritics, label spelling/spacing, rich text, and imported backgrounds should agree. Browser layout need not match Excel's dimensions.
+- [X] **T02 — Public browsing.** Double-click a cell in Search mode. No editor should open. Search, navigation, and Excel download should remain available without a password.
+- [X] **T03 — Navigation.** Select an etymon from the list, then use previous/next. Title, selected entry, and displayed rows should agree; the first/last result should have no unavailable neighbor link.
+- [X] **T04 — Case and accents.** Search a distinctive accented word using its normal spelling, uppercase/lowercase, and an unaccented spelling. The same cells should match, and displayed source text should remain unchanged.
+- [X] **T05 — Multiple filters.** Combine two language columns and two row labels. Results should come from a cell satisfying both the selected language and row-label restrictions; selections within one filter are alternatives. Clearing a filter should mean all values in that filter.
+- [X] **T06 — Highlighting and display.** Search a word in richly formatted content, then switch between Formatted and Plain text. Matches should be highlighted without saving those highlights or changing the stored text; original formatting should return in Formatted mode.
+- [X] **T07 — No matches and Clear.** Search for a unique nonexistent string. The app should show no results without an error. Clear should restore the full collection and clear the filters.
+- [X] **T08 — Search while editing is enabled.** Turn on Edit mode after signing in, then search/filter/navigate while no cell editor is open. Search controls should stay visible and usable.
 
 ## Layout and collection separation
 
-- [ ] **T09 — Scrolling and resizing.** Scroll a large table horizontally and vertically using the visible scrollbars, resize a column and a row, and hide/show a language through Table columns. Frozen row labels should stay legible and scrollbars should follow the content.
-- [ ] **T10 — Layout persistence.** Navigate away from and back to that etymon, then reload. Saved widths, column visibility, and resized row heights should return. Reset layout should restore defaults.
-- [ ] **T11 — Etymon list.** Collapse/reopen the list and, with enough results, scroll it. Searching should reveal the results list. Hiding the list should leave the table usable.
-- [ ] **T12 — Two collections.** Use different searches/layouts in the imported and empty collections, switching through the header and browser Back. The URL, title, filter choices, row menus, and export target should always belong to the displayed collection. Each collection should retain its own preferences/layout.
+- [X] **T09 — Scrolling and resizing.** Scroll a large table horizontally and vertically using the visible scrollbars, resize a column and a row, and hide/show a language through Table columns. Frozen row labels should stay legible and scrollbars should follow the content.
+- [X] **T10 — Layout persistence.** Navigate away from and back to that etymon, then reload. Saved widths, column visibility, and resized row heights should return. Reset layout should restore defaults.
+- [X] **T11 — Etymon list.** Collapse/reopen the list and, with enough results, scroll it. Searching should reveal the results list. Hiding the list should leave the table usable.
+- [X] **T12 — Two collections.** Use different searches/layouts in the imported and empty collections, switching through the header and browser Back. The URL, title, filter choices, row menus, and export target should always belong to the displayed collection. Each collection should retain its own preferences/layout.
 
 ## Edit login and identity
 
-- [ ] **T13 — Sign in.** Click Edit mode, try a wrong password, then Cancel. Search mode should remain active. Try again with Ana and the correct password: Edit mode should activate and the header should name Ana.
-- [ ] **T14 — Shared browser session.** Switch to Search mode and back, then open a second regular tab. Ana should not need to re-enter the password. Bob's incognito session should still require its own login.
-- [ ] **T15 — Change editor and sign out.** Change Ana to another test name, make a test edit, then sign out. The new edit should have the new name in history, and further edits should require login. Sign-out should revoke access in other tabs sharing that login; an already displayed tab may retain old controls until refreshed.
-- [ ] **T16 — Later visits.** Sign out explicitly, close the window, and revisit. Editing should require login again. Closing every incognito window and reopening also starts a fresh private session. A browser's session-restore feature can restore session cookies, so closing a regular window alone is not a reliable logout test.
+- [X] **T13 — Sign in.** Click Edit mode, try a wrong password, then Cancel. Search mode should remain active. Try again with Ana and the correct password: Edit mode should activate and the header should name Ana.
+- [X] **T14 — Shared browser session.** Switch to Search mode and back, then open a second regular tab. Ana should not need to re-enter the password. Bob's incognito session should still require its own login.
+- [X] **T15 — Change editor and sign out.** Change Ana to another test name, make a test edit, then sign out. The new edit should have the new name in history, and further edits should require login. Sign-out should revoke access in other tabs sharing that login; an already displayed tab may retain old controls until refreshed.
+- [X] **T16 — Later visits.** Sign out explicitly, close the window, and revisit. Editing should require login again. Closing every incognito window and reopening also starts a fresh private session. A browser's session-restore feature can restore session cookies, so closing a regular window alone is not a reliable logout test.
 
 ## Editing cells
 
@@ -283,6 +284,14 @@ acceptance; agent-run browser checks do not complete them.
 - [ ] **T89 — Original collection data.** Switch languages while viewing imported content with unusual spaces, line breaks, rich formatting, English words such as Cancel/Search, and custom column/row names. Only interface text should change. Export in each language and compare the actual worksheet contents/labels/formatting with the original. Existing data must not be translated; the initial text for a newly created entry is localized ([De completat] / [To be added]).
 - [ ] **T90 — Search and separate tabs.** Search and select another etymon, then change language: the applied search, filters, display mode, and selected etymon should be retained. Leave an English page open, change the preference to Romanian in another tab, and use search/live updates in the original page: its labels/messages should stay English until navigation or an explicit language change. New full pages should use the saved Romanian preference.
 
+## Collection names
+
+Use disposable collections and workbook copies. These new checks are pending.
+
+- [ ] **T91 — Worksheet-based import names.** Upload a workbook whose filename differs from its worksheet names. The initial collection name should match the first selected worksheet. Change worksheets: the automatic suggestion should follow the selection. If the name already exists, including in Collections Trash, the suggestion should append (1), then (2), and so on until unused. Type a custom name and change worksheets: the custom name should stay. Suggest name for worksheet should restore a fresh suggestion. Repeat without JavaScript using that button, then import and confirm the exact selected worksheet and complete original workbook are retained.
+- [ ] **T92 — Rename a collection safely.** In Admin → Collections, choose Rename collection. Cancel first; nothing should change. Try a blank name, a duplicate active name, and a name reserved in Collections Trash: each must fail. With Ana's cell editor open in that collection, the rename form should explain the restriction and disable its button. A form loaded before Ana opened the editor must also be rejected on submission. Close/Cancel the cell editor, refresh the rename form, and rename successfully. A cell editor in another collection should not block renaming. Old forms from before another rename or administrator sign-in must not overwrite the current name. Existing collection URLs, contents, formatting, history, Trash, and preferences should remain intact.
+- [ ] **T93 — Prominent collection heading.** The main header should prominently show the collection name, with no original workbook filename or extra worksheet/source label. Check desktop and narrow/mobile widths, switching collections, search/navigation, and both interface languages. A rename should appear in an already-open collection tab after its next live refresh, preserving the current view. Long names should fit with a full-name tooltip. In single-database mode, the worksheet name should be used without the workbook filename. Exports should retain the original data and full-workbook behavior; combined export tabs should use the current collection names.
+
 ## Report a failure
 
 Leave failed or unrun tasks unchecked and record their outcome below. If a task
@@ -291,8 +300,8 @@ task as passed. Update the status above as actual results become available.
 
 | Task | Outcome (pass/fail/not applicable) | Date / browser / environment | Notes or issue |
 | --- | --- | --- | --- |
-| T81–T82 | Checked complete in the checklist | Not recorded | Existing user marks preserved; details pending |
-| Remaining tasks | Pending | — | Includes new language checks T85–T90 |
+| T01–T16, T81–T82 | Checked complete in the checklist | Not recorded | Existing user marks preserved; details pending |
+| Remaining tasks | Pending | — | Includes language checks T85–T90 and collection-name checks T91–T93 |
 
 Record a short reproduction such as:
 

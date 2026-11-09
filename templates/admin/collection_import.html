@@ -4,10 +4,14 @@
 <h1>{{ _("Choose worksheet") }}</h1><p>{{ _("Workbook:") }} <strong>{{ upload.filename }}</strong>{{ _(". Import one worksheet into a new collection. Other worksheets remain in its export template.") }}</p>
 <form class="panel login-panel" method="post">
 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-<label for="name">{{ _("Collection name") }}</label><input id="name" name="name" value="{{ name }}" maxlength="120" required>
+<input type="hidden" id="default-name" name="default_name" value="{{ suggestions.get(sheet,'') }}">
 <label for="sheet">{{ _("Worksheet") }}</label><select id="sheet" name="sheet" required>{% for title in upload.sheets %}<option value="{{ title }}"{% if title == sheet %} selected{% endif %}>{{ title }}</option>{% endfor %}</select>
+<script type="application/json" id="import-name-suggestions">{{ suggestions | tojson }}</script>
+<button type="submit" name="action" value="suggest" formnovalidate>{{ _('Suggest name for worksheet') }}</button>
+<label for="name">{{ _("Collection name") }}</label><input id="name" name="name" value="{{ name }}" maxlength="120" required>
+<p class="muted">{{ _('The suggested name follows the worksheet, adding (1), (2), and so on when needed. You can enter your own name.') }}</p>
 <p class="muted">{{ _("Names must be unique, including names in Collections Trash. This upload expires after 30 minutes.") }}</p>
-<button type="submit">{{ _("Import worksheet") }}</button>
+<button type="submit" name="action" value="import">{{ _("Import worksheet") }}</button>
 </form>
 <form method="post" action="{{ url_for('admin.import_cancel',token=token) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit">{{ _("Cancel import and remove upload") }}</button></form>
 {% endblock %}

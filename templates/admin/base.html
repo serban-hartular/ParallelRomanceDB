@@ -5,6 +5,7 @@
   <title>{% block title %}{{ _("Administration") }}{% endblock %} {{ _("· Parallel Words") }}</title>
   <link rel="stylesheet" href="{{ url_for('static',filename='admin.css') }}">
 {% include '_interface.html' %}
+<script defer src="{{ url_for('static',filename='admin.js') }}"></script>
 </head>
 <body>
   <header class="site-header">

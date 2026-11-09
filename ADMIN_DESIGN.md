@@ -18,8 +18,9 @@ prefix to the same Flask application. If that domain already serves another
 application, preserve its routes when adding the proxy location.
 
 Use ordinary server-rendered HTML, a small stylesheet, and standard forms.
-There is no need for Quill, Tabulator, htmx, live polling, or JavaScript in the
-admin interface. Forms submit with POST and redirect to a confirmation/list
+The admin interface requires no Quill, Tabulator, htmx, live polling, or JavaScript.
+An optional small script follows worksheet selections with import name suggestions;
+ordinary forms provide the same naming operation without JavaScript. Forms submit with POST and redirect to a confirmation/list
 page, so reloading a result page does not repeat an operation.
 
 Navigation:
@@ -283,6 +284,9 @@ Collections Trash. Names remain unique across both lists. Creation uses ordinary
 GET/POST `/admin/collections/new` forms and the existing empty-collection defaults.
 GET/POST `/admin/collections/import` stages an uploaded `.xlsx`/`.xlsm` privately;
 GET/POST `/admin/imports/<token>` selects the exact worksheet and unique name.
+Names default to the selected worksheet, adding (1), (2), etc. to avoid active
+and trashed names. POST with `action=suggest` refreshes that suggestion without
+consuming the upload. Custom names survive worksheet changes and validation errors.
 POST `/admin/imports/<token>/cancel` removes a pending upload. The import preserves
 the complete original workbook, exact worksheet/label spelling, and formatting.
 Failed imports create no catalog entry or orphan collection database.
@@ -303,13 +307,23 @@ lock through response/preference writes, preventing removal from racing an
 in-flight browser mutation. Keep the documented single application process.
 
 Catalog schema 2 adds `deleted_at`, `deleted_by`, `lifecycle_revision`, and
-`collection_events` (create/delete/restore, actor, UTC time). Schema-1 upgrade
+`collection_events` (create/rename/delete/restore, actor, UTC time). Schema-1 upgrade
 retains all entries and preferences. Lifecycle state and its audit event commit
 together. No collection database is moved or erased; its UUID/path, workbook,
 content, row Trash, history, and preferences survive restoration. Removed
 collections return 404 on public/admin content routes. Removing the last active
 collection leaves the empty landing page and administration usable. The
 Collections page explains the catalog requirement in single-database mode.
+
+GET/POST `/admin/collections/<id>/rename` edits the name of an active collection.
+The signed form binds collection ID, lifecycle revision, and administrator form
+context. POST checks live cell leases while holding the collection write lock
+through the catalog commit, preventing an editor from opening during the check.
+Expired/revoked leases are excluded. Duplicate active/trashed names are rejected;
+unchanged names are a no-op. A successful change advances the lifecycle revision
+and records a rename event. Data, database paths, IDs, history and preferences
+stay intact. Open public pages detect name changes through their lightweight
+changes endpoint and refresh the name-only heading safely.
 
 ## Acceptance examples
 

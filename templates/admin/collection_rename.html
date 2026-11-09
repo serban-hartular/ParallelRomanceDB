@@ -1,0 +1,14 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ _('Rename collection') }}{% endblock %}
+{% block content %}
+<h1>{{ _('Rename collection') }}</h1><h2>{{ entry.name }}</h2>
+<p>{{ _('Only the collection name changes. Its contents, workbook, history, and bookmarks are retained.') }}</p>
+{% if editing %}<p class="notice" role="status">{{ _('This collection is being edited. Ask editors to close their cell editors before renaming it.') }}</p>{% endif %}
+<form class="panel login-panel" method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ target }}">
+<label for="name">{{ _('Collection name') }}</label><input id="name" name="name" value="{{ name }}" maxlength="120" required>
+<p class="muted">{{ _('Use a unique name. Names in Collections Trash remain reserved.') }}</p>
+<button type="submit"{% if editing %} disabled{% endif %}>{{ _('Rename collection') }}</button>
+</form>
+<p><a href="{{ url_for('admin.manage_collections') }}">{{ _('Cancel / back to collections') }}</a></p>
+{% endblock %}

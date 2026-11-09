@@ -15,7 +15,7 @@
 <tbody>{% for entry in entries %}<tr><td><strong>{{ entry.name }}</strong></td>
 <td>{{ local_time(entry.deleted_at if state == 'deleted' else entry.created_at) }}{% if state == 'deleted' %}<br>{{ entry.deleted_by }}{% endif %}</td>
 <td>{% if state == 'deleted' %}<a href="{{ url_for('admin.restore_collection',collection_id=entry.id) }}">{{ _("Review restoration →") }}</a>
-{% else %}<a href="{{ url_for('index',collection_id=entry.id) }}">{{ _("Open collection ↗") }}</a> · <a href="{{ url_for('admin.overview',collection_id=entry.id) }}">{{ _("Overview") }}</a> · <a href="{{ url_for('admin.delete_collection',collection_id=entry.id) }}">{{ _("Move to Collections Trash →") }}</a>{% endif %}</td></tr>{% endfor %}</tbody>
+{% else %}<a href="{{ url_for('index',collection_id=entry.id) }}">{{ _("Open collection ↗") }}</a> · <a href="{{ url_for('admin.overview',collection_id=entry.id) }}">{{ _("Overview") }}</a> · <a href="{{ url_for('admin.rename_collection',collection_id=entry.id) }}">{{ _('Rename collection') }}</a> · <a href="{{ url_for('admin.delete_collection',collection_id=entry.id) }}">{{ _("Move to Collections Trash →") }}</a>{% endif %}</td></tr>{% endfor %}</tbody>
 </table></div>{% else %}<p class="empty">{{ _('Collections Trash is empty.') if state == 'deleted' else _('No active collections. Create one, import a workbook, or restore one from Collections Trash.') }}</p>{% endif %}
 {% endif %}
 {% endblock %}

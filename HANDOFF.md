@@ -1,19 +1,19 @@
 # XLDB development handoff
 
-Updated 2026-11-08 after Romanian/English localization; user acceptance testing is incomplete.
+Updated 2026-11-09 after collection naming improvements; user acceptance testing is incomplete.
 Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 Read `README.md` first, and `DEPLOYMENT.md` before deployment work.
 
 **Current acceptance status**
 
-MANUAL_TESTING.md currently marks **T81 and T82 complete**; these existing
-checkboxes were preserved during localization. Details (browser/date/environment)
-have not been entered in its result table. The other **88 of 90 tasks remain
-unchecked and pending**, including all administrator tasks T60–T80 and new
-language tasks T85–T90. Agent-run automated tests and screenshot reviews do not
+MANUAL_TESTING.md currently marks **T01–T16 and T81–T82 complete**; preserve
+these user checkbox marks. Details (browser/date/environment) have not been
+entered in its result table. The other **75 of 93 tasks remain unchecked and
+pending**, including all administrator tasks T60–T80, language tasks T85–T90,
+and new collection-name tasks T91–T93. Agent-run automated tests and screenshot reviews do not
 complete user acceptance tasks.
 
-The current Python verification passed 243 tests, including ten localization tests and nine export tests.
+The current Python verification passed 252 tests, including nine collection-name tests, ten localization tests, and nine export tests.
 Scrollbar and JavaScript syntax checks also passed. Browser verification details
 are recorded in the milestones below. Real Excel
 desktop checks, the full manual two-user workflows, and the latest remote
@@ -32,9 +32,9 @@ first pass, plus a place to record actual outcomes.
 > Continue XLDB in `/home/hartular/Lingv/XLDB`. Read README.md and HANDOFF.md
 > first; read DEPLOYMENT.md before deployment work. The app is branded Parallel
 > Words and uses Flask + htmx + Tabulator + Quill, served by Waitress.
-> MANUAL_TESTING.md currently marks T81–T82 complete; preserve those user marks.
-> The other 88 of 90 tasks, including admin T60–T80 and language T85–T90, remain
-> pending. Automated Python checks passed (243 tests), along with browser/scrollbar/JS checks recorded
+> MANUAL_TESTING.md marks T01–T16 and T81–T82 complete; preserve those user marks.
+> The other 75 of 93 tasks, including admin T60–T80, language T85–T90, and naming
+> T91–T93, remain pending. Automated Python checks passed (252 tests), along with browser/scrollbar/JS checks recorded
 > below; these are not user manual acceptance results. Do not check off
 > tasks or assume the latest build is verified in the user's Excel/remote setup.
 > A catalog lists collections; each has a separate SQLite file, workbook
@@ -86,7 +86,7 @@ first pass, plus a place to record actual outcomes.
 > Schema 7 adds dataset.content_revision and transactional content-table triggers.
 > LIVE_REFRESH_SECONDS controls polling. The agent has not deployed this work
 > remotely; the user's latest deployment status is unconfirmed.
-> MANUAL_TESTING.md provides 90 user acceptance tasks plus an isolated-test setup.
+> MANUAL_TESTING.md provides 93 user acceptance tasks plus an isolated-test setup.
 > /admin/ implements the approved plain-HTML design: local set-admin-password
 > bootstrap/reset, independent administrator browser-session login, global password
 > management, collection-scoped Trash preview/recovery, filtered history/activity,
@@ -117,8 +117,72 @@ first pass, plus a place to record actual outcomes.
 > workbook/collection text and attribution are never translated. New-entry
 > placeholder is [De completat] in Romanian, [To be added] in English; DELETE
 > remains literal. CLI tools stay English. No schema change or deployment.
+> Import names now default to the selected worksheet, with (1), (2), etc. to
+> avoid names in active collections or Collections Trash. Optional admin.js follows
+> worksheet changes while keeping custom names. The ordinary Suggest name form
+> also works without JS. Admin → Collections → Rename collection changes a name
+> only while there are no open cell editors in that collection; Edit mode alone
+> is allowed. Signed revision-bound forms reject stale submissions. The catalog
+> rename holds the collection SQLite write lock through its catalog commit,
+> preserving IDs, bookmarks, files, data, history and preferences. Existing
+> lifecycle_revision/collection_events support rename without a schema change.
+> Public changes responses include collection_name so open tabs refresh renamed
+> headings. The main header now shows a larger collection name only, without
+> workbook filename/source suffixes; single-database mode uses its sheet name.
 > Inspect Git status and preserve
 > existing changes; no implementation request is pending until I provide one.
+
+**Collection naming improvements (2026-11-09)**
+
+The user requested worksheet-based import names, renaming blocked during editing,
+and a more prominent collection name without the original workbook filename.
+All three are implemented. Active editing means an open cell editor/lease;
+merely selecting Edit mode does not block a rename. No unrelated changes were
+made to the existing workbook moves/deletions or user checklist marks.
+
+CollectionCatalog.suggested_name uses the trimmed selected worksheet name and
+appends (1), (2), etc. until unused, including names in Collections Trash. It
+limits suggestions to valid collection-name length and leaves original sheet
+names untouched. Import review computes suggestions for each exact worksheet.
+static/admin.js follows changes while the name is still automatic, preserving
+custom names. The plain HTML action=suggest button refreshes the name without
+consuming the upload. A hidden default_name also allows a plain HTML import to
+follow a newly selected worksheet at submission, with fresh collision checks;
+custom names and failed submissions retain their entered values. JSON is escaped
+with tojson and read into a Map, supporting unusual names such as __proto__.
+
+Admin → Collections links to GET/POST /admin/collections/<id>/rename. The form
+binds collection, rename action, lifecycle revision, and administrator CSRF
+context. Renaming rejects duplicates (including Trash), invalid names, stale
+forms, and open cell editors. GET explains and disables the action while editing;
+POST checks again. Catalog.rename expires old leases and holds the collection
+write transaction through the catalog name/revision/event commit, excluding a
+concurrent lease from another SQLite connection. Unchanged names are a no-op.
+It preserves IDs, database paths, content, workbook metadata/template, history,
+Trash and preferences. There is no new schema version or CLI command.
+
+The main header shows the collection name at 24px on desktop / 20px on narrow
+screens, with a full-name tooltip and truncation. The workbook/source label is
+kept as metadata in the payload, but removed from the displayed name and its
+accessibility label. Single-database mode uses the worksheet name for public,
+admin, and export display. Browser titles include the collection name. The
+lightweight changes response adds collection_name; the browser refreshes when
+that changes even if the content revision is unchanged, following existing draft/
+dialog/scroll protections. Combined export tab names follow current catalog names;
+original full-workbook exports and source files remain intact.
+
+Verification: all 252 Python tests passed in the disposable snapshot
+/tmp/xldb-collection-names-check-9_mmfc0f, using only the legacy test fixture copied
+there. The nine focused tests also passed directly in the workspace, covering
+suggestions, plain HTML import defaults, duplicates, snapshots/preferences/audit,
+identity persistence, active/expired leases, stale forms, roles/CSRF, and concurrent
+SQLite lease exclusion. Three browser groups passed for plain HTML imports and
+rename/live headings; JS suggestions/custom names/unusual titles; active editor
+restrictions, cancellation, Romanian labels, and mobile layout. A screenshot is
+/tmp/xldb-collection-name-mobile.png. Four translation helper tests, six scrollbar
+tests, JS syntax checks and git diff --check passed. Broader historical browser
+suites were not rerun. No deployment or real data/credential changes. New manual
+T91–T93 remain unchecked; existing T01–T16 and T81–T82 checks were preserved.
 
 **Romanian / English interface (2026-11-08)**
 
@@ -720,12 +784,12 @@ may be affected by that helper's openpyxl conversion.
 
 **Verification and environment**
 
-User manual acceptance: **T81–T82 checked; 88 of 90 tasks pending**, including
-all administrator and localization tasks. The checks below are agent-run and do
+User manual acceptance: **T01–T16 and T81–T82 checked; 75 of 93 tasks pending**,
+including all administrator, localization, and new collection-name tasks. The checks below are agent-run and do
 not change user acceptance status.
 
-Latest Python verification: 243 tests passed in the disposable source snapshot
-`/tmp/xldb-localization-check-n8jz81kq`, with a separate ten-test localization pass,
+Latest Python verification: 252 tests passed in the disposable source snapshot
+`/tmp/xldb-collection-names-check-9_mmfc0f`, with a separate nine-test collection-name pass,
 using the project's Python at
 `/home/hartular/Lingv/XLDB/.venv/bin/python`. The legacy `db/example.xlsx` fixture
 was copied there from the preceding test checkout
@@ -733,8 +797,9 @@ was copied there from the preceding test checkout
 workspace; do not restore it over the user's workbook or touch db/research.sqlite3.
 Copy current source/tests into the disposable snapshot before further checks.
 Self-contained collection/admin suites run directly in the workspace.
-Six Node scrollbar tests, JavaScript syntax checks, and three focused localization
-browser groups passed for localization. The previous export change passed its
+Four translation helper tests, six scrollbar tests, JavaScript syntax checks,
+and three focused collection-name browser groups passed for the naming change.
+The previous localization change passed three focused browser groups. The previous export change passed its
 two focused export browser groups. The preceding
 collection-management milestone passed sixteen editor, five collection, six
 authentication, six lease, eight live-update, and eleven JavaScript-disabled
@@ -750,6 +815,7 @@ are `tests/test_cell_editor_browser.js`, `tests/test_collections_browser.js`,
 `tests/test_admin_browser.js` (eleven administration groups including collection management).
 `tests/test_exports_browser.js` adds focused HTML/dialog multi-export checks.
 `tests/test_localization_browser.js` covers Romanian/English with and without JS.
+`tests/test_collection_names_browser.js` covers imports, rename restrictions, and headings.
 Playwright is outside the project at `/tmp/xldb-browser/node_modules`; its
 browser installation is `/tmp/xldb-browser/browsers`. Use NODE_PATH and
 PLAYWRIGHT_BROWSERS_PATH accordingly. Browser servers/databases are temporary.
@@ -768,7 +834,7 @@ access DB/password setup as documented, with its directory writable by the servi
 **Next work, when requested**
 
 The immediate user-facing follow-up is the still-pending MANUAL_TESTING.md
-acceptance pass, including T60–T80 for administration, T83–T84 for export, and T85–T90 for language. Help with setup or fix
+acceptance pass, including T60–T80 for administration, T83–T84 for export, T85–T90 for language, and T91–T93 for collection names. Help with setup or fix
 specific reported failures when asked; do not infer that the checklist has
 already been completed or begin unrelated features during handoff.
 

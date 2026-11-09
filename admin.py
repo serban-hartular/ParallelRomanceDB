@@ -73,7 +73,7 @@ def create_admin_blueprint(app, access, catalog, single_store):
         if catalog is not None:
             return [{'id':entry['id'],'name':entry['name']} for entry in catalog.collections()]
         return [{'id':single_store.metadata['id'],
-                 'name':f"{single_store.metadata['source_name']} · {single_store.metadata['sheet_name']}"}]
+                 'name':single_store.metadata['sheet_name']}]
 
     def select(identifier=None):
         choices = collections()
@@ -198,6 +198,32 @@ def create_admin_blueprint(app, access, catalog, single_store):
     import_errors = (ValueError,BadZipFile,InvalidFileException,ParseError,ExpatError,KeyError,
                      EOFError,RuntimeError,TypeError,IndexError,OverflowError)
 
+    @blueprint.route('/collections/<collection_id>/rename',methods=['GET','POST'])
+    def rename_collection(collection_id):
+        require_catalog()
+        store = select(collection_id)
+        entry = catalog.get(collection_id)
+        target = [collection_id,'rename',entry['lifecycle_revision'],session['admin_csrf']]
+        name, error, status = request.form.get('name',entry['name']), None, 200
+        if request.method=='POST':
+            try:
+                if collection_targets.loads(request.form.get('target','')) != target:
+                    raise BadSignature('Changed collection or login.')
+            except BadSignature:
+                abort(409,description=_('This collection changed. Reload the rename form and try again.'))
+            try:
+                catalog.rename(collection_id,name,entry['lifecycle_revision'],actor=g.admin)
+            except ValueError as exception:
+                error, status = str(exception), 409
+            except (OSError,sqlite3.Error):
+                error, status = _('The collection could not be renamed. Check server storage and permissions.'), 503
+            else:
+                flash(_('Collection renamed.'),'success')
+                return redirect(url_for('admin.manage_collections'),code=303)
+        return render_template('admin/collection_rename.html',section='collections',entry=entry,
+            name=name,error=error,editing=bool(data.active_editors(store)),
+            target=collection_targets.dumps(target)),status
+
     @blueprint.route('/collections/import',methods=['GET','POST'])
     def import_upload():
         require_catalog()
@@ -223,9 +249,19 @@ def create_admin_blueprint(app, access, catalog, single_store):
         error = None
         try:
             with uploads.pending(token,session['admin_csrf']) as (record,path):
-                name = request.form.get('name',path.stem)
                 sheet = request.form.get('sheet',record['sheets'][0])
-                if request.method=='POST':
+                suggestions = {title:catalog.suggested_name(title) for title in record['sheets']}
+                name = request.form.get('name',suggestions.get(sheet,''))
+                # The hidden value records the last automatic suggestion. This
+                # also follows a changed worksheet in a plain HTML submission,
+                # while preserving names the administrator has typed explicitly.
+                if request.method=='POST' and name == request.form.get('default_name') and sheet in suggestions:
+                    name = suggestions[sheet]
+                if request.method=='POST' and request.form.get('action')=='suggest':
+                    if sheet not in suggestions:
+                        abort(400,description=_('Choose a worksheet from this workbook.'))
+                    name = suggestions[sheet]
+                elif request.method=='POST':
                     try:
                         uploads.validate_sheet(record,sheet)
                         entry = catalog.create(name,path,sheet,actor=g.admin)
@@ -238,7 +274,7 @@ def create_admin_blueprint(app, access, catalog, single_store):
                         flash(_('Worksheet imported as a new collection. The complete original workbook is retained for export.'),'success')
                         return redirect(url_for('admin.overview',collection_id=entry['id']),code=303)
                 return render_template('admin/collection_import.html',section='collections',upload=record,
-                    token=token,name=name,sheet=sheet,error=error),400 if error else 200
+                    token=token,name=name,sheet=sheet,error=error,suggestions=suggestions),400 if error else 200
         except ValueError as exception:
             abort(409,description=str(exception))
 

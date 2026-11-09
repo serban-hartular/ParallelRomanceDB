@@ -18,7 +18,7 @@
   </head>
   <body id="app-shell" hx-target="#workspace" hx-swap="outerHTML" hx-sync="#app-shell:replace" hx-indicator="#request-status">
     <header class="site-header">
-      <a class="brand" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}" aria-label="{{ _('Parallel Words, {source}, show all etymons', source=source_label) }}">Parallel Words<span title="{{ source_label }}">{% if collection_name %}{{ collection_name }} · {% endif %}{{ source_label }}</span></a>
+      <a class="brand" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}" aria-label="{{ _('Parallel Words, {source}, show all etymons', source=collection_name) }}">Parallel Words<span title="{{ collection_name }}">{{ collection_name }}</span></a>
       <div class="header-tools">
         {% if collection_options %}
           <label class="collection-chooser">{{ _("Collection") }}
@@ -92,7 +92,7 @@
     </dialog>
     <dialog id="export-dialog" aria-labelledby="export-title">
       <h2 id="export-title">{{ _("Export Excel") }}</h2>
-      {% with collections=collection_options if collection_options else [{'id':grid_payload.dataset,'name':source_label}], selected=[grid_payload.dataset], error=none %}
+      {% with collections=collection_options if collection_options else [{'id':grid_payload.dataset,'name':collection_name}], selected=[grid_payload.dataset], error=none %}
         {% include '_export_form.html' %}
       {% endwith %}
     </dialog>

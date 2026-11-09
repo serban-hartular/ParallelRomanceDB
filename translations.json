@@ -471,6 +471,10 @@
     "en": "Collection overview",
     "ro": "Prezentarea colecției"
   },
+  "Collection renamed.": {
+    "en": "Collection renamed.",
+    "ro": "Colecția a fost redenumită."
+  },
   "Collection restored.": {
     "en": "Collection restored.",
     "ro": "Colecția a fost restaurată."
@@ -1207,6 +1211,10 @@
     "en": "Only text can be inserted into a cell.",
     "ro": "Într-o celulă se poate introduce doar text."
   },
+  "Only the collection name changes. Its contents, workbook, history, and bookmarks are retained.": {
+    "en": "Only the collection name changes. Its contents, workbook, history, and bookmarks are retained.",
+    "ro": "Se schimbă doar numele colecției. Conținutul, registrul de calcul, istoricul și semnele de carte sunt păstrate."
+  },
   "Open": {
     "en": "Open",
     "ro": "Deschide"
@@ -1318,6 +1326,10 @@
   "Removed collections retain their workbook, contents, formatting, history, and row/etymon Trash. Restore them here. Collection names remain reserved. There is no permanent deletion.": {
     "en": "Removed collections retain their workbook, contents, formatting, history, and row/etymon Trash. Restore them here. Collection names remain reserved. There is no permanent deletion.",
     "ro": "Colecțiile eliminate își păstrează registrul de calcul, conținutul, formatarea, istoricul și Coșul de rânduri/etimoane. Restaurați-le aici. Numele colecțiilor rămân rezervate. Nu există ștergere definitivă."
+  },
+  "Rename collection": {
+    "en": "Rename collection",
+    "ro": "Redenumește colecția"
   },
   "Repeat new administrator password": {
     "en": "Repeat new administrator password",
@@ -1563,6 +1575,10 @@
     "en": "Subscript",
     "ro": "Indice"
   },
+  "Suggest name for worksheet": {
+    "en": "Suggest name for worksheet",
+    "ro": "Sugerează un nume pentru foaia de calcul"
+  },
   "Superscript": {
     "en": "Superscript",
     "ro": "Exponent"
@@ -1595,6 +1611,10 @@
     "en": "Text for {column}",
     "ro": "Text pentru {column}"
   },
+  "That collection name is already in use, including Collections Trash.": {
+    "en": "That collection name is already in use, including Collections Trash.",
+    "ro": "Acest nume de colecție este deja folosit, inclusiv în Coșul colecțiilor."
+  },
   "That collection name, identity, or database is already registered.": {
     "en": "That collection name, identity, or database is already registered.",
     "ro": "Numele, identitatea sau baza de date a colecției este deja înregistrată."
@@ -1618,6 +1638,10 @@
   "The collection could not be created. Check server storage and permissions.": {
     "en": "The collection could not be created. Check server storage and permissions.",
     "ro": "Colecția nu a putut fi creată. Verificați spațiul de stocare și permisiunile serverului."
+  },
+  "The collection could not be renamed. Check server storage and permissions.": {
+    "en": "The collection could not be renamed. Check server storage and permissions.",
+    "ro": "Colecția nu a putut fi redenumită. Verificați spațiul de stocare și permisiunile serverului."
   },
   "The collection database does not exist.": {
     "en": "The collection database does not exist.",
@@ -1723,6 +1747,10 @@
     "en": "The selected database is not a Parallel Words collection.",
     "ro": "Baza de date selectată nu este o colecție Parallel Words."
   },
+  "The suggested name follows the worksheet, adding (1), (2), and so on when needed. You can enter your own name.": {
+    "en": "The suggested name follows the worksheet, adding (1), (2), and so on when needed. You can enter your own name.",
+    "ro": "Numele sugerat urmează foaia de calcul, adăugând (1), (2) și așa mai departe când este necesar. Puteți introduce un alt nume."
+  },
   "The upload could not be stored. Check server storage and permissions.": {
     "en": "The upload could not be stored. Check server storage and permissions.",
     "ro": "Fișierul încărcat nu a putut fi stocat. Verificați spațiul de stocare și permisiunile serverului."
@@ -1767,6 +1795,10 @@
     "en": "This collection changed or has already been restored. Reload Collections Trash.",
     "ro": "Această colecție s-a modificat sau a fost deja restaurată. Reîncărcați Coșul colecțiilor."
   },
+  "This collection changed. Reload the rename form and try again.": {
+    "en": "This collection changed. Reload the rename form and try again.",
+    "ro": "Această colecție s-a modificat. Reîncărcați formularul de redenumire și încercați din nou."
+  },
   "This collection changed. Review its removal again.": {
     "en": "This collection changed. Review its removal again.",
     "ro": "Această colecție s-a modificat. Verificați din nou eliminarea acesteia."
@@ -1786,6 +1818,10 @@
   "This collection has been updated. Changes will appear when you close the cell editor.": {
     "en": "This collection has been updated. Changes will appear when you close the cell editor.",
     "ro": "Această colecție a fost actualizată. Modificările vor apărea când închideți editorul de celulă."
+  },
+  "This collection is being edited. Ask editors to close their cell editors before renaming it.": {
+    "en": "This collection is being edited. Ask editors to close their cell editors before renaming it.",
+    "ro": "Această colecție este în curs de editare. Cereți editorilor să închidă celulele aflate în editare înainte de a o redenumi."
   },
   "This collection requires the new schema (version 7). Reimport the workbook into a new database; the old file is unchanged.": {
     "en": "This collection requires the new schema (version 7). Reimport the workbook into a new database; the old file is unchanged.",

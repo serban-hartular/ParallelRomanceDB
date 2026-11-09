@@ -55,7 +55,7 @@
       if (!response.ok) throw interfaceError(t('Change check failed'));
       const result = await response.json();
       if (generation !== viewGeneration) return;
-      if (result.version === payload.content_version) {
+      if (result.version === payload.content_version && result.collection_name === payload.collection_name) {
         if (!livePending) liveStatus();
         return;
       }
@@ -559,8 +559,9 @@
     }
     const brand = document.querySelector('.brand');
     const source = brand.querySelector('span');
-    source.textContent = payload.collection_name ? `${payload.collection_name} · ${payload.source_label}` : payload.source_label;
+    source.textContent = payload.collection_name;
     source.title = source.textContent;
+    brand.setAttribute('aria-label', t('Parallel Words, {source}, show all etymons', {source:payload.collection_name}));
     brand.href = `${payload.urls.index}?reset=1`;
     brand.setAttribute('hx-get', brand.getAttribute('href'));
     document.querySelector('[data-export-excel]').href = `${payload.urls.export}?choose=1`;
@@ -748,7 +749,7 @@
       const dialog = document.getElementById('export-dialog');
       const form = dialog.querySelector('form');
       form.action = payload.urls.export;
-      const choices = payload.collection_options.length ? payload.collection_options : [{id:payload.dataset,name:payload.source_label}];
+      const choices = payload.collection_options.length ? payload.collection_options : [{id:payload.dataset,name:payload.collection_name}];
       form.querySelectorAll('.export-choices label').forEach(element => element.remove());
       choices.forEach(item => {
         const label = document.createElement('label'), checkbox = document.createElement('input'), name = document.createElement('span');

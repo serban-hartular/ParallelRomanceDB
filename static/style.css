@@ -21,8 +21,8 @@ a, button, input, select, summary { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 3px solid #bb8752; outline-offset: 3px; }
 
 .site-header { flex-shrink: 0; min-height: 38px; padding: 6px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); }
-.brand { display: flex; align-items: center; min-width: 0; white-space: nowrap; text-decoration: none; font-size: 20px; font-weight: 750; letter-spacing: -.03em; }
-.brand span { min-width: 0; overflow: hidden; text-overflow: ellipsis; border-left: 1px solid #bec6bd; margin-left: 12px; padding-left: 12px; font-size: 11px; letter-spacing: .02em; font-weight: 400; }
+.brand { display: flex; align-items: center; min-width: 0; white-space: nowrap; text-decoration: none; font-size: 16px; font-weight: 600; letter-spacing: -.03em; }
+.brand span { min-width: 0; overflow: hidden; text-overflow: ellipsis; border-left: 1px solid #bec6bd; margin-left: 12px; padding-left: 12px; font-size: 24px; letter-spacing: 0; font-weight: 750; }
 .collection-count { flex-shrink: 0; margin-left: 12px; font-size: 11px; color: var(--muted); }
 .header-tools { display: flex; align-items: center; flex-shrink: 0; gap: 10px; }
 .header-tools .collection-count { margin-left: 0; }
@@ -186,7 +186,7 @@ h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
   .results-hidden .results-sidebar { width: 32px; }
   .site-header { padding: 5px 8px; }
   .brand { font-size: 17px; }
-  .brand span { margin-left: 8px; padding-left: 8px; font-size: 10px; }
+  .brand span { margin-left: 8px; padding-left: 8px; font-size: 20px; }
   main { padding: 6px; gap: 6px; }
   .search-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; }
   .query-field { grid-column: 1 / 3; }

@@ -102,6 +102,43 @@ class CollectionCatalog:
             (collection_id,action,(actor or {}).get('name','Local administrator'),
              datetime.now(timezone.utc).isoformat()))
 
+    def suggested_name(self, sheet_name):
+        """Suggest a valid name without reserving it or changing the worksheet."""
+        base = ''.join(char for char in sheet_name if ord(char)>=32 and ord(char)!=127).strip()
+        base = (base or _('Collection'))[:120]
+        with self._lock:
+            names = {row[0] for row in self.connection.execute('SELECT name FROM collections')}
+        candidate, suffix = base, 0
+        while candidate in names:
+            suffix += 1
+            ending = f' ({suffix})'
+            candidate = base[:120-len(ending)] + ending
+        return candidate
+
+    def rename(self, collection_id, name, revision, *, actor=None):
+        """Rename an active collection while excluding concurrent cell leases."""
+        name = self._name(name)
+        with self._lock:
+            store = self.store(collection_id)
+            # Keep the collection write lock until the catalog update commits.
+            # A lease acquired through another SQLite connection cannot race it.
+            store.expire_edits()
+            with store.transaction(write=True):
+                if store.connection.execute("SELECT 1 FROM edit_history WHERE status='active' LIMIT 1").fetchone():
+                    raise ValueError(_('This collection is being edited. Ask editors to close their cell editors before renaming it.'))
+                try:
+                    with self.transaction():
+                        entry = self.get(collection_id)
+                        if entry['lifecycle_revision'] != revision:
+                            raise ValueError(_('This collection changed. Reload the rename form and try again.'))
+                        if name != entry['name']:
+                            self.connection.execute('''UPDATE collections SET name=?,
+                                lifecycle_revision=lifecycle_revision+1 WHERE id=?''',(name,collection_id))
+                            self._event(collection_id,'rename',actor)
+                        return self.get(collection_id)
+                except sqlite3.IntegrityError:
+                    raise ValueError(_('That collection name is already in use, including Collections Trash.')) from None
+
     def register(self, name, database_path, *, actor=None):
         name = self._name(name)
         path = Path(database_path).resolve()

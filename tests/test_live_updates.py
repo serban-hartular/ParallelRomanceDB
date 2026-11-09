@@ -155,7 +155,7 @@ class LiveRefreshHTTPTests(unittest.TestCase):
         preferences = self.catalog.connection.execute('SELECT * FROM browser_preferences').fetchall()
         response = self.client.get(self.page['urls']['changes'])
         self.assertEqual(response.status_code,200)
-        self.assertEqual(response.json,{'version':self.page['content_version']})
+        self.assertEqual(response.json,{'version':self.page['content_version'], 'collection_name':self.page['collection_name']})
         self.assertEqual(response.headers['Cache-Control'],'no-store')
         self.assertNotIn('Set-Cookie',response.headers)
         self.assertEqual(self.page['refresh_ms'],5000)

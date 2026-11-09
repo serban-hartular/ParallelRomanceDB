@@ -213,6 +213,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
         # A background refresh describes this tab's view and never saves preferences.
         view_preferences = {'edit_mode':request.args.get('editing') == '1'} if live else preferences
         source_label = f"{store.metadata['source_name']} · {store.metadata['sheet_name']}"
+        collection_name = getattr(g,'collection_name',store.metadata['sheet_name'])
         dataset_key = store.metadata['id']
         edit_mode = bool(view_preferences.get('edit_mode', False) and authorized())
         entries = store.entries(empty_form=_('No language form'))
@@ -360,13 +361,13 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
         selected_index = numbers.index(selected) if numbers else 0
         previous_entry = entries[numbers[selected_index - 1]] if selected_index > 0 else None
         next_entry = entries[numbers[selected_index + 1]] if selected_index + 1 < len(numbers) else None
-        page_title = f"{selected_entry['form']} · Parallel Words" if selected_entry else 'Parallel Words'
+        page_title = f"{collection_name} · {selected_entry['form']} · Parallel Words" if selected_entry else f'{collection_name} · Parallel Words'
         template = '_workspace.html' if request.headers.get('HX-Request') == 'true' else 'index.html'
         response = app.make_response(render_template(
             template,
             criteria=criteria,
             source_label=source_label,
-            collection_name=getattr(g,'collection_name',None),
+            collection_name=collection_name,
             collection_options=[{'id':entry['id'],'name':entry['name'],'url':url_for('index',collection_id=entry['id'])} for entry in catalog.collections()] if catalog else [],
             initial_column_name=store.initial_column()['name'],
             page_title=page_title,
@@ -398,7 +399,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
                 'dataset': dataset_key,
                 'content_version':store.content_version(),
                 'refresh_ms':app.config['LIVE_REFRESH_SECONDS'] * 1000,
-                'collection_name':getattr(g,'collection_name',None),
+                'collection_name':collection_name,
                 'collection_options':[{'id':entry['id'],'name':entry['name'],'url':url_for('index',collection_id=entry['id'])} for entry in catalog.collections()] if catalog else [],
                 'source_label':source_label,
                 'initial_column':store.initial_column()['name'],
@@ -428,7 +429,8 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
     @app.get('/collections/<collection_id>/changes')
     @locked
     def content_changes(collection_id=None):
-        response = app.json.response({'version':store.content_version()})
+        response = app.json.response({'version':store.content_version(),
+            'collection_name':getattr(g,'collection_name',store.metadata['sheet_name'])})
         response.headers['Cache-Control'] = 'no-store'
         return response
 
@@ -642,7 +644,7 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
     @app.get('/collections/<collection_id>/export')
     def export_excel(collection_id=None):
         from excel_export import export_timestamped, export_collections_timestamped
-        choices = catalog.collections() if catalog else [{'id':store.metadata['id'],'name':store.metadata['source_name']}]
+        choices = catalog.collections() if catalog else [{'id':store.metadata['id'],'name':store.metadata['sheet_name']}]
         selected = request.args.getlist('collection') if 'selection' in request.args else [store.metadata['id']]
         selected = list(dict.fromkeys(selected))
         error = _('Choose at least one collection.') if not selected else None
