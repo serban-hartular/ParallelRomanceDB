@@ -17,6 +17,16 @@ with the previous version first if needed. Never replace the old files during
 reimport. Earlier edits cannot gain retroactive author names.
 
 Install `requirements.txt` into a virtual environment on the destination machine.
+After pulling this search update, install the new pinned `regex` dependency and
+restart the application:
+
+```bash
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Regex search requires no database migration or additional Nginx configuration.
+Its request time budget is `SEARCH_REGEX_TIMEOUT_SECONDS` in `config.py`.
+
 The `main.py` command uses **Waitress**, a production WSGI server, for both local
 and public access. Do not use `flask run`, `app.run()`, or Flask's debugger for a
 remote deployment. See [Flask's deployment guidance](https://flask.palletsprojects.com/en/stable/deploying/).

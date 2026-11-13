@@ -111,7 +111,7 @@ class CollectionTests(unittest.TestCase):
         a = self.page(self.a)
         self.assertTrue(a['edit_mode'])
         self.assertFalse(a['plaintext'])
-        self.assertEqual(a['criteria'],{'query':'sense','label':[],'column':['LIMBA FRANCEZĂ']})
+        self.assertEqual(a['criteria'],{'query':'sense','label':[],'column':['LIMBA FRANCEZĂ'], 'diacritics':False, 'regex':False})
         other = self.page(self.a,client=self.app.test_client())
         self.assertFalse(other['edit_mode'])
         self.assertEqual(other['criteria']['query'],'')

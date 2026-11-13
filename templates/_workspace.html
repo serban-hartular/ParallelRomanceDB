@@ -30,7 +30,7 @@
                 </div>
               </div>
             {% else %}
-              <p class="empty-list">{{ _("No etimons match this search.") }}</p>
+              <p class="empty-list">{{ _('Correct the search and try again.') if search_error else _("No etimons match this search.") }}</p>
             {% endif %}
           </aside>
         </div>
@@ -72,6 +72,7 @@
                 <summary>{{ _("Table columns") }}</summary>
                 <fieldset>
                   <legend class="visually-hidden">{{ _("Visible table columns") }}</legend>
+                  <label class="all-columns"><input type="checkbox" data-grid-all checked> {{ _('All columns') }}</label>
                   {% for column in grid_columns %}
                     <label><input type="checkbox" data-grid-field="{{ column.field }}" checked> {{ column.title }}</label>
                   {% endfor %}
@@ -128,8 +129,8 @@
             </div>
           {% else %}
             <div class="empty-state">
-              <p class="eyebrow">{{ _("No results") }}</p>
-              <h2 id="detail-heading">{{ _("Try another word or a broader search.") }}</h2>
+              <p class="eyebrow">{{ _('Search could not be completed.') if search_error else _("No results") }}</p>
+              <h2 id="detail-heading">{{ _('Correct the search and try again.') if search_error else _("Try another word or a broader search.") }}</h2>
               <p>{{ _("Clear a filter, or return to the full collection.") }}</p>
               <a class="reset-button" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}">{{ _("Show all etimons") }}</a>
             </div>

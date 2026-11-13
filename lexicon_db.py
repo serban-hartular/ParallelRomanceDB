@@ -1,6 +1,7 @@
 """SQLite source of truth for one imported worksheet and its export template."""
 
 from i18n import gettext as _
+from search_query import SearchQuery
 
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -496,14 +497,23 @@ class LexiconDB:
             result[number] = {'number': number, 'form': form, 'language': language}
         return result
 
-    def matching_numbers(self, query, labels=(), columns=()):
-        sql = 'SELECT DISTINCT etimon_number FROM cell_records WHERE ' + ACTIVE_CELL_SQL + ' AND instr(search_fold(nodiacritics_plaintext), ?) > 0'
-        values = [remove_diacritics(query).upper()]
-        for field, selected in (('label', labels), ('column', columns)):
+    def matching_numbers(self, query, labels=(), columns=(), *, diacritics=False, regex=False, matcher=None):
+        matcher = matcher or SearchQuery(query,diacritics=diacritics,regex=regex)
+        field = 'plaintext_content' if matcher.diacritics else 'nodiacritics_plaintext'
+        sql = ' FROM cell_records WHERE ' + ACTIVE_CELL_SQL
+        values = []
+        if not matcher.regex:
+            sql += f' AND instr(search_fold({field}), ?) > 0'
+            values.append(matcher.query.upper())
+        for name, selected in (('label', labels), ('column', columns)):
             if selected:
-                sql += f' AND "{field}" IN ({",".join("?" for _ in selected)})'
+                sql += f' AND "{name}" IN ({",".join("?" for _ in selected)})'
                 values.extend(selected)
-        return tuple(row[0] for row in self.connection.execute(sql + ' ORDER BY etimon_number', values))
+        if not matcher.regex:
+            return tuple(row[0] for row in self.connection.execute('SELECT DISTINCT etimon_number'+sql+' ORDER BY etimon_number',values))
+        with matcher.scanning():
+            numbers={row[0] for row in self.connection.execute('SELECT etimon_number,'+field+sql,values) if matcher.matches(row[1])}
+        return tuple(sorted(numbers))
 
     def cell(self, key):
         with self._lock:

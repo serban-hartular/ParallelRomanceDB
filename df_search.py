@@ -5,6 +5,7 @@ from collections.abc import Iterable
 import pandas as pd
 
 from text_normalization import remove_diacritics
+from search_query import SearchQuery
 
 
 LABEL_ORDER = (
@@ -33,13 +34,17 @@ def search_dataframe(
     label: str | Iterable[str] | None = None,
     *,
     case_sensitive: bool = True,
+    diacritics: bool = False,
+    regex: bool = False,
 ) -> list[int]:
     """Return matching etimon numbers, unique and sorted in ascending order.
 
-    Search for a literal substring, ignoring diacritics in both the query
-    and content. Uses nodiacritics_plaintext when present, otherwise derives
-    it from plaintext_content without modifying df. Matching is case-sensitive
-    by default; set case_sensitive=False to ignore case as well.
+    Search for a literal substring or, with regex=True, a regular expression.
+    With diacritics=False (default), normalize query literals and use cached
+    nodiacritics_plaintext, otherwise derive it without modifying df. With
+    diacritics=True, search original plaintext_content. Matching is case-sensitive
+    by default; set case_sensitive=False to ignore case. Invalid, ambiguous,
+    or over-budget regex searches raise SearchError.
     Column and label accept one exact value or an iterable of values. Match
     any value within each filter; both filters must match the same cell.
     None or an empty iterable means all values for that filter.
@@ -49,21 +54,18 @@ def search_dataframe(
     if not isinstance(text, str):
         raise TypeError('text must be a string.')
 
-    if 'nodiacritics_plaintext' in df.columns:
-        searchable = df['nodiacritics_plaintext']
-    else:
-        searchable = df['plaintext_content'].map(remove_diacritics, na_action='ignore')
-
-    matches = searchable.str.contains(
-        remove_diacritics(text), case=case_sensitive, regex=False, na=False,
-    )
-    for field, values in (('column', column), ('label', label)):
+    matcher=SearchQuery(text,diacritics=diacritics,regex=regex,case_sensitive=case_sensitive)
+    candidates=df
+    for field,values in (('column',column),('label',label)):
         if values is not None:
-            values = (values,) if isinstance(values, str) else tuple(values)
-            if values:
-                matches &= df[field].isin(values)
-
-    return sorted(df.loc[matches, 'etimon_number'].unique().tolist())
+            values=(values,) if isinstance(values,str) else tuple(values)
+            if values:candidates=candidates.loc[candidates[field].isin(values)]
+    if diacritics:searchable=candidates['plaintext_content']
+    elif 'nodiacritics_plaintext' in candidates.columns:searchable=candidates['nodiacritics_plaintext']
+    else:searchable=candidates['plaintext_content'].map(remove_diacritics,na_action='ignore')
+    with matcher.scanning():
+        matches=searchable.map(lambda value:matcher.matches(value) if isinstance(value,str) else False)
+    return sorted(candidates.loc[matches,'etimon_number'].unique().tolist())
 
 
 def get_etimon(

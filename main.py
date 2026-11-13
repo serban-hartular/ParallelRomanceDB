@@ -29,6 +29,7 @@ from df_search import get_etimon
 from extract_sheet import excel_to_dataframe
 from lexicon_db import EditConflict, LexiconDB, default_database_path
 from search_highlighting import highlight_content
+from search_query import SearchQuery, SearchError
 
 
 DEFAULT_EXCEL_PATH = Path(__file__).parent / 'db' / 'example.xlsx'
@@ -65,6 +66,9 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
 
     if type(app.config['LIVE_REFRESH_SECONDS']) is not int or app.config['LIVE_REFRESH_SECONDS'] <= 0:
         raise ValueError(_('LIVE_REFRESH_SECONDS must be a positive integer.'))
+
+    if not isinstance(app.config['SEARCH_REGEX_TIMEOUT_SECONDS'],(int,float)) or not 0<app.config['SEARCH_REGEX_TIMEOUT_SECONDS']<=5:
+        raise ValueError('SEARCH_REGEX_TIMEOUT_SECONDS must be greater than zero and at most five seconds.')
 
     catalog_path = catalog_path or app.config.get('CATALOG_PATH')
     catalog = CollectionCatalog(catalog_path) if catalog_path is not None else None
@@ -221,41 +225,38 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
         columns = store.choices('column')
         if 'edit_csrf' not in session:
             session['edit_csrf'] = token_hex(32)
+        saved = view_preferences.get('search', {})
         if 'reset' in request.args:
+            saved = {}
             view_preferences.pop('search', None)
             view_preferences.pop('etimon', None)
         elif 'search' in request.args:
-            selections = {
-                name: _filter_values(request.args.getlist(name))
-                for name in ('label', 'column')
-            }
+            selections = {name:_filter_values(request.args.getlist(name)) for name in ('label','column')}
             if live:
-                selections['label'] = [value for value in selections['label'] if value in labels]
-                selections['column'] = [value for value in selections['column'] if value in columns]
-            if set(selections['label']) - set(labels) or set(selections['column']) - set(columns):
-                abort(400, description=_('Unknown search filter.'))
-            view_preferences['search'] = {
-                'query': request.args.get('q', ''),
-                **selections,
-            }
-            view_preferences.pop('etimon', None)
-
-        saved = view_preferences.get('search', {})
-        criteria = {
-            'query': saved.get('query', ''),
-            'label': _filter_values(saved.get('label', [])),
-            'column': _filter_values(saved.get('column', [])),
-        }
-        if 'search' in view_preferences:
-            view_preferences['search'] = criteria
-        numbers = store.matching_numbers(
-            criteria['query'], tuple(criteria['label']), tuple(criteria['column']),
-        )
-        requested = request.args.get('etimon', type=int)
-        selected = requested if requested is not None else view_preferences.get('etimon')
-        if selected not in numbers:
-            selected = numbers[0] if numbers else None
-        view_preferences['etimon'] = selected
+                selections['label']=[value for value in selections['label'] if value in labels]
+                selections['column']=[value for value in selections['column'] if value in columns]
+            if set(selections['label'])-set(labels) or set(selections['column'])-set(columns):
+                abort(400,description=_('Unknown search filter.'))
+            saved = {'query':request.args.get('q',''),**selections,
+                     'diacritics':request.args.get('diacritics')=='1','regex':request.args.get('regex')=='1'}
+        criteria = {'query':saved.get('query',''),
+                    'label':_filter_values(saved.get('label',[])),
+                    'column':_filter_values(saved.get('column',[])),
+                    'diacritics':bool(saved.get('diacritics',False)),
+                    'regex':bool(saved.get('regex',False))}
+        search_error, search_notice, matcher = None, None, None
+        try:
+            matcher=SearchQuery(criteria['query'],diacritics=criteria['diacritics'],regex=criteria['regex'],
+                                timeout=app.config['SEARCH_REGEX_TIMEOUT_SECONDS'])
+            criteria['query']=matcher.query
+            if matcher.changed and app.config['SEARCH_SHOW_NOTICES']:
+                search_notice=_('The search box shows the normalized query used.')
+            numbers=store.matching_numbers(criteria['query'],tuple(criteria['label']),tuple(criteria['column']),matcher=matcher)
+        except SearchError as error:
+            search_error, numbers = str(error), ()
+        requested = request.args.get('etimon',type=int)
+        selected = requested if requested is not None else (None if 'search' in request.args else view_preferences.get('etimon'))
+        if selected not in numbers:selected=numbers[0] if numbers else None
 
         if 'plaintext' in request.args:
             view_preferences['plaintext'] = request.args.get('plaintext') == '1'
@@ -266,6 +267,10 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
         table = get_etimon(df, selected, plaintext=plaintext) if selected is not None else None
         table_columns = list(table.columns[2:]) if table is not None else []
         table_rows = table.to_dict('records') if table is not None else []
+        search_texts = {
+            (record.label, record.label_number, record.column): record.plaintext_content
+            for record in df.itertuples(index=False)
+        }
         cell_backgrounds = {
             (record.label, record.label_number, record.column): record.background_color
             for record in df.loc[df['etimon_number'].eq(selected)].itertuples(index=False)
@@ -287,16 +292,25 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
                 if color:
                     backgrounds[column] = color
             background_rows.append(backgrounds)
-        highlighted_rows = [
-            {
-                column: highlighted
-                for column in table_columns
-                if (highlighted := highlight_content(
-                    row[column], criteria['query'], plaintext=plaintext,
-                )) is not None
-            }
-            for row in table_rows
-        ]
+        try:
+            highlighted_rows = [
+                {
+                    column: highlighted
+                    for column in table_columns
+                    if (highlighted := highlight_content(
+                        row[column], criteria['query'], plaintext=plaintext, matcher=matcher,
+                        search_text=search_texts.get((row['label'], row['label_number'], column)),
+                    )) is not None
+                }
+                for row in table_rows
+            ]
+        except SearchError as error:
+            search_error=str(error)
+            highlighted_rows=[{} for row in table_rows]
+        if not search_error:
+            if 'search' in request.args or 'search' in view_preferences:
+                view_preferences['search']=criteria
+            view_preferences['etimon']=selected
         grid_columns = [
             {'title': title, 'field': f'content_{index}'}
             for index, title in enumerate(table_columns)
@@ -366,6 +380,8 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
         response = app.make_response(render_template(
             template,
             criteria=criteria,
+            search_error=search_error,
+            search_notice=search_notice,
             source_label=source_label,
             collection_name=collection_name,
             collection_options=[{'id':entry['id'],'name':entry['name'],'url':url_for('index',collection_id=entry['id'])} for entry in catalog.collections()] if catalog else [],
@@ -413,6 +429,8 @@ def create_app(excel_path=DEFAULT_EXCEL_PATH, sheet_name=None, test_config=None,
                 'columns': grid_columns,
                 'rows': grid_rows,
                 'criteria': criteria,
+                'search_error':search_error,
+                'search_notice':search_notice,
                 'title': page_title,
                 'csrf': session['edit_csrf'],
                 'edit_mode': edit_mode,

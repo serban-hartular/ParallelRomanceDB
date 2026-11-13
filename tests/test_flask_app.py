@@ -65,7 +65,7 @@ class FlaskAppTests(unittest.TestCase):
         self.assertEqual(page.matches, [1, 2, 3, 4])
         self.assertEqual(page.selected, 1)
         self.assertEqual(page.filters, {'column': [], 'label': []})
-        self.assertEqual(page.payload['criteria'], {'query': '', 'column': [], 'label': []})
+        self.assertEqual(page.payload['criteria'], {'query': '', 'column': [], 'label': [], 'diacritics':False, 'regex':False})
         self.assertIn('ASPIC', response.get_data(as_text=True))
         self.assertIn('PROFITEROLE', response.get_data(as_text=True))
         self.assertIn('LIMBA CATALANĂ', response.get_data(as_text=True))
@@ -352,7 +352,7 @@ class FlaskAppTests(unittest.TestCase):
         self.assertEqual(empty.payload['rows'], [])
         reset = Page(self.client.get('/?reset=1', headers=headers))
         self.assertEqual(reset.matches, [1, 2, 3, 4])
-        self.assertEqual(reset.payload['criteria'], {'query': '', 'column': [], 'label': []})
+        self.assertEqual(reset.payload['criteria'], {'query': '', 'column': [], 'label': [], 'diacritics':False, 'regex':False})
         for name in ('app.js', 'scrollbars.js', 'vendor/htmx.min.js', 'vendor/tabulator.min.js', 'vendor/tabulator.min.css'):
             asset = self.client.get(f'/static/{name}')
             try:
@@ -414,7 +414,7 @@ class FlaskAppTests(unittest.TestCase):
                 ('column', 'Romanian'), ('column', 'French'), ('column', 'French'),
                 ('label', 'Special'), ('label', 'Basic'),
             ])
-            criteria = {'query': 'CAFE', 'column': ['French', 'Romanian'], 'label': ['Basic', 'Special']}
+            criteria = {'query': 'CAFE', 'column': ['French', 'Romanian'], 'label': ['Basic', 'Special'], 'diacritics':False, 'regex':False}
             page = Page(response)
             self.assertEqual(page.matches, [1, 2, 5])
             self.assertEqual(page.payload['criteria'], criteria)
@@ -428,7 +428,7 @@ class FlaskAppTests(unittest.TestCase):
                 page = Page(client.get(url))
                 self.assertEqual(page.matches, [1, 2, 3, 4, 5])
                 self.assertEqual(page.filters, {'column': [], 'label': []})
-                self.assertEqual(page.payload['criteria'], {'query': '', 'column': [], 'label': []})
+                self.assertEqual(page.payload['criteria'], {'query': '', 'column': [], 'label': [], 'diacritics':False, 'regex':False})
 
     def test_older_single_value_search_sessions_are_restored(self):
         with self.client.session_transaction() as state:

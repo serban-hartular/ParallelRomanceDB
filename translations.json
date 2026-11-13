@@ -23,6 +23,14 @@
     "en": ". This server currently serves a single database.",
     "ro": ". Acest server folosește în prezent o singură bază de date."
   },
+  "A middle dot inside a character class cannot be normalized safely. Enable Match diacritics or use the normalized spelling.": {
+    "en": "A middle dot inside a character class cannot be normalized safely. Enable Match diacritics or use the normalized spelling.",
+    "ro": "Punctul median dintr-o clasă de caractere nu poate fi normalizat în siguranță. Activați Cu diacritice sau folosiți forma normalizată."
+  },
+  "A negated character class containing a ligature cannot be normalized safely. Enable Match diacritics or rewrite the pattern.": {
+    "en": "A negated character class containing a ligature cannot be normalized safely. Enable Match diacritics or rewrite the pattern.",
+    "ro": "O clasă de caractere negată care conține o ligatură nu poate fi normalizată în siguranță. Activați Cu diacritice sau rescrieți expresia."
+  },
   "A selected collection is unavailable. Reload the export options.": {
     "en": "A selected collection is unavailable. Reload the export options.",
     "ro": "O colecție selectată nu este disponibilă. Reîncărcați opțiunile de export."
@@ -38,6 +46,10 @@
   "A selected workbook has external workbook links. Export that collection separately to retain them.": {
     "en": "A selected workbook has external workbook links. Export that collection separately to retain them.",
     "ro": "Un registru selectat conține legături către alte registre de calcul. Exportați separat colecția respectivă pentru a le păstra."
+  },
+  "A standalone combining mark cannot be normalized safely. Enable Match diacritics or remove it.": {
+    "en": "A standalone combining mark cannot be normalized safely. Enable Match diacritics or remove it.",
+    "ro": "Un semn diacritic combinant izolat nu poate fi normalizat în siguranță. Activați Cu diacritice sau eliminați-l."
   },
   "A workbook or create_empty=True is required to initialize a collection.": {
     "en": "A workbook or create_empty=True is required to initialize a collection.",
@@ -391,6 +403,10 @@
     "en": "Clear",
     "ro": "Resetează"
   },
+  "Clear search text": {
+    "en": "Clear search text",
+    "ro": "Șterge textul căutării"
+  },
   "Clear a filter, or return to the full collection.": {
     "en": "Clear a filter, or return to the full collection.",
     "ro": "Eliminați un filtru sau reveniți la întreaga colecție."
@@ -534,6 +550,10 @@
   "Copy your draft": {
     "en": "Copy your draft",
     "ro": "Copiați textul nesalvat"
+  },
+  "Correct the search and try again.": {
+    "en": "Correct the search and try again.",
+    "ro": "Corectați căutarea și încercați din nou."
   },
   "Could not allocate a new timestamped export filename.": {
     "en": "Could not allocate a new timestamped export filename.",
@@ -971,6 +991,10 @@
     "en": "Invalid editor operation.",
     "ro": "Operație nevalidă a editorului."
   },
+  "Invalid regex. Check brackets, escapes, and repetition operators.": {
+    "en": "Invalid regex. Check brackets, escapes, and repetition operators.",
+    "ro": "Expresie regulată nevalidă. Verificați parantezele, secvențele de escape și operatorii de repetare."
+  },
   "Invalid text formatting.": {
     "en": "Invalid text formatting.",
     "ro": "Formatare de text nevalidă."
@@ -1042,6 +1066,10 @@
   "Manage collections →": {
     "en": "Manage collections →",
     "ro": "Gestionează colecțiile →"
+  },
+  "Match diacritics": {
+    "en": "Match diacritics",
+    "ro": "Cu diacritice"
   },
   "Matching etymons": {
     "en": "Matching etymons",
@@ -1315,6 +1343,14 @@
     "en": "Refresh failed",
     "ro": "Actualizarea a eșuat"
   },
+  "Regex": {
+    "en": "Regex",
+    "ro": "Regex"
+  },
+  "Regex search took too long. Simplify the pattern or narrow the filters.": {
+    "en": "Regex search took too long. Simplify the pattern or narrow the filters.",
+    "ro": "Căutarea cu expresie regulată a durat prea mult. Simplificați expresia sau restrângeți filtrele."
+  },
   "Removed": {
     "en": "Removed",
     "ro": "Eliminată"
@@ -1487,9 +1523,21 @@
     "en": "Search and replacement must be strings.",
     "ro": "Textul căutat și înlocuitorul trebuie să fie șiruri de caractere."
   },
+  "Search could not be completed.": {
+    "en": "Search could not be completed.",
+    "ro": "Căutarea nu a putut fi finalizată."
+  },
   "Search ignores case and diacritics. Choose any number of columns and labels; no selections means all. Both filters apply to the same matching cell.": {
     "en": "Search ignores case and diacritics. Choose any number of columns and labels; no selections means all. Both filters apply to the same matching cell.",
     "ro": "Căutarea nu ține cont de majuscule și diacritice. Alegeți oricâte coloane și etichete; dacă nu selectați nimic, sunt incluse toate. Ambele filtre se aplică aceleiași celule găsite."
+  },
+  "Search ignores case. Match diacritics distinguishes accented letters. Regex examples: cafe|vin, [aeiou]+. With diacritics off, the query is normalized when you search.": {
+    "en": "Search ignores case.",
+    "ro": "Căutarea nu ține cont de majuscule. "
+  },
+  "Search options": {
+    "en": "Search options",
+    "ro": "Opțiuni de căutare"
   },
   "Search strings must not be empty.": {
     "en": "Search strings must not be empty.",
@@ -1711,6 +1759,14 @@
     "en": "The new passwords do not match; nothing was changed.",
     "ro": "Parolele noi nu coincid; nu s-a modificat nimic."
   },
+  "The normalized query is too long. Use at most 500 characters.": {
+    "en": "The normalized query is too long. Use at most 500 characters.",
+    "ro": "Textul normalizat de căutat este prea lung. Folosiți cel mult 500 de caractere."
+  },
+  "The normalized regex is too long. Simplify the pattern.": {
+    "en": "The normalized regex is too long. Simplify the pattern.",
+    "ro": "Expresia regulată normalizată este prea lungă. Simplificați expresia."
+  },
   "The original IDs, numbers, formatting, and backgrounds will be retained. The recovery will be recorded under": {
     "en": "The original IDs, numbers, formatting, and backgrounds will be retained. The recovery will be recorded under",
     "ro": "ID-urile, numerele, formatarea și fundalurile originale vor fi păstrate. Recuperarea va fi înregistrată pe numele"
@@ -1723,6 +1779,22 @@
     "en": "The password changed. Please try again.",
     "ro": "Parola s-a schimbat. Încercați din nou."
   },
+  "The regex becomes empty after normalization. Enter a searchable pattern.": {
+    "en": "The regex becomes empty after normalization. Enter a searchable pattern.",
+    "ro": "Expresia regulată devine goală după normalizare. Introduceți o expresie care poate fi căutată."
+  },
+  "The regex is too deeply nested. Simplify the pattern.": {
+    "en": "The regex is too deeply nested. Simplify the pattern.",
+    "ro": "Expresia regulată are prea multe niveluri de paranteze. Simplificați expresia."
+  },
+  "The regex is too long. Use at most 500 characters.": {
+    "en": "The regex is too long. Use at most 500 characters.",
+    "ro": "Expresia regulată este prea lungă. Folosiți cel mult 500 de caractere."
+  },
+  "The regex repetition limit was exceeded. Simplify the pattern.": {
+    "en": "The regex repetition limit was exceeded. Simplify the pattern.",
+    "ro": "Limita de repetare a expresiei regulate a fost depășită. Simplificați expresia."
+  },
   "The request could not be completed. Please return to the page and try again.": {
     "en": "The request could not be completed. Please return to the page and try again.",
     "ro": "Cererea nu a putut fi finalizată. Reveniți la pagină și încercați din nou."
@@ -1730,6 +1802,10 @@
   "The row type default background must be a #RRGGBB color.": {
     "en": "The row type default background must be a #RRGGBB color.",
     "ro": "Fundalul implicit al tipului de rând trebuie să fie o culoare #RRGGBB."
+  },
+  "The search box shows the normalized query used.": {
+    "en": "The search box shows the normalized query used.",
+    "ro": "Câmpul de căutare afișează expresia normalizată folosită."
   },
   "The search could not complete. Please try again.": {
     "en": "The search could not complete. Please try again.",
@@ -1790,6 +1866,10 @@
   "This cell no longer exists. Cancel and reload.": {
     "en": "This cell no longer exists. Cancel and reload.",
     "ro": "Această celulă nu mai există. Anulați și reîncărcați pagina."
+  },
+  "This character range is too large to normalize. Narrow it or enable Match diacritics.": {
+    "en": "This character range is too large to normalize. Narrow it or enable Match diacritics.",
+    "ro": "Acest interval de caractere este prea mare pentru normalizare. Restrângeți-l sau activați Cu diacritice."
   },
   "This collection changed or has already been restored. Reload Collections Trash.": {
     "en": "This collection changed or has already been restored. Reload Collections Trash.",
@@ -1871,6 +1951,10 @@
     "en": "This item no longer exists in the collection.",
     "ro": "Acest element nu mai există în colecție."
   },
+  "This middle dot cannot be normalized safely in its regex context. Enable Match diacritics or use the normalized spelling.": {
+    "en": "This middle dot cannot be normalized safely in its regex context. Enable Match diacritics or use the normalized spelling.",
+    "ro": "Acest punct median nu poate fi normalizat în siguranță în contextul expresiei regulate. Activați Cu diacritice sau folosiți forma normalizată."
+  },
   "This recovery form expired or belongs to another item. Review the item again.": {
     "en": "This recovery form expired or belongs to another item. Review the item again.",
     "ro": "Acest formular de recuperare a expirat sau aparține altui element. Verificați din nou elementul."
@@ -1910,6 +1994,10 @@
   "Too many pending uploads. Finish or cancel an import, or try again after 30 minutes.": {
     "en": "Too many pending uploads. Finish or cancel an import, or try again after 30 minutes.",
     "ro": "Prea multe fișiere încărcate în așteptare. Finalizați sau anulați un import ori încercați din nou după 30 de minute."
+  },
+  "Too many regex highlights. Narrow the pattern or filters.": {
+    "en": "Too many regex highlights. Narrow the pattern or filters.",
+    "ro": "Prea multe potriviri de evidențiat. Restrângeți expresia sau filtrele."
   },
   "Too many unsuccessful attempts. Please wait five minutes and try again.": {
     "en": "Too many unsuccessful attempts. Please wait five minutes and try again.",
@@ -1994,6 +2082,10 @@
   "Unsupported collection catalog schema.": {
     "en": "Unsupported collection catalog schema.",
     "ro": "Schemă neacceptată a catalogului de colecții."
+  },
+  "Unsupported regex group or inline flag. Use ordinary groups and the i, m, s, f, a, or u flags.": {
+    "en": "Unsupported regex group or inline flag. Use ordinary groups and the i, m, s, f, a, or u flags.",
+    "ro": "Grup sau opțiune Regex neacceptată. Folosiți grupuri obișnuite și opțiunile i, m, s, f, a sau u."
   },
   "Unsupported text color.": {
     "en": "Unsupported text color.",

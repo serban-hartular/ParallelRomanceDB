@@ -1,13 +1,13 @@
 # Parallel Words: manual test checklist
 
-This checklist covers the application as implemented on 2026-11-09. The
+This checklist covers the application as implemented on 2026-11-13. The
 admin interface is available at `/admin/` and described separately in
 [ADMIN_DESIGN.md](ADMIN_DESIGN.md). Tasks T60–T80 cover its implemented workflows.
 
-## Current testing status — 2026-11-09
+## Current testing status — 2026-11-13
 
-**The checklist currently marks T01–T16 and T81–T82 complete. The other 75 of
-93 tasks remain pending, including new collection-name checks T91–T93.** Browser/date/environment
+**The checklist currently marks T01–T16 and T81–T82 complete. The other 80 of
+98 tasks remain pending, including new search-mode checks T94–T98.** Browser/date/environment
 details for the checked tasks have not yet been recorded below. Existing checkbox
 marks are preserved; automated checks do not change user acceptance status.
 
@@ -19,6 +19,7 @@ marks are preserved; automated checks do not change user acceptance status.
 | Export picker, multiple collection sheets, formatting/formulas, and fallback | T81–T84 | T81–T82 checked; T83–T84 pending |
 | Romanian/English interface, remembered choice, messages, editing, and data integrity | T85–T90 | Pending |
 | Import name suggestions, renaming restrictions, and prominent collection headings | T91–T93 | Pending |
+| Diacritic/regex modes, normalized queries, highlights, errors, and saved/live searches | T94–T98 | Pending |
 
 Automated verification results are recorded in [HANDOFF.md](HANDOFF.md). These
 checks do not complete any task in this **user** checklist or confirm behavior
@@ -292,6 +293,18 @@ Use disposable collections and workbook copies. These new checks are pending.
 - [ ] **T92 — Rename a collection safely.** In Admin → Collections, choose Rename collection. Cancel first; nothing should change. Try a blank name, a duplicate active name, and a name reserved in Collections Trash: each must fail. With Ana's cell editor open in that collection, the rename form should explain the restriction and disable its button. A form loaded before Ana opened the editor must also be rejected on submission. Close/Cancel the cell editor, refresh the rename form, and rename successfully. A cell editor in another collection should not block renaming. Old forms from before another rename or administrator sign-in must not overwrite the current name. Existing collection URLs, contents, formatting, history, Trash, and preferences should remain intact.
 - [ ] **T93 — Prominent collection heading.** The main header should prominently show the collection name, with no original workbook filename or extra worksheet/source label. Check desktop and narrow/mobile widths, switching collections, search/navigation, and both interface languages. A rename should appear in an already-open collection tab after its next live refresh, preserving the current view. Long names should fit with a full-name tooltip. In single-database mode, the worksheet name should be used without the workbook filename. Exports should retain the original data and full-workbook behavior; combined export tabs should use the current collection names.
 
+## Diacritic and regex search
+
+Use disposable data containing `café`, `cafe`, `cœur`, `coeur`, `œœ`, and
+`col·laboració`, with some words split across bold/italic runs. These checks
+remain pending user acceptance.
+
+- [ ] **T94 — Independent search modes.** In a fresh browser, both Match diacritics and Regex should be off. Check all four combinations. With diacritics off, `café` and `cafe` should find both spellings; with it on, each should find its own spelling, ignoring case. With Regex off, `cafe|vin` and `[aeiou]+` should be literal text; with it on, they should act as patterns. Check column/label filters and an empty query. The permanent × in the search box should remain visible without hovering or focusing the box, clear only its text, and return focus without submitting or changing filters/switches. Clear/Resetează should reset the query, filters, and both switches.
+- [ ] **T95 — Effective normalized expression.** With Regex on and Match diacritics off, submit `café|cœur`: the input should show `cafe|coeur`. Successful-search explanations should be hidden by default. Set `SEARCH_SHOW_NOTICES = True` in `config.py` and restart to show the normalization notice; errors should remain visible with either setting. The shortened search hint should sit beside the two checkboxes and wrap on narrow screens. Try `œ+` (becomes `(?:oe)+`), `[éœx]+` (becomes `(?:[ex]|oe)+`), `\bcafé\b` (becomes `\bcafe\b`), and `col·laboració` (becomes `collaboracio`). Resubmitting an effective expression should preserve it. With Match diacritics on, the accented expression should remain unchanged. Switching a checkbox should not rewrite an unsubmitted query.
+- [ ] **T96 — Original text and highlights.** Search accented words and ligatures in rich-text and plaintext views, including matches across formatting runs. Highlights should cover the original characters while keeping accents, formatting, labels, spacing, and line breaks. Check anchors on imported cells with outer spaces: matching should use stored plaintext while the formatted view retains those spaces. Try whole-word patterns, ranges, groups, and zero-length matches such as `^` (no empty marks). Export after searching and verify the workbook has its original text and formatting without search marks.
+- [ ] **T97 — Invalid, ambiguous, and slow patterns.** Submit `[` and `(` with Regex on. With diacritics off, try `[^œ]` and `[·]`: each should show an explanatory inline error, allowing correction. Enabling Match diacritics should allow those valid classes. Try a repetition above the limit, such as `a{1001}`. On disposable long text only, try a costly pattern such as `(a|aa)+$`: a search that exceeds its budget should stop with an error and no partial result list. The last valid saved search should return on reload. Check errors in Romanian and English; no raw server/library error should appear.
+- [ ] **T98 — Persistence, live updates, mobile, and plain HTML.** Apply a regex/diacritic search, select another match, change formatted/plaintext view and language, and switch away from and back to the collection: the applied query and switches should be retained separately per collection. Change the query and switches without submitting, then have another browser edit a matching cell: the results should update using the applied search while the unsent controls remain intact. Try Search/Clear with an open cell draft: existing navigation guards should preserve it. In Table columns / Coloanele tabelului, Toate coloanele should be first: selecting it shows every content column, hiding one column unchecks it, and showing the last hidden column checks it again. Check saved visibility after reload and that an open cell draft blocks bulk column changes. Check narrow/mobile widths. Repeat the searches, normalized input, and errors with JavaScript disabled.
+
 ## Report a failure
 
 Leave failed or unrun tasks unchecked and record their outcome below. If a task
@@ -301,7 +314,7 @@ task as passed. Update the status above as actual results become available.
 | Task | Outcome (pass/fail/not applicable) | Date / browser / environment | Notes or issue |
 | --- | --- | --- | --- |
 | T01–T16, T81–T82 | Checked complete in the checklist | Not recorded | Existing user marks preserved; details pending |
-| Remaining tasks | Pending | — | Includes language checks T85–T90 and collection-name checks T91–T93 |
+| Remaining tasks | Pending | — | Includes language T85–T90, collection names T91–T93, and search T94–T98 |
 
 Record a short reproduction such as:
 

@@ -45,7 +45,15 @@
           <input type="hidden" name="search" value="1">
           <div class="field query-field">
             <label for="query" class="visually-hidden">{{ _("Search text") }}</label>
-            <input id="query" type="search" name="q" value="{{ criteria.query }}" maxlength="{{ max_search_length }}" placeholder="{{ _('Search a word or phrase…') }}" aria-describedby="search-hint">
+            <div class="query-input">
+              <input id="query" type="search" name="q" value="{{ criteria.query }}" maxlength="{{ max_search_length }}" placeholder="{{ _('Search a word or phrase…') }}" aria-describedby="search-hint" spellcheck="false" autocapitalize="off" autocorrect="off">
+              <button type="button" class="query-clear" data-clear-query aria-label="{{ _('Clear search text') }}" title="{{ _('Clear search text') }}" hidden><span aria-hidden="true">×</span></button>
+            </div>
+            <div class="search-switches" role="group" aria-label="{{ _('Search options') }}">
+              <label><input type="checkbox" name="diacritics" value="1"{% if criteria.diacritics %} checked{% endif %}> {{ _('Match diacritics') }}</label>
+              <label><input type="checkbox" name="regex" value="1"{% if criteria.regex %} checked{% endif %}> {{ _('Regex') }}</label>
+              <span id="search-hint" class="search-hint">{{ _('Search ignores case. Match diacritics distinguishes accented letters. Regex examples: cafe|vin, [aeiou]+. With diacritics off, the query is normalized when you search.') }}</span>
+            </div>
           </div>
           {% for name, title, options in [('column', 'Columns', columns), ('label', 'Labels', labels)] %}
             <div class="field filter-field">
@@ -68,7 +76,7 @@
           <button type="submit" class="search-button">{{ _("Search") }} <span aria-hidden="true">→</span></button>
           <a class="clear-link" href="{{ url_for('index', reset=1) }}" hx-get="{{ url_for('index', reset=1) }}">{{ _("Clear") }}</a>
         </form>
-        <p id="search-hint" class="visually-hidden">{{ _("Search ignores case and diacritics. Choose any number of columns and labels; no selections means all. Both filters apply to the same matching cell.") }}</p>
+        <p id="search-feedback" class="search-feedback{% if search_error %} is-error{% endif %}" role="{{ 'alert' if search_error else 'status' }}"{% if not search_error and not search_notice %} hidden{% endif %}>{{ search_error or search_notice or '' }}</p>
       </section>
 
       <p id="request-status" class="request-status" role="status" aria-live="polite">{{ _("Updating…") }}</p>

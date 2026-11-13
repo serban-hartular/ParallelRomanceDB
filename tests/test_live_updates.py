@@ -204,7 +204,7 @@ class LiveRefreshHTTPTests(unittest.TestCase):
     def test_refresh_discards_removed_filter_definitions_instead_of_failing(self):
         view = Page(self.client.get(self.url,query_string={'live':1,'search':1,'q':'',
             'column':'Removed column','label':'Removed label'})).payload
-        self.assertEqual(view['criteria'],{'query':'','column':[],'label':[]})
+        self.assertEqual(view['criteria'],{'query':'','column':[],'label':[], 'diacritics':False, 'regex':False})
 
     def test_single_collection_changes_route(self):
         app = create_app(database_path=self.a['database_path'],test_config={'DEFAULT_UI_LANGUAGE':'en', 'TESTING':True})

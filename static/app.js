@@ -70,7 +70,8 @@
       // or text/filter choices the user has not submitted yet.
       const url = new URL(payload.urls.index, window.location.href);
       url.search = new URLSearchParams({live:'1', search:'1', q:payload.criteria.query,
-        plaintext:payload.plaintext ? '1' : '0', editing:payload.edit_mode ? '1' : '0'});
+        plaintext:payload.plaintext ? '1' : '0', editing:payload.edit_mode ? '1' : '0',
+        diacritics:payload.criteria.diacritics ? '1' : '0', regex:payload.criteria.regex ? '1' : '0'});
       if (payload.etimon !== null) url.searchParams.set('etimon',payload.etimon);
       for (const name of ['label','column']) {
         for (const value of payload.criteria[name]) url.searchParams.append(name,value);
@@ -333,10 +334,13 @@
   }
 
   function syncColumnChooser(instance) {
-    document.querySelectorAll("[data-grid-field]").forEach(input => {
+    const inputs = [...document.querySelectorAll("[data-grid-field]")];
+    inputs.forEach(input => {
       const column = instance.table.getColumn(input.dataset.gridField);
       input.checked = column ? column.isVisible() : true;
     });
+    const all = document.querySelector('[data-grid-all]');
+    if (all) all.checked = inputs.length > 0 && inputs.every(input => input.checked);
   }
 
   function formatRow(instance, row) {
@@ -535,7 +539,8 @@
     document.querySelectorAll('[data-language-switch]').forEach(link => {
       const next = new URL(payload.urls.index, window.location.href);
       next.search = new URLSearchParams({search:'1', q:payload.criteria.query,
-        plaintext:payload.plaintext ? '1' : '0', editing:payload.edit_mode ? '1' : '0'});
+        plaintext:payload.plaintext ? '1' : '0', editing:payload.edit_mode ? '1' : '0',
+        diacritics:payload.criteria.diacritics ? '1' : '0', regex:payload.criteria.regex ? '1' : '0'});
       if (payload.etimon !== null) next.searchParams.set('etimon', payload.etimon);
       for (const name of ['label','column']) {
         for (const value of payload.criteria[name]) next.searchParams.append(name, value);
@@ -572,7 +577,20 @@
     document.querySelector('.search-form').action = payload.urls.index;
     document.querySelector('.search-form').setAttribute('hx-get', payload.urls.index);
     const form = document.querySelector(".search-form");
-    if (!liveView) form.elements.q.value = payload.criteria.query;
+    if (!liveView) {
+      form.elements.q.value = payload.criteria.query;
+      form.elements.diacritics.checked = payload.criteria.diacritics;
+      form.elements.regex.checked = payload.criteria.regex;
+    }
+    if (!liveView || (form.elements.q.value === payload.criteria.query
+        && form.elements.diacritics.checked === payload.criteria.diacritics
+        && form.elements.regex.checked === payload.criteria.regex)) {
+      const feedback = document.getElementById('search-feedback');
+      feedback.textContent = payload.search_error || payload.search_notice || '';
+      feedback.hidden = !feedback.textContent;
+      feedback.classList.toggle('is-error', !!payload.search_error);
+      feedback.setAttribute('role',payload.search_error ? 'alert' : 'status');
+    }
     form.querySelectorAll("[data-search-filter]").forEach(filter => {
       const existing = [...filter.querySelectorAll('input[type="checkbox"]')];
       const options = payload.filters[filter.dataset.searchFilter];
@@ -692,6 +710,11 @@
   }
 
   function initialize() {
+    const clearQuery = document.querySelector('[data-clear-query]');
+    if (clearQuery) {
+      clearQuery.hidden = false;
+      clearQuery.closest('.query-input').classList.add('has-clear-button');
+    }
     const workspace = document.getElementById("workspace");
     if (workspace && !workspace.dataset.initialized) {
       viewGeneration++;
@@ -723,17 +746,34 @@
 
     const filter = event.target.closest("[data-search-filter]");
     if (filter) updateFilterSummary(filter);
-    if (!event.target.matches("[data-grid-field]") || !active || active.updating) return;
+    if (!event.target.matches("[data-grid-field], [data-grid-all]") || !active) return;
+    if (active.updating) {
+      syncColumnChooser(active);
+      return;
+    }
     if (editing()) {
       syncColumnChooser(active);
       showError(t("Close or cancel the cell editor before changing the table layout."));
       return;
     }
-    const column = active.table.getColumn(event.target.dataset.gridField);
-    if (column) event.target.checked ? column.show() : column.hide();
+    const visible = event.target.checked;
+    const fields = event.target.matches('[data-grid-all]')
+      ? active.payload.columns.map(column => column.field) : [event.target.dataset.gridField];
+    fields.forEach(field => {
+      const column = active.table.getColumn(field);
+      if (column) visible ? column.show() : column.hide();
+    });
+    syncColumnChooser(active);
   });
 
   document.addEventListener("click", event => {
+    if (event.target.closest('[data-clear-query]')) {
+      const query = document.getElementById('query');
+      query.value = '';
+      query.dispatchEvent(new Event('input', {bubbles:true}));
+      query.focus();
+      return;
+    }
     if (event.target.closest('[data-cancel-export]')) {
       document.getElementById('export-dialog').close();
       return;
@@ -1080,6 +1120,10 @@
       details.open = false;
       details.querySelector("summary").focus();
     }
+  });
+
+  document.addEventListener('input', event => {
+    if (event.target.closest('.query-field')) document.getElementById('search-feedback').hidden = true;
   });
 
   document.addEventListener("htmx:load", initialize);

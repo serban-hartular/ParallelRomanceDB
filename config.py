@@ -49,3 +49,10 @@ MAX_SEARCH_LENGTH = 500
 
 # Browser interface default; a saved language choice takes precedence.
 DEFAULT_UI_LANGUAGE = 'ro'
+
+# Cumulative regex matching time per search, including result highlights (max 5s).
+SEARCH_REGEX_TIMEOUT_SECONDS = 1.0
+
+# Show successful-search explanations, such as query normalization notices.
+# Errors are always displayed. Restart the app after changing this switch.
+SEARCH_SHOW_NOTICES = False

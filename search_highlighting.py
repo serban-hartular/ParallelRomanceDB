@@ -1,14 +1,21 @@
-"""Highlight literal normalized matches without changing stored cell content."""
+"""Highlight literal or regex matches without changing stored cell content."""
 
 from html import escape
 from html.parser import HTMLParser
 import unicodedata
 
 from text_normalization import LATIN_EXPANSIONS, remove_diacritics
+from search_query import SearchQuery
 
 
-def _normalized_with_offsets(text):
-    """Map normalized, uppercased characters back to original text ranges."""
+def _normalized_with_offsets(text, *, diacritics=False, uppercase=True):
+    """Map the selected search representation back to original text ranges."""
+    if diacritics:
+        normalized,offsets=[],[]
+        for index,char in enumerate(text):
+            for part in char.upper() if uppercase else char:
+                normalized.append(part);offsets.append((index,index+1))
+        return ''.join(normalized),offsets
     decomposed = []
     offsets = []
     for index, character in enumerate(text):
@@ -38,28 +45,23 @@ def _normalized_with_offsets(text):
         ):
             continue
         # pandas literal, case-insensitive searching uses uppercase comparisons.
-        for part in character.upper():
+        for part in character.upper() if uppercase else character:
             normalized.append(part)
             mapping.append(source)
     return ''.join(normalized), mapping
 
 
-def match_ranges(text, query):
-    """Return original text ranges matching the website's normalized search."""
-    needle = remove_diacritics(query).upper()
-    if not needle:
-        return []
-    normalized, offsets = _normalized_with_offsets(text)
-    ranges = []
-    position = 0
-    while (found := normalized.find(needle, position)) != -1:
-        start = offsets[found][0]
-        end = offsets[found + len(needle) - 1][1]
-        if ranges and start <= ranges[-1][1]:
-            ranges[-1] = (ranges[-1][0], max(end, ranges[-1][1]))
-        else:
-            ranges.append((start, end))
-        position = found + len(needle)
+def match_ranges(text, query, *, diacritics=False, regex=False, matcher=None):
+    """Return original ranges using the same effective query as selection."""
+    matcher=matcher or SearchQuery(query,diacritics=diacritics,regex=regex)
+    normalized,offsets=_normalized_with_offsets(text,diacritics=matcher.diacritics,
+                                              uppercase=not matcher.regex and not matcher.case_sensitive)
+    ranges=[]
+    for start,end in matcher.ranges(normalized):
+        if end<=start:continue
+        start,end=offsets[start][0],offsets[end-1][1]
+        if ranges and start<=ranges[-1][1]:ranges[-1]=(ranges[-1][0],max(end,ranges[-1][1]))
+        else:ranges.append((start,end))
     return ranges
 
 
@@ -88,19 +90,28 @@ class _CellHTML(HTMLParser):
         self.tokens.append((True, data))
 
 
-def highlight_content(content, query, *, plaintext=False):
+def highlight_content(content, query, *, plaintext=False, diacritics=False, regex=False,
+                      matcher=None, search_text=None):
     """Return highlighted HTML, or None if the cell has no matching text.
 
     Formatted input must be trusted HTML from the workbook or Delta renderer.
     Plaintext is escaped before inserting marks. Match across rich-text runs,
     wrapping each affected text node separately to preserve valid formatting.
     Query text is never inserted as markup, and attributes are never searched.
+    search_text is the cell's stored plaintext. Imported plaintext omits outer
+    whitespace that its HTML retains; anchor matches must use that same text.
     """
     if not query:
         return None
     tokens = [(True, content)] if plaintext else _CellHTML(content).tokens
     text = ''.join(value for is_text, value in tokens if is_text)
-    ranges = match_ranges(text, query)
+    offset = 0
+    if search_text is not None and text != search_text and text.strip() == search_text:
+        offset = len(text) - len(text.lstrip())
+        text = search_text
+    ranges = [(start + offset, end + offset) for start, end in match_ranges(
+        text, query, diacritics=diacritics, regex=regex, matcher=matcher,
+    )]
     if not ranges:
         return None
 

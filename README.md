@@ -8,8 +8,8 @@ A small catalog database lists the collections and stores browser preferences.
 Read [HANDOFF.md](HANDOFF.md) for development continuity and
 [DEPLOYMENT.md](DEPLOYMENT.md) before deployment work.
 Use [MANUAL_TESTING.md](MANUAL_TESTING.md) for the user acceptance checklist.
-The checklist currently marks T01–T16 and T81–T82 complete; the remaining 75 of
-93 tasks, including new collection-name checks T91–T93, are pending. Automated test results are
+The checklist currently marks T01–T16 and T81–T82 complete; the remaining 80 of
+98 tasks, including new search-mode checks T94–T98, are pending. Automated test results are
 recorded separately in HANDOFF.md and do not change user acceptance status.
 Administration is available at `/admin/` (also linked from the page header).
 See [ADMIN_DESIGN.md](ADMIN_DESIGN.md) for its interface and access rules; the
@@ -525,8 +525,58 @@ never saves changes to the source workbook. Direct Python calls to
 `excel_to_dataframe`/`create_app` raise exceptions for import errors; the
 command-line entry point formats common errors as readable startup messages.
 
-The initial page lists all etymons and displays the first. Search is literal and
-case-insensitive and ignores diacritics: `prajitura` matches `Prăjitură`.
+The initial page lists all etymons and displays the first. Search is
+case-insensitive, with two independent checkboxes (both off by default):
+
+| Match diacritics | Regex | Search behavior |
+| --- | --- | --- |
+| Off | Off | Literal substring in normalized text: `prajitura` matches `Prăjitură`. |
+| On | Off | Literal substring in original plaintext: `café` matches `CAFÉ`, but `cafe` does not match `café`. |
+| Off | On | Regular expression in normalized text; accented query literals are normalized too. |
+| On | On | Regular expression in original plaintext, retaining accented literals. |
+
+With **Regex** enabled, `cafe|vin` matches either word, `^cafe` matches at the
+start of a cell, and `\bcafé\b` matches a whole word. Matching uses Unicode
+word boundaries and case folding. Regex syntax applies to cell plaintext,
+including line breaks, rather than the HTML markup. Anchors use stored plaintext;
+outer spaces retained in imported rich text stay visible around the highlights.
+Ordinary punctuation stays literal when Regex is off.
+
+With **Match diacritics** off, submitting Search replaces the input with the
+normalized expression actually used: `café|cœur` becomes `cafe|coeur`.
+Successful-search explanations are hidden by default. Set `SEARCH_SHOW_NOTICES = True`
+in `config.py` and restart to show notices such as query normalization. Search
+errors always remain visible. The short search hint sits beside the two checkboxes
+and uses your editable translations. Regex operators, escapes, group names, and character
+properties retain their meaning. Ligatures are grouped before repetition:
+`œ+` becomes `(?:oe)+`; `[éœx]+` becomes `(?:[ex]|oe)+`. Literal Catalan
+`l·l` becomes `ll`. Ambiguous transformations, such as negated ligature classes
+(`[^œ]`), isolated combining marks, or middle dots whose context is hidden by
+regex structure, show an error asking for a rewritten pattern or Match diacritics.
+Ranges larger than 256 characters cannot be normalized; enable Match diacritics
+or narrow the range.
+
+Regex patterns are limited to 500 characters before and after normalization,
+32 nested groups, counted repetitions up to 1,000 and a conservative combined
+counted-repetition limit of 10,000. Ordinary/named groups, lookarounds,
+backreferences, Unicode properties, and inline `i/m/s/f/a/u` flags are supported.
+Recursive, fuzzy, verbose, and version-changing constructs are rejected.
+The pinned `regex` dependency runs matching with a cumulative time budget,
+defaulting to one second per request, including highlights. Configure
+`SEARCH_REGEX_TIMEOUT_SECONDS` in `config.py` (greater than zero, at most five).
+Invalid, unsupported, or slow patterns show a translated inline message;
+a failed search does not replace the last valid saved search. A highlight
+failure clears all marks and reports the error; complete matching results
+remain available. Zero-length regex matches can select cells but are not marked.
+
+Both switches are remembered with the applied search per collection, and stay
+applied during navigation, language changes, and automatic updates. Background
+updates preserve any unsubmitted query and checkbox changes. Clear resets the
+query, filters, and both switches. The permanent × inside the search box only
+clears its text and focuses the input, keeping filters and switches; submit
+Search to apply it. The search controls and errors also work
+without JavaScript.
+
 `excel_to_dataframe` adds `nodiacritics_plaintext` for searching while retaining
 the original HTML and plaintext for display. Column and label checkbox menus
 allow multiple selections; no selections means all. A cell must match any
@@ -589,8 +639,12 @@ disappear at either end. Controls wrap on narrow screens.
 
 Searches, etymon selection, Clear, and the formatted/plaintext switch update
 the workspace through htmx without reloading the page. Tabulator provides the
-interactive table. Use **Table columns** to choose visible columns, drag
-column-header edges to resize widths, and drag row borders to resize heights.
+interactive table. Use **Table columns** to choose visible columns. Its first
+checkbox, **All columns / Toate coloanele**, selects every content column; it
+automatically unchecks when an individual column is hidden, and rechecks when
+all are visible. Unchecking it hides the content columns, keeping the row
+identifiers visible. These choices use the existing saved layout preferences.
+Drag column-header edges to resize widths and row borders to resize heights.
 Labels and label numbers remain visible while scrolling horizontally.
 Persistent, draggable scrollbars sit **above the table** for left/right scrolling
 and at its **right edge** for up/down scrolling. They stay visible whenever
@@ -800,9 +854,10 @@ find_replace_excel(
 )
 ```
 
-`search_dataframe` ignores diacritics and letter variants, but defaults to
-**case-sensitive** matching. The website explicitly passes
-`case_sensitive=False`. Its `column` and `label` arguments each accept a single
+`search_dataframe` defaults to literal, diacritic-insensitive but
+**case-sensitive** matching. Pass `diacritics=True` to search original plaintext,
+`regex=True` to interpret the query as a regex, and `case_sensitive=False` to
+ignore case. Database searches and the website ignore case by default. Its `column` and `label` arguments each accept a single
 string or an iterable of strings; `None` or an empty iterable means all values.
 `get_etimon` returns a wide DataFrame with label and
 label number first, one column per language/notes field, and empty strings for

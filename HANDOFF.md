@@ -1,6 +1,6 @@
 # XLDB development handoff
 
-Updated 2026-11-09 after collection naming improvements; user acceptance testing is incomplete.
+Updated 2026-11-13 after diacritic/regex search; user acceptance testing is incomplete.
 Workspace: `/home/hartular/Lingv/XLDB`. User-facing name: **Parallel Words**.
 Read `README.md` first, and `DEPLOYMENT.md` before deployment work.
 
@@ -8,12 +8,13 @@ Read `README.md` first, and `DEPLOYMENT.md` before deployment work.
 
 MANUAL_TESTING.md currently marks **T01–T16 and T81–T82 complete**; preserve
 these user checkbox marks. Details (browser/date/environment) have not been
-entered in its result table. The other **75 of 93 tasks remain unchecked and
+entered in its result table. The other **80 of 98 tasks remain unchecked and
 pending**, including all administrator tasks T60–T80, language tasks T85–T90,
-and new collection-name tasks T91–T93. Agent-run automated tests and screenshot reviews do not
+collection-name tasks T91–T93, and search-mode tasks T94–T98. Agent-run automated tests and screenshot reviews do not
 complete user acceptance tasks.
 
-The current Python verification passed 252 tests, including nine collection-name tests, ten localization tests, and nine export tests.
+The current full Python verification passed 270 tests, including 18 new search tests.
+A final focused search/highlighting/localization pass passed 34 tests.
 Scrollbar and JavaScript syntax checks also passed. Browser verification details
 are recorded in the milestones below. Real Excel
 desktop checks, the full manual two-user workflows, and the latest remote
@@ -33,8 +34,8 @@ first pass, plus a place to record actual outcomes.
 > first; read DEPLOYMENT.md before deployment work. The app is branded Parallel
 > Words and uses Flask + htmx + Tabulator + Quill, served by Waitress.
 > MANUAL_TESTING.md marks T01–T16 and T81–T82 complete; preserve those user marks.
-> The other 75 of 93 tasks, including admin T60–T80, language T85–T90, and naming
-> T91–T93, remain pending. Automated Python checks passed (252 tests), along with browser/scrollbar/JS checks recorded
+> The other 80 of 98 tasks, including admin T60–T80, language T85–T90, naming
+> T91–T93, and search T94–T98, remain pending. Automated Python checks passed (270 tests), along with browser/scrollbar/JS checks recorded
 > below; these are not user manual acceptance results. Do not check off
 > tasks or assume the latest build is verified in the user's Excel/remote setup.
 > A catalog lists collections; each has a separate SQLite file, workbook
@@ -48,7 +49,23 @@ first pass, plus a place to record actual outcomes.
 > Column names/order, title priority, initial-entry column, row type names/order,
 > marker roles, addability, and default colors are stored in each collection DB.
 > Imported text, rich formatting, and exact label spelling/spacing must survive.
-> Search supports multiple filters and ignores case/diacritics. Search controls
+> Search ignores case, with independent Match diacritics and Regex checkboxes,
+> both off by default. Diacritics off selects nodiacritics_plaintext and normalizes
+> query literals with the shared normalizer; on selects plaintext_content. The
+> submitted effective query appears in the input. SEARCH_SHOW_NOTICES defaults
+> to False in config.py, hiding successful-search explanations; True restores
+> them after restart. Errors always display. The short translated hint sits
+> beside the two checkboxes; preserve the user's translation edits.
+> Regex selection and highlights share one matcher. Ligatures are grouped before
+> repetition and positive sets can expand to alternations; ambiguous negated
+> ligature sets/combining marks/middle-dot contexts show translated inline errors.
+> Switches survive navigation, language changes and live updates per collection.
+> Background refresh preserves unsent controls; Clear resets both switches.
+> regex==2026.11.9 adds Unicode timed matching; install requirements.txt after pull.
+> Default cumulative regex budget is one second including highlights, configurable
+> by SEARCH_REGEX_TIMEOUT_SECONDS (max five seconds). Invalid or slow patterns
+> retain the last valid saved search. See README for supported syntax/limits.
+> No database migration or new Nginx settings are needed. Search controls
 > stay visible in Edit mode. Double-click opens Quill; Close/Ctrl+Enter saves,
 > Cancel/Escape discards. Typography offers font size and whole-cell spacing.
 > The editor suppresses language suggestions and preserves table scroll position.
@@ -86,7 +103,7 @@ first pass, plus a place to record actual outcomes.
 > Schema 7 adds dataset.content_revision and transactional content-table triggers.
 > LIVE_REFRESH_SECONDS controls polling. The agent has not deployed this work
 > remotely; the user's latest deployment status is unconfirmed.
-> MANUAL_TESTING.md provides 93 user acceptance tasks plus an isolated-test setup.
+> MANUAL_TESTING.md provides 98 user acceptance tasks plus an isolated-test setup.
 > /admin/ implements the approved plain-HTML design: local set-admin-password
 > bootstrap/reset, independent administrator browser-session login, global password
 > management, collection-scoped Trash preview/recovery, filtered history/activity,
@@ -131,6 +148,87 @@ first pass, plus a place to record actual outcomes.
 > workbook filename/source suffixes; single-database mode uses its sheet name.
 > Inspect Git status and preserve
 > existing changes; no implementation request is pending until I provide one.
+
+**Diacritic and regex search (2026-11-13)**
+
+Implemented the approved two-switch design. Both switches default off; search
+remains case-insensitive. `search_query.py` owns the effective query, normalization,
+validation, Unicode regex matching, cumulative timeout, and highlight spans.
+`lexicon_db.py` selects the original or normalized stored column. Literal matching
+keeps its SQL path; regex rows are filtered by exact column/label choices before
+matching. `df_search.py` exposes the same `diacritics`/`regex` options, preserving
+its historical case-sensitive default and input-frame immutability.
+
+Regex literals and escaped Unicode characters normalize while syntax, group
+names/references, and Unicode properties remain intact. `œ+` becomes `(?:oe)+`;
+`[éœx]+` becomes `(?:[ex]|oe)+`. Negated ligature classes and structurally ambiguous
+normalization are rejected with editable ro/en catalog messages. Bounded patterns,
+group depth, counted repetitions, range expansion, total matching time, and
+highlight count prevent runaway work. Matching uses the pinned `regex` package,
+Unicode full case folding, and `concurrent=True`; no per-row fresh full timeout.
+
+The same effective matcher maps highlights back to original rich text, including
+ligatures, decomposed accents, HTML entities, and formatting runs. Anchors use
+the stored plaintext while preserving outer spaces in imported HTML. Zero-length
+matches select cells but receive no empty marks. Matching errors show an inline
+message and no partial results. Highlighting errors clear all marks and retain
+complete results with a warning; neither failure replaces saved valid criteria.
+The query input shows normalization only after submission. Search state includes
+both switches per collection and in language/live URLs. Background refresh keeps
+unsent text and checkbox state; draft navigation guards stay in place. Both
+languages and ordinary HTML forms are covered. No stored workbook text, schema,
+real databases, credentials, or remote installation were changed.
+
+Verification: `tests/test_regex_search.py` adds 18 self-contained tests; its latest
+focused run with the six existing highlight tests passed (24 total). Four focused
+Chromium search groups passed, including plain HTML, mobile fit, language and
+collection persistence, rich-text highlights, inline errors, applied-vs-unsent
+live state, and draft protection. All eight existing live-update browser groups
+passed. Four i18n helper tests, six scrollbar tests, and JavaScript syntax checks
+passed. The full suite passed 270 tests in 153.933 seconds. A final refinement
+for escaped non-ASCII literals passed the 34-test search/highlighting/localization
+subset. The initial disposable full
+run used the wrong historical workbook; its fixture-only failures were resolved
+by restoring `e3112e5:db/example.xlsx` into the snapshot, never the live workspace.
+The snapshot is `/tmp/xldb-regex-full-254pxq9q`; legacy fixture recovery now uses
+Git history because the earlier temporary checkouts were removed.
+
+Deployment: install `.venv/bin/python -m pip install -r requirements.txt` and
+restart. No database or Nginx changes for this feature. Pending manual tasks
+T94–T98 were added; all existing user checkbox marks were preserved (18 complete,
+80 pending out of 98). Automated checks do not complete acceptance tasks.
+
+**Search hint and optional success notices (2026-11-13)**
+
+The user's shortened search hint now appears beside the two checkboxes, wrapping
+at narrow widths. `translations.json` was preserved unchanged for this follow-up,
+including the user's shorter Romanian checkbox label. `SEARCH_SHOW_NOTICES = False`
+in config.py suppresses successful-search explanations in full HTML and htmx/live
+payloads; changing it to True and restarting restores them. Normalized queries
+still appear in the input; errors always remain visible. Existing request tests
+cover the default and enabled configurations, and browser checks cover hidden
+success notices and visible errors. Prior full-suite results above predate this
+small follow-up. Verification passed 28 focused Python tests, four search browser
+groups, and JavaScript syntax checks. Desktop and mobile screenshot review
+confirmed the hint placement. No user acceptance checkbox marks were changed.
+
+**Permanent search clear and bulk column visibility (2026-11-13)**
+
+The query input has an always-visible × with translated Clear search text label.
+It clears only query input text, emits the usual input event, and refocuses the
+input, preserving filters, switches, and applied results until Search. JavaScript
+reveals the custom button and suppresses the duplicate native clear; without JS,
+the native search control remains available (with explicit visible opacity).
+All columns / Toate coloanele is the first display-column checkbox. It shows or
+hides every content column, leaving frozen identifiers visible, and tracks
+individual visibility through syncColumnChooser, including saved layouts and
+live updates. Opening a cell draft blocks bulk layout changes. The existing
+All columns translation was reused; only Clear search text was added to the
+catalog, preserving all prior edits. Manual checks T94/T98 were expanded without
+changing any user checkbox marks. Verification passed 28 focused Python tests,
+five Chromium search/layout groups (including bulk visibility persistence and
+draft protection), four translation helper tests, six scrollbar tests, and
+JavaScript syntax checks. Desktop/mobile screenshots were reviewed.
 
 **Collection naming improvements (2026-11-09)**
 
@@ -784,19 +882,24 @@ may be affected by that helper's openpyxl conversion.
 
 **Verification and environment**
 
-User manual acceptance: **T01–T16 and T81–T82 checked; 75 of 93 tasks pending**,
-including all administrator, localization, and new collection-name tasks. The checks below are agent-run and do
+User manual acceptance: **T01–T16 and T81–T82 checked; 80 of 98 tasks pending**,
+including all administrator, localization, collection-name, and new search-mode tasks. The checks below are agent-run and do
 not change user acceptance status.
 
-Latest Python verification: 252 tests passed in the disposable source snapshot
-`/tmp/xldb-collection-names-check-9_mmfc0f`, with a separate nine-test collection-name pass,
-using the project's Python at
-`/home/hartular/Lingv/XLDB/.venv/bin/python`. The legacy `db/example.xlsx` fixture
-was copied there from the preceding test checkout
-`/tmp/xldb-creation-tests-u62wko89`. It is no longer in current HEAD or the live
-workspace; do not restore it over the user's workbook or touch db/research.sqlite3.
-Copy current source/tests into the disposable snapshot before further checks.
-Self-contained collection/admin suites run directly in the workspace.
+Latest full Python verification: 270 tests passed in the disposable snapshot
+`/tmp/xldb-regex-full-254pxq9q`, using the project's Python at
+`/home/hartular/Lingv/XLDB/.venv/bin/python`. After the final escaped-Unicode
+literal refinement, the focused search/highlighting/localization subset passed
+34 tests. The legacy `db/example.xlsx` fixture was recovered read-only from
+`e3112e5:db/example.xlsx` in Git history into the snapshot. It is absent from
+current HEAD/live workspace; do not restore it over the user's workbook or touch
+real databases. Earlier temporary checkouts have been removed. Copy current
+source/tests into a disposable snapshot before further checks. Self-contained
+collection/admin/search suites run directly in the workspace.
+The regex change passed four focused Chromium search groups, all eight existing
+live-update browser groups, four translation helper tests, six scrollbar tests,
+JavaScript syntax checks, and pip dependency validation. See its milestone for
+behavior, limits, deployment, and acceptance details.
 Four translation helper tests, six scrollbar tests, JavaScript syntax checks,
 and three focused collection-name browser groups passed for the naming change.
 The previous localization change passed three focused browser groups. The previous export change passed its
@@ -816,6 +919,7 @@ are `tests/test_cell_editor_browser.js`, `tests/test_collections_browser.js`,
 `tests/test_exports_browser.js` adds focused HTML/dialog multi-export checks.
 `tests/test_localization_browser.js` covers Romanian/English with and without JS.
 `tests/test_collection_names_browser.js` covers imports, rename restrictions, and headings.
+`tests/test_regex_search_browser.js` covers search modes, normalization, live state, and plain HTML.
 Playwright is outside the project at `/tmp/xldb-browser/node_modules`; its
 browser installation is `/tmp/xldb-browser/browsers`. Use NODE_PATH and
 PLAYWRIGHT_BROWSERS_PATH accordingly. Browser servers/databases are temporary.
@@ -834,7 +938,7 @@ access DB/password setup as documented, with its directory writable by the servi
 **Next work, when requested**
 
 The immediate user-facing follow-up is the still-pending MANUAL_TESTING.md
-acceptance pass, including T60–T80 for administration, T83–T84 for export, T85–T90 for language, and T91–T93 for collection names. Help with setup or fix
+acceptance pass, including T60–T80 for administration, T83–T84 for export, T85–T90 for language, T91–T93 for collection names, and T94–T98 for search modes. Help with setup or fix
 specific reported failures when asked; do not infer that the checklist has
 already been completed or begin unrelated features during handoff.
 
